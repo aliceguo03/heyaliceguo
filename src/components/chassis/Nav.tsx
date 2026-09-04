@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type FocusEvent } from "react";
-import { NAV_PROJECTS } from "@/content/nav";
+import { PROJECTS } from "@/content/projects";
 import { useActiveRoute } from "@/lib/useActiveRoute";
 import {
   EMAIL,
@@ -169,13 +169,13 @@ export function Nav() {
 
         {open && (
           <ul id="nav-work-menu" className="flex flex-col gap-sm pl-lg">
-            {NAV_PROJECTS.map((project) => (
-              <li key={project.navLabel}>
+            {PROJECTS.map((project) => (
+              <li key={project.slug}>
                 <Link
                   href={project.href}
                   className="group flex items-center gap-lg text-mono-header font-mono text-light-gray transition-colors duration-200 ease-standard hover:text-pure-white"
                 >
-                  {project.navLabel}
+                  {project.name}
                   <span
                     aria-hidden="true"
                     className="opacity-0 transition-opacity duration-200 ease-standard group-hover:opacity-100"

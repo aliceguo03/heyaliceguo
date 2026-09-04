@@ -41,19 +41,24 @@ export function StatusPill({
   }
 
   return (
-    <div className="flex items-center gap-btn-y">
-      {dot}
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="group flex items-center gap-xs text-mono font-mono text-muted-gray transition-colors duration-200 ease-standard hover:text-accent-blue-light"
-      >
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group flex items-center gap-xs text-mono font-mono text-muted-gray transition-colors duration-200 ease-standard hover:text-accent-blue-light"
+    >
+      {/* Dot + label move together as one unit on hover, so the transform
+          lives on this shared span rather than on the label alone. */}
+      <span className="flex items-center gap-btn-y transition-transform duration-200 ease-standard group-hover:-translate-x-sm">
+        {dot}
         {label}
-        <span aria-hidden="true" className="inline-block -rotate-45">
-          →
-        </span>
-      </a>
-    </div>
+      </span>
+      <span
+        aria-hidden="true"
+        className="flex size-icon shrink-0 items-center justify-center"
+      >
+        ↗
+      </span>
+    </a>
   );
 }

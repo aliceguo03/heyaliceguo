@@ -3,6 +3,13 @@
 import { useEffect, useRef } from "react";
 import Image from "next/image";
 
+// The source recordings carry a thin window-chrome border. ~20px is cropped
+// from each edge of the 1035px-wide media well by scaling the video up
+// slightly inside its (already overflow-hidden) well. Not a design token —
+// recording artifact correction, same treatment as the geometry consts in
+// ProjectCard. Static images have no such border and are left unscaled.
+const VIDEO_ZOOM = 1.04;
+
 // Fills the project card's media well (I441:5988;439:5398). Falls back to a
 // static image when no video is given. When a video is given, playback is
 // driven entirely by an IntersectionObserver — play on enter, pause on exit —
@@ -66,6 +73,7 @@ export function ProjectMedia({
       playsInline
       preload="metadata"
       className="size-full object-cover"
+      style={{ transform: `scale(${VIDEO_ZOOM})` }}
     />
   );
 }

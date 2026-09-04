@@ -92,6 +92,11 @@
   /* Nav's own height, referenced by anything that pins beneath it */
   --spacing-nav-height: 94px;
 
+  /* --- Containers --------------------------------------------------------- */
+  /* Project card frame + footer width (Figma 441:5985, 441:5999). Generates
+     max-w-page. */
+  --container-page: 1610px;
+
   /* --- Radius ----------------------------------------------------------- */
   --radius-nav: 12px;   /* nav bar, nav buttons */
   --radius-card: 20px;  /* cards, frames, expanded nav panel */

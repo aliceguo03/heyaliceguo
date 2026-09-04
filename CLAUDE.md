@@ -73,6 +73,8 @@ Violating any of these is a bug, even if the result looks correct.
     surrounding whitespace flexes. Reference width is 1710px (16" MacBook Pro);
     the design must hold at 1440×760 (13" Air) without overflow or clipping.
 
+    Project cards are intentionally taller than the viewport on smaller screens. They pin and stack rather than sitting at rest, so a card exceeding viewport height is expected, not a defect. The 1440×760 no-clipping requirement applies to the hero, nav, footer, and page chrome — not to card height.
+
     Full-width sections use `max-width` with fluid horizontal margins, not fixed
 pixel widths. Project cards are 1610px max, not 1610px fixed.
 12. **All images use `next/image`.** Never a raw `<img>`. Set explicit
