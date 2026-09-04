@@ -1,3 +1,11 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(node /private/tmp/claude-501/-Users-aliceguo-heyaliceguo/48a5425d-2101-404e-82de-1c92bdd19fae/scratchpad/check.mjs)",
+      "Bash(node /private/tmp/claude-501/-Users-aliceguo-heyaliceguo/48a5425d-2101-404e-82de-1c92bdd19fae/scratchpad/check2.mjs)",
+      "Bash(node /private/tmp/claude-501/-Users-aliceguo-heyaliceguo/48a5425d-2101-404e-82de-1c92bdd19fae/scratchpad/pill.mjs)"
+    ]
+  },
   "model": "opusplan"
 }

@@ -5,6 +5,15 @@ Personal portfolio for Alice Guo — product designer and design engineer, San D
 The design is finished and locked in Figma. Your job is faithful implementation, not
 design. When something in the design seems odd, ask — do not "improve" it.
 
+This is a portfolio site. Its job is to make a hiring manager or
+recruiter want to look at the work. That means: fast, quiet, and precise.
+Every animation should feel considered rather than showy. Nothing should
+call attention to itself except the work.
+
+Alice built the design. She is a designer who codes, so explain technical
+tradeoffs directly — don't simplify them away. When something is
+ambiguous, ask rather than guessing.
+
 ---
 
 ## Stack
@@ -48,6 +57,28 @@ Violating any of these is a bug, even if the result looks correct.
    name, role, timeline, or status in a component.
 10. **Every animation respects `prefers-reduced-motion`,** collapsing to
     opacity-only or no motion at all.
+11. **Desktop-first, 1710px reference width.** The Figma design is desktop-only.
+    Build components to match it exactly at desktop widths. Use fluid layout
+    where it's free (flex, max-width containers, relative units), but do NOT
+    invent mobile or tablet layouts, breakpoints, or hamburger menus. Responsive
+    behavior is a separate later pass with its own designs. If a component can't
+    work without a mobile decision, stop and ask.
+    **Viewport fill.** The hero section fills the viewport height on any laptop
+    screen: `min-height: 100svh` (not `100vh`), with content vertically centered
+    and the roles ticker pinned to the bottom edge. Use `min-height`, never a
+    fixed `height`, so short viewports grow rather than clip.
+
+    Content does not scale with the viewport. Type sizes, the photo stack, and
+    the button stay at their Figma pixel values on every screen — only the
+    surrounding whitespace flexes. Reference width is 1710px (16" MacBook Pro);
+    the design must hold at 1440×760 (13" Air) without overflow or clipping.
+
+    Full-width sections use `max-width` with fluid horizontal margins, not fixed
+pixel widths. Project cards are 1610px max, not 1610px fixed.
+12. **All images use `next/image`.** Never a raw `<img>`. Set explicit
+    `width`/`height`, or use `fill` inside a sized parent. Layout shift
+    from an unsized image is a bug.
+
 
 ---
 
@@ -80,7 +111,11 @@ Token names: `space-xs`, `space-s`, `space-sm`, `space-md`, `space-lg`, `space-x
 
 ### Radius
 
-One value: `20px`, token `rounded-card`. Applies to cards, buttons, nav, and frames.
+Four values:
+- `10px`, token `rounded-btn` — primary buttons.
+- `12px`, token `rounded-nav` — the nav bar and nav buttons.
+- `20px`, token `rounded-card` — cards, frames, media wells, and the expanded nav panel.
+- `30px`, token `rounded-panel` — the white project card.
 
 ### Color
 
@@ -88,8 +123,6 @@ Neutrals, backgrounds, and three accents. See `globals.css`.
 Accent usage is semantic, not decorative:
 - `accent-success` `#71F0A2` — live / shipped status dot
 - `accent-caution` `#FC8A8A` — NDA-protected status dot
-- `accent-blue` `#70C8FF` — prototype status dot
-
 ---
 
 ## Fonts
@@ -102,8 +135,15 @@ layout shift. Do not load fonts from a CDN or from Google Fonts.
 
 ## Content model
 
-`src/content/projects.ts` is the single source of truth for all four projects. The
-homepage cards, the Work index, and each project detail page all read from it.
+`src/content/projects.ts` holds all nine projects. Four are featured on the
+homepage; all nine appear in the Work page and the nav dropdown.
+
+Add to the Project type:
+  featured: boolean   // true for the four homepage projects
+
+Homepage reads `projects.filter(p => p.featured)`. Work page and nav read all nine.
+The five non-featured projects have no role/timeline/color yet — leave those
+fields optional and don't invent values.
 
 ```ts
 type Project = {
@@ -245,6 +285,11 @@ gimmicky, cut it.
 The inner white card, its screenshot, meta rows, and CTA are static. Only the outer
 frame participates in the stack.
 
+The nav (`src/components/chassis/Nav.tsx`) is `sticky top-0` and reserves
+`--spacing-nav-height` (94px). Each card's sticky `top` must reference that same
+token, not a literal, so the two pinning systems agree on where the top of the
+viewport actually is.
+
 ### Hero load sequence
 
 On page load, in order:
@@ -256,6 +301,27 @@ On page load, in order:
 
 Total sequence under 900ms. Use `STAGGER` between the bio lines. This is the one
 orchestrated moment on the page — everything else is quiet.
+
+### Photo stack — `src/components/home/PhotoStack.tsx`
+
+Five photos in the hero, stacked like a deck with slight rotational offsets.
+Clicking sends the top photo to the back and brings the next one forward,
+cycling circularly and looping forever.
+
+Photos: `public/photos/photo-01.jpg` through `photo-05.jpg`. All identical
+dimensions and aspect ratio.
+
+- The outgoing photo rotates back and drops behind the stack while the
+  incoming one rises to the top. Use `EASE` and `DUR.reveal`.
+- Preserve the fanned offsets and rotations from the Figma photo album
+  component. Each layer sits slightly offset from the one beneath it.
+- The stack is one `<button>` with an `aria-label` describing what clicking
+  does. Enter and Space advance it, and focus must be visible.
+- Each photo needs real alt text. Announce the change with an
+  `aria-live="polite"` region so it isn't silent for screen reader users.
+- All five images load eagerly. A flash of empty space on click is a bug.
+  `priority` on the first, eager loading on the rest.
+- Under reduced motion: instant swap. No flip, no rotation, no transition.
 
 ### Footer clock
 

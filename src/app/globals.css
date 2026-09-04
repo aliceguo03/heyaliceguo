@@ -22,12 +22,12 @@
 
   /* Mono — structural labels, meta rows, nav, status */
   --text-mono-header: 24px;
-  --text-mono-header--line-height: 1;
-  --text-mono-header--letter-spacing: 6px;
+  --text-mono-header--line-height: 32px;
+  --text-mono-header--letter-spacing: 0.06em;
 
   --text-mono: 20px;
-  --text-mono--line-height: 1;
-  --text-mono--letter-spacing: 6px;
+  --text-mono--line-height: 26px;
+  --text-mono--letter-spacing: 0.06em;
 
   /* Body — prose */
   --text-body: 20px;
@@ -35,7 +35,7 @@
   --text-body--letter-spacing: 0;
 
   /* --- Color: backgrounds ---------------------------------------------- */
-  --color-porcelain: #ffffff;
+  --color-porcelain: #fefffd;
   --color-ink: #0a0a0a;
 
   /* --- Color: light-mode neutrals --------------------------------------- */
@@ -60,6 +60,10 @@
   --color-accent-caution: #fc8a8a; /* NDA-protected  */
   --color-accent-blue: #70c8ff;    /* prototype      */
 
+  /* --- Color: interaction states ----------------------------------------- */
+  --color-subtle-gray: #f2f2f2;       /* nav button hover fill */
+  --color-accent-blue-light: #118edc; /* icon hover, on light backgrounds */
+
   /* --- Color: per-project card backgrounds ------------------------------ */
   /* PLACEHOLDERS — approximate solids pulled from the mockup.
      Replace with the real gradient images in public/projects/gradients/
@@ -82,8 +86,31 @@
   --spacing-btn-x: 24px;
   --spacing-btn-y: 16px;
 
+  /* Icon glyphs — mail, LinkedIn, hero + footer */
+  --spacing-icon: 26px;
+
+  /* Nav's own height, referenced by anything that pins beneath it */
+  --spacing-nav-height: 94px;
+
   /* --- Radius ----------------------------------------------------------- */
-  --radius-card: 20px;
+  --radius-nav: 12px;   /* nav bar, nav buttons */
+  --radius-card: 20px;  /* cards, frames, expanded nav panel */
+  --radius-btn: 10px;   /* primary buttons (Figma var corner-rounding/button) */
+  --radius-panel: 30px; /* white project card (Figma var corner-rounding/large) */
+
+  /* --- Shadow ------------------------------------------------------------- */
+  /* Front layer of the hero photo stack only. */
+  --shadow-photo: 84px 140px 46px rgba(0, 0, 0, 0), 54px 90px 42px rgba(0, 0, 0, 0.01),
+    30px 50px 35px rgba(0, 0, 0, 0.05), 13px 22px 26px rgba(0, 0, 0, 0.09),
+    3px 6px 14px rgba(0, 0, 0, 0.1);
+
+  /* White project card, floating over its gradient frame. */
+  --shadow-card: 8px 15px 37px 0px rgba(0, 0, 0, 0.1);
+
+  /* --- Easing ------------------------------------------------------------- */
+  /* Mirrors EASE in src/lib/motion.ts. Use for CSS transitions only —
+     JS-driven motion imports EASE directly. */
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ==========================================================================
@@ -105,6 +132,62 @@ html.lenis body {
 
 .lenis.lenis-smooth {
   scroll-behavior: auto !important;
+}
+
+/* The hero is exactly one screen. The nav sits in flow above it, so its own
+   height comes off the top of the fill. min-height, never height: short
+   windows grow and scroll rather than clipping. svh, not vh, so mobile
+   browser chrome can't break it later. */
+.viewport-fill {
+  min-height: calc(100svh - var(--spacing-nav-height));
+}
+
+/* Role ticker (Ticker.tsx) — a continuous marquee, not a discrete transition,
+   so it deliberately sits outside the EASE/DUR system in lib/motion.ts:
+   `linear` avoids the surge-and-settle an eased curve produces every loop,
+   and the duration is an order of magnitude past anything in DUR. Scoped to
+   the ticker only — not a general-purpose animation utility. */
+@keyframes ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.ticker-track {
+  animation: ticker-scroll 48s linear infinite;
+}
+
+.ticker-track:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+    animation: none;
+  }
+}
+
+/* Fade the ticker's edges instead of clipping. Stops at --spacing-xl to
+   match the track's own horizontal inset, so the fade begins exactly where
+   the padding does. */
+.ticker-fade {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black var(--spacing-xl),
+    black calc(100% - var(--spacing-xl)),
+    transparent
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black var(--spacing-xl),
+    black calc(100% - var(--spacing-xl)),
+    transparent
+  );
 }
 
 /* Visible keyboard focus. Do not remove. */
