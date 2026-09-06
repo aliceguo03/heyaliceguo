@@ -267,32 +267,6 @@ Continuous horizontal marquee of role labels separated by `/`, in JetBrains Mono
 
 ### Stacked project cards — `src/components/home/ProjectStack.tsx`
 
-<<<<<<< Updated upstream
-The signature scroll interaction. Reference: hosierbrown.framer.website
-
-Each project card is full-bleed with `rounded-card` corners. As the user scrolls:
-
-1. The current card **pins** at the top of the viewport and stays there.
-2. The next card slides up from below and covers it.
-3. The covered card stays pinned underneath — it does not scroll away.
-4. Repeat through all four cards.
-
-Implementation: `position: sticky` on each card wrapper with `top` at the pin
-position, cards in document order so later ones paint above earlier ones. Use scroll
-progress from `motion` only if sticky alone can't achieve it.
-
-Optional refinement, worth trying and easy to remove: scale the covered card down
-very slightly (to ~0.97) as the next one rises, to suggest depth. If it reads as
-gimmicky, cut it.
-
-The inner white card, its screenshot, meta rows, and CTA are static. Only the outer
-frame participates in the stack.
-
-The nav (`src/components/chassis/Nav.tsx`) is `sticky top-0` and reserves
-`--spacing-nav-height` (94px). Each card's sticky `top` must reference that same
-token, not a literal, so the two pinning systems agree on where the top of the
-viewport actually is.
-=======
 The signature scroll interaction (rewritten again; the previous session's two-strip
 mechanic — gradient frames AND the tile's contents both translating in lockstep — was
 replaced wholesale, not adapted, because it had five defects: the tile interrupted the
@@ -408,7 +382,6 @@ buttons row's top edge (`ACTIONS_GAP`, equal to `--spacing-lg` — use that toke
 literal). The section's own height (`SECTION_H = TRAVEL + STAGE_H`) ends exactly at
 frame 04's bottom edge with no viewport term, so this gap no longer scales with window
 height the way the previous version's did.
->>>>>>> Stashed changes
 
 ### Hero load sequence
 

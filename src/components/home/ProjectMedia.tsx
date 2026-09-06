@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { CONTENT_W } from "./projectGeometry";
 
@@ -13,13 +13,6 @@ const VIDEO_ZOOM = 1.04;
 
 // Fills the project card's media well (I441:5988;439:5398). Falls back to a
 // static image when no video is given. When a video is given, playback is
-<<<<<<< Updated upstream
-// driven entirely by an IntersectionObserver — play on enter, pause on exit —
-// rather than the `autoPlay` attribute, so `prefers-reduced-motion` can be
-// checked before a single frame plays instead of racing a browser-started
-// video. Under reduced motion, no observer is created at all: the poster is
-// the final state.
-=======
 // gated by visibility — play on screen, pause off screen.
 //
 // Two ways a caller determines "on screen," selected by whether `visible`
@@ -45,7 +38,6 @@ const VIDEO_ZOOM = 1.04;
 // single frame plays rather than racing a browser-started video. Under
 // reduced motion, no observer is created at all: the poster is the final
 // state.
->>>>>>> Stashed changes
 export function ProjectMedia({
   thumbnail,
   video,
@@ -58,10 +50,7 @@ export function ProjectMedia({
   visible?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-<<<<<<< Updated upstream
-=======
   const [observedOnScreen, setObservedOnScreen] = useState(false);
->>>>>>> Stashed changes
 
   useEffect(() => {
     if (!video) return;
@@ -72,17 +61,7 @@ export function ProjectMedia({
     if (!el) return;
 
     const observer = new IntersectionObserver(
-<<<<<<< Updated upstream
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          el.play().catch(() => {});
-        } else {
-          el.pause();
-        }
-      },
-=======
       ([entry]) => setObservedOnScreen(entry.intersectionRatio > 0),
->>>>>>> Stashed changes
       { threshold: 0 },
     );
 
@@ -92,8 +71,6 @@ export function ProjectMedia({
 
   const onScreen = visible ?? observedOnScreen;
 
-<<<<<<< Updated upstream
-=======
   useEffect(() => {
     const el = videoRef.current;
     if (!el || !video) return;
@@ -105,7 +82,6 @@ export function ProjectMedia({
     }
   }, [onScreen, video]);
 
->>>>>>> Stashed changes
   if (!video) {
     return (
       <Image

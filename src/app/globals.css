@@ -29,6 +29,13 @@
   --text-mono--line-height: 26px;
   --text-mono--letter-spacing: 0.06em;
 
+  /* Mono caption — project tile meta rows only (Figma var JetBrains/Caption).
+     Smaller than --text-mono; the tile's redesigned "roles and button" row
+     (565:1463) uses this size, not the regular one used elsewhere. */
+  --text-mono-caption: 16px;
+  --text-mono-caption--line-height: 21px;
+  --text-mono-caption--letter-spacing: 0.03em;
+
   /* Body — prose */
   --text-body: 20px;
   --text-body--line-height: 26px;
@@ -92,8 +99,6 @@
   /* Nav's own height, referenced by anything that pins beneath it */
   --spacing-nav-height: 94px;
 
-<<<<<<< Updated upstream
-=======
   /* Selected-work section (ProjectSection.tsx): where the pinned stage's
      content begins — the banner sits flush above this line, and the
      gradient strip's FRAME_PIN constant is this same value. Composed from
@@ -106,7 +111,6 @@
       var(--spacing-md)
   );
 
->>>>>>> Stashed changes
   /* --- Containers --------------------------------------------------------- */
   /* Project card frame + footer width (Figma 441:5985, 441:5999). Generates
      max-w-page. */
@@ -241,5 +245,20 @@ html.lenis body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ScrollReveal (src/components/motion/ScrollReveal.tsx) already renders the
+   plain, non-motion element under reduced motion via JS — but that decision
+   can't land before the client's post-hydration render (see the comment on
+   usePrefersReducedMotion in lib/motion.ts). This CSS is evaluated at first
+   paint, before any JS runs, so it's what actually keeps a reduced-motion
+   user from seeing an invisible element for that first frame (or forever,
+   with JS disabled). !important to beat motion/react's inline styles, same
+   reasoning as the global reduced-motion net above. */
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
