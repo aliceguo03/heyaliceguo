@@ -267,6 +267,7 @@ Continuous horizontal marquee of role labels separated by `/`, in JetBrains Mono
 
 ### Stacked project cards — `src/components/home/ProjectStack.tsx`
 
+<<<<<<< Updated upstream
 The signature scroll interaction. Reference: hosierbrown.framer.website
 
 Each project card is full-bleed with `rounded-card` corners. As the user scrolls:
@@ -291,6 +292,123 @@ The nav (`src/components/chassis/Nav.tsx`) is `sticky top-0` and reserves
 `--spacing-nav-height` (94px). Each card's sticky `top` must reference that same
 token, not a literal, so the two pinning systems agree on where the top of the
 viewport actually is.
+=======
+The signature scroll interaction (rewritten again; the previous session's two-strip
+mechanic — gradient frames AND the tile's contents both translating in lockstep — was
+replaced wholesale, not adapted, because it had five defects: the tile interrupted the
+seam, the banner painted under the gradient instead of over it, dead space opened up
+inside the tile between projects, the tile drifted off-center below the 1710px
+reference width, and the gap to the buttons row scaled with viewport height instead of
+matching Figma's flat 30px. See git history for that approach.)
+
+One white card is **fixed on screen** for the whole section and never moves. Unlike the
+previous version, its content never translates either — everything is laid out once,
+statically, exactly filling the card. Three layers, back to front:
+
+- **L1 — gradient frame strip.** Real frame elements, real gutters, translating with
+  scroll — the only thing that moves the way the old design's frame strip did.
+- **L2 — the fixed card.** Never moves. Contains all four projects' content blocks
+  stacked on top of each other, each clipped with `clip-path` to the slice of the card
+  that currently overlaps *that project's* gradient frame. Only one, sometimes two
+  adjacent, are ever non-empty at a time.
+- **L3 — seam layer.** Porcelain bands, exactly the frame gutters, spanning the full
+  viewport width, in front of the card (so the seam is never interrupted by it).
+  Translates with L1.
+
+A banner (`SELECTED WORK.`) sits above all three, painting *over* the strip rather than
+under it — Figma's flat static layout doesn't show this layering (it can't: the file
+has no scroll mechanic), so depth here comes from this doc, not from the file. If Figma
+and this section ever disagree about layering, this section wins; if they disagree
+about a measurement, Figma wins.
+
+L1 and L3 both read their position from **one CSS custom property**, `--strip-y`,
+registered via `@property` in `globals.css` and written by a single `motion.div`
+(`useScroll` + `useTransform` from `motion/react`, targeting the section) — not two
+independently-computed values. Each content layer's `clip-path`
+(`projectGeometry.ts`'s `contentClipPath`) reads that same property through a plain CSS
+`calc()`, so once written, the browser keeps all three in lockstep with zero further
+JS — the same guarantee the old design made for its two strips, now extended to a third
+consumer for free because clip-path is pure CSS math over the identical value. This is
+CLAUDE.md's one exception to the no-per-frame-work rule for position: an
+`IntersectionObserver` can't express a continuously shared scroll position, which is
+what a shared seam needs. Everywhere else, that rule still stands.
+
+`useScroll`'s offset is `["start start", "end {STAGE_H}px"]`, not `"end end"`: progress
+1 is defined as "the section's bottom edge reaches the point `STAGE_H` from the
+viewport's top" — exactly where the sticky pin releases, given the section's own height
+is `TRAVEL + STAGE_H`. That's independent of viewport height entirely, which is what
+lets the section's scroll runway end at frame 04's bottom edge rather than one further
+viewport's worth of scrolling (see the buttons-gap paragraph below).
+
+**Centering.** The fixed card is centered with a flexbox wrapper (`absolute inset-0
+flex justify-center`) spanning the full pinned stage — not a pixel offset against a
+reference width. Card center equals viewport center at any width; verified in
+`scripts/verify-project-section.mjs` at 1710/1440/1200px.
+
+All geometry (`FRAME_H`, `GUTTER`, `TILE_W/H`, the card's insets, the banner's own
+height, and everything derived from them — `PITCH`, `TRAVEL`, `FRAME_PIN`, `STAGE_H`,
+`SECTION_H`, `TILE_TOP`, `ACTIONS_GAP`, `MIN_VIEWPORT_H`) lives in one place:
+`src/components/home/projectGeometry.ts`. Read the comments there before touching any
+of it, including `contentClipPath`'s derivation from the target mechanic's general
+clip formula. Re-measure from Figma rather than assuming these numbers still hold —
+they've changed once already this project (the banner block turned out to be 56px
+tall, not the bare 32px line box an earlier session assumed).
+
+**Video.** `clip-path` clips paint, not intersection — a video fully wiped by a content
+layer's `clip-path` still reports its full, on-screen rect to `IntersectionObserver`,
+so it would never pause (verified in Chromium, not assumed from spec). `ProjectMedia`
+instead accepts an optional `visible` prop: when provided, the caller owns the
+play/pause gate; when omitted (the normal-flow fallback), `ProjectMedia` keeps its own
+`IntersectionObserver`. `ProjectSection` computes each project's clipped-visible-height
+from the same formula `contentClipPath` uses, via `useMotionValueEvent` on the shared
+`stripY` value, and only commits it to React state when the visible set actually
+changes — a second, narrowly-scoped consumer of the shared value, AND-gated with one
+ordinary `IntersectionObserver` on the section itself so a project doesn't read
+"visible" forever once `stripY` clamps at the end of the scroll range. (Not verified in
+WebKit/Firefox — those binaries aren't in this project's Playwright cache.)
+
+Three leaf components are shared between this mechanic and the normal-flow fallback,
+so no card geometry, styling, or content exists twice:
+- `ProjectFrame.tsx` — the gradient-backed frame.
+- `ProjectTile.tsx` — the white panel (`chrome`/`padded`/`clip` flags — chrome+clip for
+  the one fixed window, padded-only for each content layer inside it).
+- `ProjectTileContent.tsx` — title row, status pill, media well, meta rows, CTA.
+
+`ProjectCard.tsx` composes all three (`Frame > Tile > Content`) for the fallback path
+below.
+
+**Reduced motion and short viewports share one fallback, not two.** Under
+`prefers-reduced-motion`, or whenever the viewport is shorter than `MIN_VIEWPORT_H`
+(890px — the card must fit *in full*, not just past some smaller structural floor;
+this is short of the 1440×760 reference viewport, so it's this design's normal
+rendering on a 13" Air, not an edge case), `ProjectSection` renders four `ProjectCard`s
+stacked in normal flow instead: no pin, no clip, no transform. This is the
+pre-mechanic markup, reached by reusing the same three leaves rather than a second
+hand-written layout.
+
+**Focus.** All four content blocks stay in the DOM and tabbable — never `inert`, which
+would remove off-window projects from the accessibility tree entirely. Tabbing into a
+content block scrolls the section to bring it under the card
+(`onFocusCapture` → `scrollTo` with a numeric target, see `SmoothScroll.tsx`), so a
+keyboard user's focus is never on a clipped-away layer. This can't loop: scrolling
+itself never moves focus, and re-focusing the block already showing is a same-index
+no-op. Unlike the previous version, the card has no scrollable overflow of its own to
+hijack focus with — all four layers sit at `inset: 0`, exactly filling the clip window,
+so there's nothing for a browser to auto-scroll.
+
+**The section (`page.tsx`) must never receive a `z-index`.** Same reasoning as before:
+doing so gives it its own stacking context, comparing the whole assembly against the
+nav's `z-50` as one number instead of case-by-case. Within the section, L1/L2/L3/the
+banner carry their own z-indexes (10/20/30/40) — harmless, because `position: sticky`
+always establishes its own stacking context, so those numbers are compared only against
+each other, never against the nav's.
+
+**The gap to the buttons row.** Figma measures 30px from frame 04's bottom edge to the
+buttons row's top edge (`ACTIONS_GAP`, equal to `--spacing-lg` — use that token, not a
+literal). The section's own height (`SECTION_H = TRAVEL + STAGE_H`) ends exactly at
+frame 04's bottom edge with no viewport term, so this gap no longer scales with window
+height the way the previous version's did.
+>>>>>>> Stashed changes
 
 ### Hero load sequence
 

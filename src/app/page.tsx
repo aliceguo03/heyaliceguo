@@ -7,6 +7,7 @@ export default function Home() {
   return (
     <main>
       <Hero />
+<<<<<<< Updated upstream
 
       <section className="px-xl pt-xl pb-lg">
         <div className="mx-auto flex max-w-page flex-col gap-md">
@@ -18,6 +19,12 @@ export default function Home() {
           </div>
         </div>
       </section>
+=======
+      <ProjectSection projects={FEATURED_PROJECTS} />
+      <div className="pb-lg">
+        <WorkSectionActions />
+      </div>
+>>>>>>> Stashed changes
     </main>
   );
 }

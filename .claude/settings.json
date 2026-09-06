@@ -10,7 +10,38 @@
       "Bash(npm run *)",
       "Bash(pkill -f \"next dev\")",
       "Bash(xargs -I{} grep -o \"\\\\.max-w-page{[^}]*}\\\\|\\\\.translate-x-sm[^{]*{[^}]*}\\\\|\\\\.size-icon{[^}]*}\\\\|\\\\.gap-lg{[^}]*}\\\\|\\\\.pb-lg{[^}]*}\" {})",
+<<<<<<< Updated upstream
       "Bash(pkill -f \"chrome-headless-shell\")"
+=======
+      "Bash(pkill -f \"chrome-headless-shell\")",
+      "Bash(curl -s http://localhost:3000/)",
+      "Bash(npm i *)",
+      "Bash(npx playwright *)",
+      "Bash(node -e \"console.log\\(require\\('net'\\).createServer\\(\\).listen\\(0, \\(\\) => { console.log\\(process._getActiveHandles\\(\\)\\) }\\)\\)\")",
+      "Bash(npx next *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3100/ --max-time 2)",
+      "Bash(break)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/ --max-time 3)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/ --max-time 2)",
+      "Bash(node -e ' *)",
+      "Bash(node /private/tmp/claude-501/-Users-aliceguo-heyaliceguo/41b6576c-bc0e-4fc7-ab35-93362d2ef590/scratchpad/smoke.mjs)",
+      "Bash(rm -rf /private/tmp/claude-501/-Users-aliceguo-heyaliceguo/41b6576c-bc0e-4fc7-ab35-93362d2ef590/scratchpad/*.mjs /private/tmp/claude-501/-Users-aliceguo-heyaliceguo/41b6576c-bc0e-4fc7-ab35-93362d2ef590/scratchpad/*.png)",
+      "Bash(git -C /Users/aliceguo/heyaliceguo status --short)",
+      "Bash(git -C /Users/aliceguo/heyaliceguo diff --stat .claude/settings.json)",
+      "Bash(node -e \"console.log\\(require\\('motion/react'\\)\\)\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "Bash(VERIFY_SHOT_DIR=/private/tmp/claude-501/-Users-aliceguo-heyaliceguo/ec48d2f1-a42b-4d21-a718-fa7dbf5dea51/scratchpad node scripts/verify-project-section.mjs)",
+      "Bash(sips -g pixelWidth -g pixelHeight verify-project-section-mid-transition.png)",
+      "Bash(python3 -c ' *)",
+      "Bash(pip3 install *)",
+      "Bash(python3 -c \"from PIL import Image; print\\('ok'\\)\")",
+      "Bash(node scripts/verify-project-section.mjs)",
+      "Bash(node scripts/verify-animation.mjs)",
+      "Bash(rm -f /private/tmp/claude-501/-Users-aliceguo-heyaliceguo/ec48d2f1-a42b-4d21-a718-fa7dbf5dea51/scratchpad/debug*.mjs /private/tmp/claude-501/-Users-aliceguo-heyaliceguo/ec48d2f1-a42b-4d21-a718-fa7dbf5dea51/scratchpad/debug*.png /private/tmp/claude-501/-Users-aliceguo-heyaliceguo/ec48d2f1-a42b-4d21-a718-fa7dbf5dea51/scratchpad/topproject.png *)"
+    ],
+    "additionalDirectories": [
+      "/private/tmp/claude-501/-Users-aliceguo-heyaliceguo/ec48d2f1-a42b-4d21-a718-fa7dbf5dea51/scratchpad"
+>>>>>>> Stashed changes
     ]
   },
   "model": "opusplan"

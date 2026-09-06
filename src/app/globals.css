@@ -92,6 +92,21 @@
   /* Nav's own height, referenced by anything that pins beneath it */
   --spacing-nav-height: 94px;
 
+<<<<<<< Updated upstream
+=======
+  /* Selected-work section (ProjectSection.tsx): where the pinned stage's
+     content begins — the banner sits flush above this line, and the
+     gradient strip's FRAME_PIN constant is this same value. Composed from
+     the tokens it's made of — nav height + the banner block's own height
+     (its vertical padding plus the label's line box) + the gap beneath it —
+     rather than a literal, so it can't drift if any of those three change.
+     94 + (12 + 32 + 12) + 20 = 170px. */
+  --spacing-stack-pin: calc(
+    var(--spacing-nav-height) + (var(--spacing-sm) * 2 + var(--text-mono-header--line-height)) +
+      var(--spacing-md)
+  );
+
+>>>>>>> Stashed changes
   /* --- Containers --------------------------------------------------------- */
   /* Project card frame + footer width (Figma 441:5985, 441:5999). Generates
      max-w-page. */
@@ -116,6 +131,17 @@
   /* Mirrors EASE in src/lib/motion.ts. Use for CSS transitions only —
      JS-driven motion imports EASE directly. */
   --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Selected-work section (ProjectSection.tsx): the single custom property
+   that drives the gradient strip, the seam layer, and every content layer's
+   clip-path in lockstep. Registered as a typed <length> so the browser
+   interpolates and recomputes dependent calc()/clip-path values as the
+   motion-driven writes land, rather than treating it as an opaque string. */
+@property --strip-y {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
 }
 
 /* ==========================================================================
