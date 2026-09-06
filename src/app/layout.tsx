@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Nav } from "@/components/chassis/Nav";
 import { Footer } from "@/components/chassis/Footer";
+import { SmoothScroll } from "@/components/chassis/SmoothScroll";
 import "./globals.css";
 
 const gambarino = localFont({
@@ -56,7 +57,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col bg-porcelain text-deep-black font-sans text-body">
         <Nav />
-        {children}
+        <SmoothScroll>{children}</SmoothScroll>
         <Footer />
       </body>
     </html>
