@@ -5,15 +5,27 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
+  useLayoutEffect,
   useRef,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { DUR, EASE, cubicBezier } from "@/lib/motion";
 
 // Lenis's `easing` option is the same EASE curve, adapted to the (t) =>
 // progress shape Lenis expects — see the comment on cubicBezier itself.
 const SCROLL_EASING = cubicBezier(EASE);
+
+// Tag forwarded through Lenis's 'scroll' event (lenis.userData) on every
+// scroll this app itself initiates — the wrapper below, and
+// useProjectSnap.ts's own direct lenis.scrollTo call. A listener that sees
+// this on the *last* scroll it observed knows that scroll was programmatic
+// (a button, focus-follow, or a snap), not the user's hand on the wheel —
+// see useProjectSnap.ts for why "last observed" (not "currently in
+// userData") is what a listener has to track: Lenis clears userData back to
+// {} synchronously right after a scroll's final event, so a listener has to
+// capture the tag at event time, not re-read it later.
+export const PROGRAMMATIC_SCROLL_USER_DATA = { source: "app-scroll" } as const;
 
 // The one sitewide anchor for "top of page" — Hero's wordmark carries this
 // id (and a negative tabIndex) so there's a meaningful element for keyboard
@@ -36,6 +48,14 @@ type ScrollOptions = {
 type ScrollToFn = (target: ScrollTarget, options?: ScrollOptions) => void;
 
 const ScrollContext = createContext<ScrollToFn | null>(null);
+
+// A stable ref (not React state) exposing the live Lenis instance —
+// useProjectSnap.ts needs the real instance to read `.velocity` and attach
+// its own 'scroll' listener with `lock: false`, which the ScrollToFn
+// wrapper above doesn't give a caller access to. A ref rather than state:
+// nothing here should re-render when the instance is (re)created (only on
+// a reduced-motion toggle, and only imperative consumers read it).
+const LenisRefContext = createContext<RefObject<Lenis | null> | null>(null);
 
 function resolveElement(target: ScrollTarget): HTMLElement | null {
   if (typeof target !== "string" || target === "top") return null;
@@ -67,7 +87,16 @@ function readOffsetPx(varName: string) {
 export function SmoothScroll({ children }: { children: ReactNode }) {
   const lenisRef = useRef<Lenis | null>(null);
 
-  useEffect(() => {
+  // useLayoutEffect, not useEffect: React fires every component's layout
+  // effects (whole tree, bottom-up) before any component's passive effects
+  // (also whole tree, bottom-up) on initial mount. SmoothScroll wraps the
+  // entire app, so as a plain useEffect this would run *after* a
+  // descendant's own useEffect on first mount (children's passive effects
+  // fire before their parent's) — useProjectSnap.ts's effect would then
+  // read lenisRef.current as still null and never attach. useLayoutEffect
+  // sidesteps the parent/child ordering entirely, since it's a different,
+  // earlier phase than any passive effect anywhere in the tree.
+  useLayoutEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     function sync(reduced: boolean) {
@@ -126,10 +155,19 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
       duration: DUR.scroll,
       easing: SCROLL_EASING,
       onComplete: focusDestination,
+      // Tags this call (and every 'scroll' event it fires while animating)
+      // as app-initiated — see useProjectSnap.ts, whose idle check must
+      // ignore BACK TO TOP / VIEW MY WORK / focus-follow-scroll landings,
+      // not just its own.
+      userData: PROGRAMMATIC_SCROLL_USER_DATA,
     });
   }, []);
 
-  return <ScrollContext.Provider value={scrollTo}>{children}</ScrollContext.Provider>;
+  return (
+    <ScrollContext.Provider value={scrollTo}>
+      <LenisRefContext.Provider value={lenisRef}>{children}</LenisRefContext.Provider>
+    </ScrollContext.Provider>
+  );
 }
 
 export function useScrollAction(): ScrollToFn {
@@ -138,4 +176,14 @@ export function useScrollAction(): ScrollToFn {
     throw new Error("useScrollAction must be used within <SmoothScroll>");
   }
   return scrollTo;
+}
+
+// Imperative access to the live Lenis instance — see LenisRefContext above.
+// null whenever reduced motion is on (no instance exists at all).
+export function useLenisRef(): RefObject<Lenis | null> {
+  const ref = useContext(LenisRefContext);
+  if (!ref) {
+    throw new Error("useLenisRef must be used within <SmoothScroll>");
+  }
+  return ref;
 }

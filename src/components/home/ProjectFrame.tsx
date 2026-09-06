@@ -3,10 +3,17 @@ import type { ReactNode } from "react";
 import { FRAME_H } from "./projectGeometry";
 
 // The gradient-backed rounded frame behind a project's white tile (Figma
-// "project showcase", 441:5987). Used both as the static per-project
-// background in the normal-flow fallback (ProjectCard.tsx) and as one
-// element of the gradient strip in the fixed-tile mechanic
-// (ProjectSection.tsx) — same frame, same Image, different parent.
+// "project showcase", 441:5987), used as one element of the gradient strip
+// in the fixed-tile mechanic (ProjectSection.tsx).
+//
+// All four corners rounded — this frame doesn't govern the strip's outer
+// boundary (that convex corner, wherever it sits on scroll, comes from the
+// rounded overflow-hidden viewport wrapping the whole strip; see L1's
+// comment in ProjectSection.tsx). What this frame's own rounding does shape
+// is the gutter mid-strip: with both the frame above a gutter and the frame
+// below it independently rounded on all corners, the porcelain gap between
+// two adjacent frames reads as a rounded-cornered seam, not a hard-edged
+// slot cut into two square blocks.
 export function ProjectFrame({
   color,
   gradient,

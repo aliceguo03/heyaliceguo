@@ -105,10 +105,10 @@
      the tokens it's made of — nav height + the banner block's own height
      (its vertical padding plus the label's line box) + the gap beneath it —
      rather than a literal, so it can't drift if any of those three change.
-     94 + (12 + 32 + 12) + 20 = 170px. */
+     94 + (12 + 32 + 12) + 12 = 162px. */
   --spacing-stack-pin: calc(
     var(--spacing-nav-height) + (var(--spacing-sm) * 2 + var(--text-mono-header--line-height)) +
-      var(--spacing-md)
+      var(--spacing-sm)
   );
 
   /* --- Containers --------------------------------------------------------- */

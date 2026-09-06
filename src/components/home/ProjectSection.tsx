@@ -6,6 +6,7 @@ import { ProjectCard } from "./ProjectCard";
 import { ProjectFrame } from "./ProjectFrame";
 import { ProjectTile } from "./ProjectTile";
 import { ProjectTileContent } from "./ProjectTileContent";
+import { useProjectSnap } from "./useProjectSnap";
 import { ScrollReveal } from "@/components/motion/ScrollReveal";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { useScrollAction } from "@/components/chassis/SmoothScroll";
@@ -74,6 +75,11 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
   const tooShort = useViewportTooShort(MIN_VIEWPORT_H);
   const sectionRef = useRef<HTMLDivElement>(null);
   const scrollTo = useScrollAction();
+
+  // Always called (rules of hooks) — a no-op internally, attaching zero
+  // listeners, whenever the static fallback below renders instead (see the
+  // hook's own top guard).
+  useProjectSnap(sectionRef, reducedMotion || tooShort);
 
   // Always called (rules of hooks) — inert whenever the fallback below
   // renders instead, since nothing reads `stripY` in that tree.
@@ -182,18 +188,34 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
         {/* L1 — gradient frame strip. Real frame elements, real gutters —
             only this column's own transform is driven by --strip-y; each
             frame's own layout (width, radius, gradient image) is
-            untouched. */}
-        <div className="absolute inset-x-0 px-xl" style={{ top: FRAME_PIN, zIndex: 10 }}>
-          <div className="mx-auto max-w-page" style={{ transform: "translate3d(0, var(--strip-y), 0)" }}>
-            {projects.map((project, i) => (
-              <div
-                key={project.slug}
-                data-project-frame={i}
-                style={{ marginTop: i === 0 ? 0 : GUTTER }}
-              >
-                <ProjectFrame color={project.color} gradient={project.gradient} />
-              </div>
-            ))}
+            untouched.
+            The outer div is unbounded height (as before) — the sticky
+            stage's own overflow-hidden + STAGE_H already clips it, that
+            part is unchanged. The new piece is the inner viewport: fixed to
+            exactly FRAME_H tall, overflow-hidden, rounded-card on all four
+            corners. Whatever's at that box's own top/bottom edge — a
+            frame's actual corner at rest, or a bare slice of a frame's flat
+            body mid-transition — gets clipped to the same convex curve, so
+            the strip's visible boundary is rounded at any scroll position,
+            not just at rest. ProjectFrame's own rounding (all corners, see
+            its own comment) is a second, independent thing: it shapes the
+            gutter *between* frames, which this outer mask never touches
+            since gutters sit in the interior, not at this box's edge,
+            except for one narrow instant per transition — see the seam
+            layer's comment below for why that instant isn't a problem. */}
+        <div className="absolute inset-x-0 px-xl" style={{ top: FRAME_PIN, height: FRAME_H, zIndex: 10 }}>
+          <div className="mx-auto h-full max-w-page overflow-hidden rounded-card">
+            <div style={{ transform: "translate3d(0, var(--strip-y), 0)" }}>
+              {projects.map((project, i) => (
+                <div
+                  key={project.slug}
+                  data-project-frame={i}
+                  style={{ marginTop: i === 0 ? 0 : GUTTER }}
+                >
+                  <ProjectFrame color={project.color} gradient={project.gradient} />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -228,7 +250,23 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
         {/* L3 — seam layer. Renders only the gutters, as porcelain bands
             spanning the full viewport width, front-most in the section —
             in front of the card, so the seam is never interrupted by it.
-            Same --strip-y transform as L1: the two can't drift apart. */}
+            Same --strip-y transform as L1: the two can't drift apart.
+            Sits entirely outside L1's rounded viewport mask (unclipped, own
+            z-index above the card) — it has to: the mask must stay behind
+            the card (z-20) so the fixed tile can paint over the strip, but
+            this seam must stay in front of the card, so the two can't share
+            one clipped container. Checked, not assumed, that this doesn't
+            square off the mask's rounded corners: a band's own rect (top:
+            i*PITCH+FRAME_H, height: GUTTER) sits exactly in a frame gap, so
+            it never overlaps actual frame pixels regardless of the mask.
+            The one moment a band does reach this box's top/bottom edge —
+            a few px into a transition, as a gutter crosses the boundary —
+            the mask's cutout there was only ever revealing porcelain
+            background (body/html's own bg-porcelain, globals.css), the same
+            color this band paints. A rounded cut and a square cut of an
+            identical color are indistinguishable, so there's nothing to see
+            regardless of which one "wins" at that instant. Verified with
+            screenshots through that exact window, not inferred. */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0"
@@ -247,9 +285,22 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
         {/* L4 — banner. A sticky white band above both the strip and the
             seam layer, not layered under the gradient the way Figma's flat
             static layout would suggest — depth here is spec, not Figma
-            (see CLAUDE.md). */}
-        <div className="absolute inset-x-0 top-0 bg-porcelain" style={{ height: FRAME_PIN, zIndex: 40 }}>
-          <div className="relative mx-auto h-full max-w-page px-xl">
+            (see CLAUDE.md).
+            Outer/inner split mirrors L1's exactly (px-xl on the outer,
+            mx-auto max-w-page on the inner, nothing else) rather than a
+            parallel calculation — the inner div is what the strip and card
+            both resolve their own centering against, so this is the same
+            centering, not one that happens to agree at 1710px and drifts
+            below it. A plain rectangle — no corner rounding here. A convex
+            rounded corner where the strip emerges from beneath it can't come
+            from rounding this straight edge (that only ever cuts a concave
+            notch); it comes from L1's own rounded overflow-hidden viewport
+            instead (see L1's comment above).
+            Outside that inner box, y < FRAME_PIN has no L1/L2/L3 content at
+            any width, so leaving it uncovered here just falls through to
+            the page's own porcelain background — same color, no seam. */}
+        <div className="absolute inset-x-0 top-0 px-xl" style={{ height: FRAME_PIN, zIndex: 40 }}>
+          <div className="relative mx-auto h-full max-w-page bg-porcelain">
             <div className="absolute inset-x-0" style={{ top: NAV_H }}>
               <ScrollReveal as="div">
                 <SectionLabel id="selected-work">SELECTED WORK.</SectionLabel>

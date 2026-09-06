@@ -39,14 +39,14 @@ export const PROJECT_COUNT = 4;
 
 export const NAV_H = 94; // mirrors --spacing-nav-height
 export const BANNER_H = 56; // Figma "selected work" block, 582:2463
-export const BANNER_GAP = 20; // banner block -> frame 01 (582:2463 bottom -> 441:5987 top)
+export const BANNER_GAP = 12; // banner block -> frame 01, mirrors space-sm
 
 // Where the pinned stage's content starts: the banner sits flush above this
 // line, the gradient strip's first frame starts here. Mirrored in
 // globals.css as --spacing-stack-pin, composed from the same three tokens
 // (nav height + banner block height + the gap beneath it) rather than typed
 // as a literal in either place, so it can't drift if one of them changes.
-// 94 + 56 + 20 = 170px.
+// 94 + 56 + 12 = 162px.
 export const FRAME_PIN = NAV_H + BANNER_H + BANNER_GAP;
 
 // --- Derived — computed from the primitives, never typed as literals ----
@@ -58,15 +58,15 @@ export const PITCH = FRAME_H + GUTTER;
 // all the way to project PROJECT_COUNT's position. (4 - 1) * 810 = 2430.
 export const TRAVEL = (PROJECT_COUNT - 1) * PITCH;
 
-// The card's fixed top offset within the pinned stage. 170 + 60 = 230.
+// The card's fixed top offset within the pinned stage. 162 + 60 = 222.
 export const TILE_TOP = FRAME_PIN + TILE_INSET_TOP;
-export const TILE_BOTTOM = TILE_TOP + TILE_H; // 230 + 660 = 890
+export const TILE_BOTTOM = TILE_TOP + TILE_H; // 222 + 660 = 882
 
 // The pinned stage's own height — banner band + exactly one frame's worth of
 // window. This, not 100svh, is what the section pins to: the stage ends the
 // instant frame 04 clears it, which is what lets the section's scroll
 // runway end at frame 04's bottom edge instead of one further viewport's
-// worth of scrolling. 170 + 780 = 950.
+// worth of scrolling. 162 + 780 = 942.
 export const STAGE_H = FRAME_PIN + FRAME_H;
 
 // The section's total scroll runway: the sticky stage holds still for
@@ -87,6 +87,36 @@ export const ACTIONS_GAP = 30;
 // smaller structural floor — a partially-visible fixed card reads as
 // broken, not as an intentional crop.
 export const MIN_VIEWPORT_H = TILE_BOTTOM;
+
+// --- Scroll snap ------------------------------------------------------------
+// useProjectSnap.ts. Rest slots are sectionTop + i*PITCH for i in 0..3 — the
+// same offsets the mechanic already derives above, not a second source.
+
+// How long the scroll must be quiet (no Lenis 'scroll' event) before a snap
+// is considered. The debounce alone still fires mid-trackpad-momentum (real
+// wheel events can arrive with >140ms gaps as inertia decays even though
+// the gesture isn't over), so SNAP_VELOCITY_EPS below is a second, required
+// condition, not a fallback.
+export const SNAP_IDLE_MS = 140;
+
+// lenis.velocity must be under this when the idle timer fires, in addition
+// to the timer itself having gone uninterrupted — see SNAP_IDLE_MS. Set well
+// above "effectively stopped": Lenis's own momentum coasts for a while after
+// the wheel event ends, and waiting for it to decay near zero is what made
+// the snap feel like it fired ~1s after the user let go. Firing while it's
+// still gently coasting (roughly 4x the original 0.15) is what makes the
+// snap feel immediate instead.
+export const SNAP_VELOCITY_EPS = 0.6;
+
+// How far from a slot a snap will still engage. Half a pitch means the
+// section always resolves to *some* slot — deliberately strong for a first
+// look; drop this toward 0 for proximity-only snapping without touching any
+// snap logic, since every guard reads this one constant.
+export const SNAP_RADIUS = PITCH * 0.5;
+
+// Below this distance from a slot, treat the scroll as already there —
+// snapping a handful of px reads as jitter, not a snap.
+export const SNAP_DEADZONE = 8;
 
 // --- Content clipping -----------------------------------------------------
 
