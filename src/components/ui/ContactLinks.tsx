@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useCursorLabel } from "@/components/motion/CursorLabel";
 
 export const EMAIL = "a2guo@ucsd.edu";
 export const LINKEDIN_HREF = "https://www.linkedin.com/in/aliceguo03/";
@@ -88,5 +89,80 @@ export function LinkedinIcon({ className }: { className?: string }) {
         fill="currentColor"
       />
     </svg>
+  );
+}
+
+// Shared button/link markup, extracted session 4: identical between Nav and
+// Footer before this except for a color className, which is now the one
+// parameter that varies. `useCopyEmail()` itself and the aria-live
+// announcement region stay in Nav.tsx/Footer.tsx — those two already sit in
+// different positions relative to the icon row between the two callers
+// (Footer's is a third child inside the icon row's own div; Nav's is a
+// sibling after it), so lifting them in here would change one of the two
+// callers' rendered output, which is exactly what this extraction is not
+// supposed to do (see scripts/verify-animation.mjs's Nav/Footer render-
+// identical check).
+//
+// Both publish to the cursor label bubble (CursorLabel.tsx) on hover
+// enter/leave, and MailButton additionally on every `copied` flip — never on
+// mousemove, per CLAUDE.md "Custom cursor". `cursorLabel` itself is a stable
+// object (CursorLabelProvider memoizes it), so these effects only ever fire
+// on a real hover/copy transition.
+export function MailButton({
+  copied,
+  onClick,
+  className,
+}: {
+  copied: boolean;
+  onClick: () => void;
+  className: string;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const cursorLabel = useCursorLabel();
+
+  useEffect(() => {
+    if (!hovered) {
+      cursorLabel.hide();
+      return;
+    }
+    cursorLabel.show(copied ? "COPIED" : `COPY ${EMAIL.toUpperCase()}`, copied ? "copied" : "action");
+  }, [hovered, copied, cursorLabel]);
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+      aria-label={`Copy email address ${EMAIL} to clipboard`}
+      className={className}
+    >
+      <EnvelopeIcon className="size-icon" />
+    </button>
+  );
+}
+
+export function LinkedinLink({ className }: { className: string }) {
+  const [hovered, setHovered] = useState(false);
+  const cursorLabel = useCursorLabel();
+
+  useEffect(() => {
+    if (hovered) {
+      cursorLabel.show("CONNECT", "action");
+    } else {
+      cursorLabel.hide();
+    }
+  }, [hovered, cursorLabel]);
+
+  return (
+    <a
+      href={LINKEDIN_HREF}
+      aria-label="Alice on LinkedIn"
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+      className={className}
+    >
+      <LinkedinIcon className="size-icon" />
+    </a>
   );
 }

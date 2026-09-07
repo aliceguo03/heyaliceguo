@@ -21,12 +21,20 @@ import { CONTENT_W, MEDIA_H } from "./projectGeometry";
 // fixed-card mechanic (see ProjectMedia's comment on why `clip-path`
 // defeats its own IntersectionObserver). Undefined in the normal-flow
 // fallback, where ProjectMedia owns its own visibility instead.
+//
+// `magnetEnabled` passes straight through to the CTA's BlackButton — see
+// ProjectSection.tsx's `visMask.full` for why a clipped CTA is only
+// magnet-eligible once its whole frame (not a sliver) is under the card.
+// Also undefined in the normal-flow fallback, where nothing is clipped and
+// BlackButton's own default (enabled) is correct as-is.
 export function ProjectTileContent({
   project,
   visible,
+  magnetEnabled,
 }: {
   project: Project;
   visible?: boolean;
+  magnetEnabled?: boolean;
 }) {
   const { slug, number, name, status, role, timeline, type, thumbnail, video } = project;
 
@@ -60,7 +68,9 @@ export function ProjectTileContent({
           {timeline && <MetaRow label="TIMELINE" value={timeline} />}
           {type && <MetaRow label="PROJECT TYPE" value={type} />}
         </dl>
-        <BlackButton href={`/work/${slug}`}>VIEW CASE STUDY</BlackButton>
+        <BlackButton href={`/work/${slug}`} magnetEnabled={magnetEnabled}>
+          VIEW CASE STUDY
+        </BlackButton>
       </div>
     </div>
   );

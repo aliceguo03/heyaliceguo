@@ -128,6 +128,14 @@
     30px 50px 35px rgba(0, 0, 0, 0.05), 13px 22px 26px rgba(0, 0, 0, 0.09),
     3px 6px 14px rgba(0, 0, 0, 0.1);
 
+  /* Alpha-0 twin of --shadow-photo (identical geometry, every stop at 0
+     opacity) — lets the front photo's shadow interpolate as the stack
+     advances instead of popping in/out at the front slot. Session 4,
+     PhotoStack.tsx. */
+  --shadow-photo-none: 84px 140px 46px rgba(0, 0, 0, 0), 54px 90px 42px rgba(0, 0, 0, 0),
+    30px 50px 35px rgba(0, 0, 0, 0), 13px 22px 26px rgba(0, 0, 0, 0),
+    3px 6px 14px rgba(0, 0, 0, 0);
+
   /* White project card, floating over its gradient frame. */
   --shadow-card: 8px 15px 37px 0px rgba(0, 0, 0, 0.1);
 
@@ -146,6 +154,18 @@
   syntax: "<length>";
   inherits: true;
   initial-value: 0px;
+}
+
+/* Cursor label bubble (CursorLabel.tsx). Not in @theme — Tailwind v4 has no
+   z-* theme namespace to put a token in, and z-[60] is a banned arbitrary
+   value (CLAUDE.md hard rule 2) — so this is a plain CSS var, read via
+   style={{ zIndex: "var(--z-cursor)" }}, same inline-zIndex precedent as
+   ProjectSection.tsx's L1-L4. body has no stacking context of its own, so a
+   body-level sibling at 60 clears the nav's own z-50 (Nav.tsx) and nothing
+   inside <main> can escape past it. First design-adjacent, not design,
+   token — flagged per CLAUDE.md's "stop and ask" rule on new tokens. */
+:root {
+  --z-cursor: 60;
 }
 
 /* ==========================================================================

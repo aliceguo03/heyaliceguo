@@ -5,13 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type FocusEvent } from "react";
 import { PROJECTS } from "@/content/projects";
 import { useActiveRoute } from "@/lib/useActiveRoute";
-import {
-  EMAIL,
-  LINKEDIN_HREF,
-  EnvelopeIcon,
-  LinkedinIcon,
-  useCopyEmail,
-} from "@/components/ui/ContactLinks";
+import { MailButton, LinkedinLink, useCopyEmail } from "@/components/ui/ContactLinks";
 
 const RESUME_HREF = "/resume.pdf";
 
@@ -93,7 +87,7 @@ export function Nav() {
     }
   }
 
-  const { announcement, handleCopyEmail } = useCopyEmail();
+  const { copied, announcement, handleCopyEmail } = useCopyEmail();
 
   // WORK only reads as "selected" (deep-black) when its route is active and
   // the panel is closed — Figma's "opened" variant is always muted-gray,
@@ -146,21 +140,12 @@ export function Nav() {
           </a>
 
           <div className="flex items-center gap-sm px-btn-x py-btn-y">
-            <button
-              type="button"
+            <MailButton
+              copied={copied}
               onClick={handleCopyEmail}
-              aria-label={`Copy email address ${EMAIL} to clipboard`}
               className="text-muted-gray transition-colors duration-200 ease-standard hover:text-accent-blue-light"
-            >
-              <EnvelopeIcon className="size-icon" />
-            </button>
-            <a
-              href={LINKEDIN_HREF}
-              aria-label="Alice on LinkedIn"
-              className="text-muted-gray transition-colors duration-200 ease-standard hover:text-accent-blue-light"
-            >
-              <LinkedinIcon className="size-icon" />
-            </a>
+            />
+            <LinkedinLink className="text-muted-gray transition-colors duration-200 ease-standard hover:text-accent-blue-light" />
           </div>
           <span aria-live="polite" className="sr-only">
             {announcement}

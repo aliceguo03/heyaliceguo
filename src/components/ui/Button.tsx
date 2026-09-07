@@ -1,10 +1,16 @@
+"use client";
+
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { motion } from "motion/react";
+import type { ReactNode, Ref } from "react";
+import { useMagnet } from "@/components/motion/useMagnet";
 
 // Figma's "view my work button" (328:310). 63px is a fixed height in the
 // design — padding plus a single 26px text line only sums to 58px, so it's
 // set explicitly rather than left to derive from content.
 const BUTTON_HEIGHT = "63px";
+
+const MotionLink = motion.create(Link);
 
 // The arrow glyph rotates to point at the button's destination: "down" for
 // scrolling further down the page (the hero's only use today), "up" for
@@ -28,6 +34,11 @@ type ButtonProps = {
 // action (onClick) — never both, so the element itself follows: a Link for
 // navigation, a real <button> for a scroll trigger.
 export function Button({ href, onClick, direction = "down", children }: ButtonProps) {
+  // Only primary (black-fill) button this component renders — always
+  // magnet-eligible; onscreen state doesn't gate it the way ProjectTileContent's
+  // clipped CTAs are gated (see BlackButton.tsx).
+  const { ref, style } = useMagnet<HTMLButtonElement | HTMLAnchorElement>(true);
+
   const content = (
     <>
       {children}
@@ -39,15 +50,26 @@ export function Button({ href, onClick, direction = "down", children }: ButtonPr
 
   if (href) {
     return (
-      <Link href={href} style={{ height: BUTTON_HEIGHT }} className={CLASSES}>
+      <MotionLink
+        ref={ref as Ref<HTMLAnchorElement>}
+        href={href}
+        style={{ height: BUTTON_HEIGHT, ...style }}
+        className={CLASSES}
+      >
         {content}
-      </Link>
+      </MotionLink>
     );
   }
 
   return (
-    <button type="button" onClick={onClick} style={{ height: BUTTON_HEIGHT }} className={CLASSES}>
+    <motion.button
+      ref={ref as Ref<HTMLButtonElement>}
+      type="button"
+      onClick={onClick}
+      style={{ height: BUTTON_HEIGHT, ...style }}
+      className={CLASSES}
+    >
       {content}
-    </button>
+    </motion.button>
   );
 }
