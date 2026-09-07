@@ -4,13 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PROJECTS } from "@/content/projects";
 import { useActiveRoute } from "@/lib/useActiveRoute";
-import {
-  EMAIL,
-  LINKEDIN_HREF,
-  EnvelopeIcon,
-  LinkedinIcon,
-  useCopyEmail,
-} from "@/components/ui/ContactLinks";
+import { MailButton, LinkedinLink, useCopyEmail } from "@/components/ui/ContactLinks";
 
 const RESUME_HREF = "/resume.pdf";
 
@@ -61,7 +55,7 @@ function useSanDiegoTime() {
 
 export function Footer() {
   const { isHome, isWork, isAbout } = useActiveRoute();
-  const { announcement, handleCopyEmail } = useCopyEmail();
+  const { copied, announcement, handleCopyEmail } = useCopyEmail();
   const time = useSanDiegoTime();
 
   const featuredProjects = PROJECTS.filter((project) => project.featured);
@@ -80,21 +74,12 @@ export function Footer() {
               LET&rsquo;S CIRCLE BACK <span aria-hidden="true">→</span>
             </p>
             <div className="flex items-center gap-sm">
-              <button
-                type="button"
+              <MailButton
+                copied={copied}
                 onClick={handleCopyEmail}
-                aria-label={`Copy email address ${EMAIL} to clipboard`}
                 className="text-pure-white transition-colors duration-200 ease-standard hover:text-accent-blue"
-              >
-                <EnvelopeIcon className="size-icon" />
-              </button>
-              <a
-                href={LINKEDIN_HREF}
-                aria-label="Alice on LinkedIn"
-                className="text-pure-white transition-colors duration-200 ease-standard hover:text-accent-blue"
-              >
-                <LinkedinIcon className="size-icon" />
-              </a>
+              />
+              <LinkedinLink className="text-pure-white transition-colors duration-200 ease-standard hover:text-accent-blue" />
               <span aria-live="polite" className="sr-only">
                 {announcement}
               </span>

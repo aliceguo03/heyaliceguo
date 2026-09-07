@@ -182,6 +182,46 @@ export const PHOTO_EXIT = {
   zSwapAt: 0.7,
 } as const
 
+// Magnetic buttons (useMagnet.ts, CLAUDE.md "Magnet"). Gesture tuning, not a
+// decorative motion duration or curve — same category as DRAG above, and
+// exempt from "no new durations" for the same reason: this is how far/hard a
+// button reacts to a nearby pointer, not how a reveal or hover looks.
+//
+// Tuning fix, session 4 review: activation changed from a proximity radius
+// (pulling before the cursor reached the button) to a literal hit test
+// against the button's own rect — nothing moves until the cursor is
+// physically over the box. There is deliberately no `radius` field any more:
+// the old one measured distance beyond the rect's edge, which contact-based
+// activation has no use for — the rect itself (already cached per-entry in
+// useMagnet.ts's registry, for the pull vector) is now the only region that
+// matters, so a separate constant would just sit unread. strength/maxOffset
+// both turned down in the same pass, per review — "noticeably subtler,"
+// still felt, not "barely perceptible."
+export const MAGNET = {
+  // Pull-vector multiplier from pointer-to-center distance. A multiplier, not
+  // a divisor like the React Bits reference's magnetStrength — higher means
+  // a stronger pull, matching what the name says.
+  strength: 0.15,
+  // Hard cap, in px, on the resulting offset — scales the vector down rather
+  // than clipping x/y independently, so the direction of pull is preserved.
+  maxOffset: 6,
+  // Seconds to ease back to exactly zero once the pointer leaves the box.
+  release: 0.4,
+} as const
+
+// Cursor label bubble (CursorLabel.tsx, CLAUDE.md "Custom cursor" — revised
+// for session 4 into a bubble that supplements the system cursor rather than
+// replacing it, per the session-4 plan). Pointer-offset gesture tuning, same
+// exempt category as DRAG/MAGNET above: where the bubble sits relative to the
+// raw pointer position, not how it looks or eases.
+export const CURSOR = {
+  // px offset from the raw pointer position to the bubble's anchor
+  // (top-left, since it's positioned via a translate from a fixed 0,0) —
+  // "below-and-right of the pointer."
+  offsetX: 20,
+  offsetY: 20,
+} as const
+
 // motion/react and the CSS --ease-standard var consume EASE directly as a
 // cubic-bezier curve. Lenis's `easing` option instead expects a sampling
 // function (t: 0..1) => progress: 0..1 — so this adapts the *same* EASE

@@ -98,19 +98,24 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
   });
   const stripY = useTransform(scrollYProgress, [0, 1], ["0px", `${-TRAVEL}px`]);
 
-  // Video visibility. clip-path clips paint, not intersection — a video
-  // fully wiped by a content layer's clip-path still reports its full,
-  // on-screen rect to IntersectionObserver, so it would never pause. Drive
-  // play/pause from the same figure the clip-path uses instead: a layer is
-  // visible exactly when its clipped height is greater than zero. Recomputed
-  // on every `stripY` write (the same frequency L1/L3's transform already
-  // updates at) but only committed to React state when the set of visible
-  // projects actually changes — at most twice per project transition.
-  const [visibleMask, setVisibleMask] = useState(() => visibilityMask(0, projects.length));
+  // Visibility, two thresholds from the one `visibleHeight` this already
+  // computed for video. `partial` (>0, the original mask) still gates video
+  // play/pause. `full` (>=TILE_H) is new: a project's CTA is only
+  // magnet-eligible while its whole frame — not just a sliver — is under the
+  // card, so a button doesn't start pulling while it's still mid-clip. The
+  // geometry makes `full` hold across s ∈ [-60, +60] inside the 810px pitch
+  // (projectGeometry.ts's TILE_INSET_TOP/BOTTOM, both 60), so at rest exactly
+  // one card CTA is ever magnet-eligible and mid-transition none are.
+  //
+  // Both masks are recomputed on every `stripY` write (the same frequency
+  // L1/L3's transform already updates at) but committed to React state
+  // together, only when either actually changes — at most twice per project
+  // transition, same as before this was two masks instead of one.
+  const [visMask, setVisMask] = useState(() => visibilityMasks(0, projects.length));
   useMotionValueEvent(stripY, "change", (latest) => {
     const px = typeof latest === "number" ? latest : Number.parseFloat(latest);
-    const mask = visibilityMask(px, projects.length);
-    setVisibleMask((prev) => (prev === mask ? prev : mask));
+    const next = visibilityMasks(px, projects.length);
+    setVisMask((prev) => (prev.partial === next.partial && prev.full === next.full ? prev : next));
   });
 
   // AND-gated with a coarse, ordinary IntersectionObserver on the section
@@ -240,7 +245,11 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
                 style={{ clipPath: contentClipPath(i) }}
               >
                 <ProjectTile chrome={false}>
-                  <ProjectTileContent project={project} visible={sectionOnScreen && isVisible(visibleMask, i)} />
+                  <ProjectTileContent
+                    project={project}
+                    visible={sectionOnScreen && isVisible(visMask.partial, i)}
+                    magnetEnabled={sectionOnScreen && isVisible(visMask.full, i)}
+                  />
                 </ProjectTile>
               </div>
             ))}
@@ -313,21 +322,24 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
   );
 }
 
-// Bit `i` set means project `i`'s clipped height (per contentClipPath's own
-// math, kept in sync with it deliberately) is greater than zero at this
-// stripY. Kept as a plain function rather than a component/hook: it's pure
-// arithmetic over constants, called from a MotionValue event handler and
-// once for initial state, not from render.
-function visibilityMask(stripY: number, count: number): number {
-  let mask = 0;
+// Bit `i` of `partial` set means project `i`'s clipped height (per
+// contentClipPath's own math, kept in sync with it deliberately) is greater
+// than zero at this stripY; bit `i` of `full` means that height equals
+// TILE_H — the whole card, not a sliver. Kept as a plain function rather than
+// a component/hook: it's pure arithmetic over constants, called from a
+// MotionValue event handler and once for initial state, not from render.
+function visibilityMasks(stripY: number, count: number): { partial: number; full: number } {
+  let partial = 0;
+  let full = 0;
   for (let i = 0; i < count; i++) {
     const s = i * PITCH + stripY;
     const topInset = Math.max(0, s - TILE_INSET_TOP);
     const bottomInset = Math.max(0, -s - TILE_INSET_BOTTOM);
     const visibleHeight = TILE_H - topInset - bottomInset;
-    if (visibleHeight > 0) mask |= 1 << i;
+    if (visibleHeight > 0) partial |= 1 << i;
+    if (visibleHeight >= TILE_H) full |= 1 << i;
   }
-  return mask;
+  return { partial, full };
 }
 
 function isVisible(mask: number, i: number): boolean {

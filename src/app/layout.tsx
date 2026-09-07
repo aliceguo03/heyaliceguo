@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import { Nav } from "@/components/chassis/Nav";
 import { Footer } from "@/components/chassis/Footer";
 import { SmoothScroll } from "@/components/chassis/SmoothScroll";
+import { CursorLabelProvider } from "@/components/motion/CursorLabel";
 import "./globals.css";
 
 const gambarino = localFont({
@@ -56,9 +57,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${gambarino.variable} ${jetbrains.variable} ${satoshi.variable} h-full`}
     >
       <body className="min-h-full flex flex-col bg-porcelain text-deep-black font-sans text-body">
-        <Nav />
-        <SmoothScroll>{children}</SmoothScroll>
-        <Footer />
+        <CursorLabelProvider>
+          <Nav />
+          <SmoothScroll>{children}</SmoothScroll>
+          <Footer />
+        </CursorLabelProvider>
       </body>
     </html>
   );

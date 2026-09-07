@@ -156,6 +156,18 @@
   initial-value: 0px;
 }
 
+/* Cursor label bubble (CursorLabel.tsx). Not in @theme — Tailwind v4 has no
+   z-* theme namespace to put a token in, and z-[60] is a banned arbitrary
+   value (CLAUDE.md hard rule 2) — so this is a plain CSS var, read via
+   style={{ zIndex: "var(--z-cursor)" }}, same inline-zIndex precedent as
+   ProjectSection.tsx's L1-L4. body has no stacking context of its own, so a
+   body-level sibling at 60 clears the nav's own z-50 (Nav.tsx) and nothing
+   inside <main> can escape past it. First design-adjacent, not design,
+   token — flagged per CLAUDE.md's "stop and ask" rule on new tokens. */
+:root {
+  --z-cursor: 60;
+}
+
 /* ==========================================================================
    Base
    ========================================================================== */

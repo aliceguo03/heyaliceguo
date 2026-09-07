@@ -1,6 +1,12 @@
+"use client";
+
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { motion } from "motion/react";
+import type { ReactNode, Ref } from "react";
 import { ARROW_ROTATION } from "./Button";
+import { useMagnet } from "@/components/motion/useMagnet";
+
+const MotionLink = motion.create(Link);
 
 // Figma "black button" component (380:1978/380:1977) — the filled variant,
 // e.g. "ALL PROJECTS" (441:5996) and ProjectCard's "VIEW CASE STUDY".
@@ -30,6 +36,13 @@ type BlackButtonProps = {
   children: ReactNode;
   variant?: "filled" | "outline";
   arrow?: "up" | "down";
+  // Only meaningful for the filled variant — see the magnetOn derivation
+  // below. Undefined (the common case: ALL PROJECTS, ProjectCard's own CTA,
+  // BACK TO TOP) means "nothing clips this button, so it's always eligible."
+  // ProjectTileContent passes an explicit boolean for its four CTAs, each
+  // clipped by the fixed-card mechanic and only magnet-eligible while its
+  // own frame is fully onscreen (CLAUDE.md "Magnet" — the visibility gate).
+  magnetEnabled?: boolean;
 } & ({ href: string; onClick?: never } | { href?: never; onClick: () => void });
 
 export function BlackButton({
@@ -37,9 +50,16 @@ export function BlackButton({
   onClick,
   variant = "filled",
   arrow,
+  magnetEnabled,
   children,
 }: BlackButtonProps) {
   const classes = `inline-flex items-center justify-center gap-sm rounded-btn text-mono font-mono transition-colors duration-200 ease-standard ${VARIANT_CLASSES[variant]}`;
+
+  // BACK TO TOP (outline) is excluded regardless of the prop — the outline
+  // variant is never one of the six primary black-fill buttons the magnet
+  // spec covers (CLAUDE.md "Magnet").
+  const magnetOn = variant === "filled" && (magnetEnabled ?? true);
+  const { ref, style } = useMagnet<HTMLButtonElement | HTMLAnchorElement>(magnetOn);
 
   const content = (
     <>
@@ -54,15 +74,26 @@ export function BlackButton({
 
   if (href) {
     return (
-      <Link href={href} style={{ height: BUTTON_HEIGHT }} className={classes}>
+      <MotionLink
+        ref={ref as Ref<HTMLAnchorElement>}
+        href={href}
+        style={{ height: BUTTON_HEIGHT, ...style }}
+        className={classes}
+      >
         {content}
-      </Link>
+      </MotionLink>
     );
   }
 
   return (
-    <button type="button" onClick={onClick} style={{ height: BUTTON_HEIGHT }} className={classes}>
+    <motion.button
+      ref={ref as Ref<HTMLButtonElement>}
+      type="button"
+      onClick={onClick}
+      style={{ height: BUTTON_HEIGHT, ...style }}
+      className={classes}
+    >
       {content}
-    </button>
+    </motion.button>
   );
 }

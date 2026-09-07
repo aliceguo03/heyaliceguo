@@ -8,7 +8,7 @@
 // both lists.
 
 import { chromium } from "playwright";
-import { spawn } from "node:child_process";
+import { spawn, execSync } from "node:child_process";
 import { createServer } from "node:net";
 import { setTimeout as sleep } from "node:timers/promises";
 
@@ -491,6 +491,470 @@ async function loadSequenceChecks(browser, base, results) {
   }
 }
 
+// --- Magnetic button checks (session 4, useMagnet.ts) -----------------------
+// Targets the hero's "VIEW MY WORK" button (ui/Button.tsx) — always magnet-
+// eligible (not gated by ProjectSection's visibility mask), and above the
+// fold, so these checks don't need to scroll first.
+
+async function readTransform(handleOrPage, arg) {
+  return handleOrPage.evaluate((el) => getComputedStyle(el).transform, arg);
+}
+
+function isIdentityTransform(transform) {
+  return transform === "none" || transform === "matrix(1, 0, 0, 1, 0, 0)";
+}
+
+async function magnetChecks(browser, base, results) {
+  // ---- Check: bounding box identical before/after the magnet applies -----
+  // The magnet writes to `style.x`/`style.y` (a transform), which must never
+  // move the button's own layout box — offsetTop/Left/Width/Height are, by
+  // spec, unaffected by transform (see readBox's own comment above), which is
+  // exactly the property this check needs.
+  {
+    const context = await browser.newContext({ viewport: { width: 1710, height: 960 } });
+    const page = await context.newPage();
+    await page.goto(base, { waitUntil: "networkidle" });
+    await page.waitForFunction(
+      () => document.querySelector("#page-top")?.getAttribute("data-loaded") === "true",
+      { timeout: 4000 },
+    );
+
+    const handle = await page.getByRole("button", { name: "VIEW MY WORK" }).elementHandle();
+    const readLayoutBox = (el) => ({
+      top: el.offsetTop,
+      left: el.offsetLeft,
+      width: el.offsetWidth,
+      height: el.offsetHeight,
+    });
+
+    const restBox = await handle.evaluate(readLayoutBox);
+    const restTransform = await readTransform(handle, undefined);
+
+    // 10px inside the button's left edge — activation is contact-only
+    // (session 4 tuning: a literal hit test against the button's own rect,
+    // no proximity radius), so the point must be inside the box, not just
+    // near it. Off-center enough to produce a real, non-trivial offset
+    // rather than one that happens to land near zero.
+    const box = await handle.boundingBox();
+    await page.mouse.move(box.x + 10, box.y + box.height / 2, { steps: 10 });
+    await page.waitForFunction((el) => !["none", "matrix(1, 0, 0, 1, 0, 0)"].includes(getComputedStyle(el).transform), handle, { timeout: 2000 }).catch(() => {});
+
+    const pullingBox = await handle.evaluate(readLayoutBox);
+    const pullingTransform = await readTransform(handle, undefined);
+
+    // Release: move far away and wait for the eased return to identity.
+    await page.mouse.move(200, 200, { steps: 5 });
+    await page.waitForFunction((el) => ["none", "matrix(1, 0, 0, 1, 0, 0)"].includes(getComputedStyle(el).transform), handle, { timeout: 2000 }).catch(() => {});
+    const releasedBox = await handle.evaluate(readLayoutBox);
+    const releasedTransform = await readTransform(handle, undefined);
+
+    results.push({
+      name: "Magnet: pointer contact produces a non-identity transform",
+      pass: isIdentityTransform(restTransform) && !isIdentityTransform(pullingTransform),
+      gating: true,
+      detail: `rest=${restTransform} pulling=${pullingTransform}`,
+    });
+    results.push({
+      name: "Magnet: layout box unchanged while pulling",
+      pass:
+        restBox.top === pullingBox.top &&
+        restBox.left === pullingBox.left &&
+        restBox.width === pullingBox.width &&
+        restBox.height === pullingBox.height,
+      gating: true,
+      detail: `rest=${JSON.stringify(restBox)} pulling=${JSON.stringify(pullingBox)}`,
+    });
+    results.push({
+      name: "Magnet: releases back to identity transform, layout box still unchanged",
+      pass:
+        isIdentityTransform(releasedTransform) &&
+        restBox.top === releasedBox.top &&
+        restBox.left === releasedBox.left &&
+        restBox.width === releasedBox.width &&
+        restBox.height === releasedBox.height,
+      gating: true,
+      detail: `released=${releasedTransform} box=${JSON.stringify(releasedBox)}`,
+    });
+
+    await context.close();
+  }
+
+  // ---- Check: keyboard focus is inert -------------------------------------
+  {
+    const context = await browser.newContext({ viewport: { width: 1710, height: 960 } });
+    const page = await context.newPage();
+    await page.goto(base, { waitUntil: "networkidle" });
+    await page.waitForFunction(
+      () => document.querySelector("#page-top")?.getAttribute("data-loaded") === "true",
+      { timeout: 4000 },
+    );
+
+    const button = page.getByRole("button", { name: "VIEW MY WORK" });
+    await button.focus();
+    const handle = await button.elementHandle();
+    const box = await handle.boundingBox();
+    // Hover dead-center — the strongest possible pull if focus weren't inert.
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 10 });
+    await sleep(200);
+    const transform = await readTransform(handle, undefined);
+
+    results.push({
+      name: "Magnet: focused button does not displace even while hovered",
+      pass: isIdentityTransform(transform),
+      gating: true,
+      detail: `transform=${transform}`,
+    });
+
+    await context.close();
+  }
+
+  // ---- Check: reduced motion attaches no listeners (no transform ever) ---
+  {
+    const context = await browser.newContext({
+      viewport: { width: 1710, height: 960 },
+      reducedMotion: "reduce",
+    });
+    const page = await context.newPage();
+    await page.goto(base, { waitUntil: "networkidle" });
+    await sleep(300);
+
+    const handle = await page.getByRole("button", { name: "VIEW MY WORK" }).elementHandle();
+    const box = await handle.boundingBox();
+    // Inside the box (contact, not proximity) — the point that would
+    // activate the magnet were it enabled, so this actually exercises the
+    // reduced-motion gate rather than just failing to make contact.
+    await page.mouse.move(box.x + 10, box.y + box.height / 2, { steps: 10 });
+    await sleep(200);
+    const transform = await readTransform(handle, undefined);
+
+    results.push({
+      name: "Magnet: reduced motion — no transform under pointer contact",
+      pass: isIdentityTransform(transform),
+      gating: true,
+      detail: `transform=${transform}`,
+    });
+
+    await context.close();
+  }
+
+  // ---- Check: touch context attaches nothing ------------------------------
+  {
+    const context = await browser.newContext({
+      viewport: { width: 1710, height: 960 },
+      hasTouch: true,
+      isMobile: true,
+    });
+    const page = await context.newPage();
+    await page.goto(base, { waitUntil: "networkidle" });
+    await sleep(300);
+
+    const pointerFine = await page.evaluate(
+      () => window.matchMedia("(hover: hover) and (pointer: fine)").matches,
+    );
+    const handle = await page.getByRole("button", { name: "VIEW MY WORK" }).elementHandle();
+    const box = await handle.boundingBox();
+    // Chromium still lets Playwright dispatch synthetic mouse events in a
+    // touch-emulated context — this confirms the magnet stays inert even if
+    // one arrived, not just that no touch input was sent. Inside the box, as
+    // above, so this exercises the touch gate specifically.
+    await page.mouse.move(box.x + 10, box.y + box.height / 2, { steps: 10 });
+    await sleep(200);
+    const transform = await readTransform(handle, undefined);
+
+    results.push({
+      name: "Magnet: touch emulation reports a coarse/no-hover pointer",
+      pass: pointerFine === false,
+      gating: true,
+      detail: `pointerFine=${pointerFine}`,
+    });
+    results.push({
+      name: "Magnet: touch emulation — no transform under simulated pointer contact",
+      pass: isIdentityTransform(transform),
+      gating: true,
+      detail: `transform=${transform}`,
+    });
+
+    await context.close();
+  }
+
+  // ---- Check: pointer-capability and reduced-motion logic live in one place
+  // Static, not a browser check — greps src/ for the two matchMedia queries
+  // useMagnet.ts (and, per CLAUDE.md, the cursor bubble) must reuse from
+  // lib/motion.ts rather than reimplementing.
+  {
+    const pointerFineHits = execSync(
+      String.raw`grep -rl 'matchMedia(.*hover: hover.*pointer: fine' src/ || true`,
+      { cwd: new URL("..", import.meta.url).pathname, encoding: "utf8" },
+    ).trim().split("\n").filter(Boolean);
+    const reducedMotionHits = execSync(
+      String.raw`grep -rl 'matchMedia(.*prefers-reduced-motion' src/ || true`,
+      { cwd: new URL("..", import.meta.url).pathname, encoding: "utf8" },
+    ).trim().split("\n").filter(Boolean);
+
+    results.push({
+      name: "Grep: pointer-capability query (hover/pointer:fine) defined in exactly one file",
+      pass: pointerFineHits.length === 1,
+      gating: true,
+      detail: pointerFineHits.join(", ") || "no hits",
+    });
+    results.push({
+      name: "Grep: reduced-motion query defined in exactly one file",
+      pass: reducedMotionHits.length === 1,
+      gating: true,
+      detail: reducedMotionHits.join(", ") || "no hits",
+    });
+  }
+}
+
+// --- Cursor label bubble checks (session 4, CursorLabel.tsx) ---------------
+// Nav's and Footer's mail/LinkedIn controls are role-scoped to their landmark
+// (`nav[aria-label="Main"]` vs the implicit "contentinfo" `<footer>`) since
+// ContactLinks.tsx's extraction means both render the same accessible name.
+
+function mailLocator(page, landmarkRole, landmarkName) {
+  const scope = landmarkName
+    ? page.getByRole(landmarkRole, { name: landmarkName })
+    : page.getByRole(landmarkRole);
+  return scope.getByRole("button", { name: /Copy email/ });
+}
+
+function linkedinLocator(page, landmarkRole, landmarkName) {
+  const scope = landmarkName
+    ? page.getByRole(landmarkRole, { name: landmarkName })
+    : page.getByRole(landmarkRole);
+  return scope.getByRole("link", { name: "Alice on LinkedIn" });
+}
+
+async function cursorLabelChecks(browser, base, results) {
+  // ---- Show/hide, label text, click-through, and the clipboard gate ------
+  {
+    const context = await browser.newContext({ viewport: { width: 1710, height: 960 } });
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    const page = await context.newPage();
+    await page.goto(base, { waitUntil: "networkidle" });
+    await page.waitForFunction(
+      () => document.querySelector("#page-top")?.getAttribute("data-loaded") === "true",
+      { timeout: 4000 },
+    );
+
+    const navMail = mailLocator(page, "navigation", "Main");
+    const navLinkedin = linkedinLocator(page, "navigation", "Main");
+
+    await navMail.hover();
+    await page.waitForSelector("[data-cursor-bubble]", { timeout: 2000 });
+    const bubbleCount = await page.locator("[data-cursor-bubble]").count();
+    const bubbleTextOnHover = await page.locator("[data-cursor-bubble]").innerText();
+
+    results.push({
+      name: "Cursor bubble: exactly one instance in the DOM while hovering the mail icon",
+      pass: bubbleCount === 1,
+      gating: true,
+      detail: `count=${bubbleCount}`,
+    });
+    results.push({
+      name: "Cursor bubble: shows the copy-email label on hover",
+      pass: bubbleTextOnHover.includes("A2GUO@UCSD.EDU"),
+      gating: true,
+      detail: `text="${bubbleTextOnHover}"`,
+    });
+
+    // Click reaches the icon despite the bubble sitting over it —
+    // Playwright's own actionability check throws if a different element
+    // would intercept the click, so a successful click here is itself proof
+    // pointer-events: none on the bubble is doing its job, not an assumption
+    // about it.
+    await navMail.click();
+    const announced = await page
+      .waitForFunction(
+        () =>
+          Array.from(document.querySelectorAll('[aria-live="polite"]')).some((el) =>
+            el.textContent?.includes("Copied"),
+          ),
+        { timeout: 2000 },
+      )
+      .then(() => true)
+      .catch(() => false);
+    results.push({
+      name: "Cursor bubble: click reaches the mail icon (bubble intercepts nothing)",
+      pass: announced,
+      gating: true,
+      detail: `announced=${announced}`,
+    });
+
+    const bubbleTextAfterClick = await page.locator("[data-cursor-bubble]").innerText();
+    results.push({
+      name: 'Cursor bubble: label swaps to "COPIED" only after the write resolves',
+      pass: bubbleTextAfterClick === "COPIED",
+      gating: true,
+      detail: `text="${bubbleTextAfterClick}"`,
+    });
+
+    await sleep(1800); // past ContactLinks.tsx's COPY_FEEDBACK_MS (1500ms)
+    const bubbleTextAfterRevert = await page.locator("[data-cursor-bubble]").innerText();
+    results.push({
+      name: "Cursor bubble: reverts to the copy-email label after the feedback window",
+      pass: bubbleTextAfterRevert.includes("A2GUO@UCSD.EDU"),
+      gating: true,
+      detail: `text="${bubbleTextAfterRevert}"`,
+    });
+
+    await page.mouse.move(50, 50);
+    const bubbleGone = await page
+      .waitForSelector("[data-cursor-bubble]", { state: "detached", timeout: 2000 })
+      .then(() => true)
+      .catch(() => false);
+    results.push({
+      name: "Cursor bubble: hides after the pointer leaves",
+      pass: bubbleGone,
+      gating: true,
+      detail: bubbleGone ? "removed" : "still present",
+    });
+
+    await navLinkedin.hover();
+    await page.waitForSelector("[data-cursor-bubble]", { timeout: 2000 });
+    const linkedinBubbleText = await page.locator("[data-cursor-bubble]").innerText();
+    results.push({
+      name: 'Cursor bubble: shows "CONNECT" on the LinkedIn icon',
+      pass: linkedinBubbleText === "CONNECT",
+      gating: true,
+      detail: `text="${linkedinBubbleText}"`,
+    });
+
+    const cursorNoneAnywhere = await page.evaluate(
+      () => Array.from(document.querySelectorAll("*")).some((el) => getComputedStyle(el).cursor === "none"),
+    );
+    results.push({
+      name: "cursor: none is applied nowhere on the page",
+      pass: !cursorNoneAnywhere,
+      gating: true,
+      detail: cursorNoneAnywhere ? "found an element with cursor: none" : "clean",
+    });
+
+    await context.close();
+  }
+
+  // ---- Reduced motion: bubble still appears, without the entrance/lag ----
+  {
+    const context = await browser.newContext({
+      viewport: { width: 1710, height: 960 },
+      reducedMotion: "reduce",
+    });
+    const page = await context.newPage();
+    await page.goto(base, { waitUntil: "networkidle" });
+    await page.waitForFunction(
+      () => document.querySelector("#page-top")?.getAttribute("data-loaded") === "true",
+      { timeout: 4000 },
+    );
+
+    await mailLocator(page, "navigation", "Main").hover();
+    await page.waitForSelector("[data-cursor-bubble]", { timeout: 500 }).catch(() => {});
+    const opacity = await page.evaluate(() => {
+      const el = document.querySelector("[data-cursor-bubble]");
+      return el ? Number.parseFloat(getComputedStyle(el).opacity) : -1;
+    });
+    results.push({
+      name: "Cursor bubble: reduced motion — full opacity essentially immediately, no entrance animation",
+      pass: opacity >= 0.99,
+      gating: true,
+      detail: `opacity=${opacity}`,
+    });
+
+    await context.close();
+  }
+
+  // ---- Touch: no bubble at all ---------------------------------------------
+  {
+    const context = await browser.newContext({
+      viewport: { width: 1710, height: 960 },
+      hasTouch: true,
+      isMobile: true,
+    });
+    const page = await context.newPage();
+    await page.goto(base, { waitUntil: "networkidle" });
+    await sleep(300);
+    await page.mouse.move(300, 300); // Chromium still dispatches pointermove for this
+    await sleep(200);
+    const bubbleExists = (await page.locator("[data-cursor-bubble]").count()) > 0;
+    results.push({
+      name: "Cursor bubble: touch emulation renders no bubble",
+      pass: !bubbleExists,
+      gating: true,
+      detail: `count=${bubbleExists ? ">0" : 0}`,
+    });
+
+    await context.close();
+  }
+
+  // ---- Nav/Footer render-identical (ContactLinks.tsx extraction) ---------
+  // Session-4 request: "identical rendered output" measured, not asserted.
+  // Nav's and Footer's icon markup differed, pre-extraction, only in color
+  // classes (text-muted-gray/hover:text-accent-blue-light vs
+  // text-pure-white/hover:text-accent-blue) — everything else (tag, aria-
+  // label, href, icon svg) must still match exactly post-extraction.
+  {
+    const context = await browser.newContext({ viewport: { width: 1710, height: 960 } });
+    const page = await context.newPage();
+    await page.goto(base, { waitUntil: "networkidle" });
+
+    async function describe(locator) {
+      return locator.evaluate((el) => ({
+        tag: el.tagName,
+        ariaLabel: el.getAttribute("aria-label"),
+        href: el.getAttribute("href"),
+        svgViewBox: el.querySelector("svg")?.getAttribute("viewBox") ?? null,
+        classList: Array.from(el.classList),
+      }));
+    }
+
+    function stripColorClasses(classes) {
+      return classes.filter((c) => !c.startsWith("text-") && !c.startsWith("hover:text-"));
+    }
+
+    const navMailD = await describe(mailLocator(page, "navigation", "Main"));
+    const footerMailD = await describe(mailLocator(page, "contentinfo"));
+    const navLinkedinD = await describe(linkedinLocator(page, "navigation", "Main"));
+    const footerLinkedinD = await describe(linkedinLocator(page, "contentinfo"));
+
+    const mailMatches =
+      navMailD.tag === footerMailD.tag &&
+      navMailD.svgViewBox === footerMailD.svgViewBox &&
+      navMailD.ariaLabel === footerMailD.ariaLabel &&
+      JSON.stringify(stripColorClasses(navMailD.classList)) ===
+        JSON.stringify(stripColorClasses(footerMailD.classList));
+
+    const linkedinMatches =
+      navLinkedinD.tag === footerLinkedinD.tag &&
+      navLinkedinD.svgViewBox === footerLinkedinD.svgViewBox &&
+      navLinkedinD.ariaLabel === footerLinkedinD.ariaLabel &&
+      navLinkedinD.href === footerLinkedinD.href &&
+      JSON.stringify(stripColorClasses(navLinkedinD.classList)) ===
+        JSON.stringify(stripColorClasses(footerLinkedinD.classList));
+
+    results.push({
+      name: "Nav/Footer render-identical: mail button matches except color classes",
+      pass: mailMatches,
+      gating: true,
+      detail: `nav=${JSON.stringify(navMailD)} footer=${JSON.stringify(footerMailD)}`,
+    });
+    results.push({
+      name: "Nav/Footer render-identical: LinkedIn link matches except color classes",
+      pass: linkedinMatches,
+      gating: true,
+      detail: `nav=${JSON.stringify(navLinkedinD)} footer=${JSON.stringify(footerLinkedinD)}`,
+    });
+    results.push({
+      name: "Nav/Footer aria-label text matches pre-extraction markup",
+      pass:
+        navMailD.ariaLabel === "Copy email address a2guo@ucsd.edu to clipboard" &&
+        navLinkedinD.ariaLabel === "Alice on LinkedIn",
+      gating: true,
+      detail: `mail="${navMailD.ariaLabel}" linkedin="${navLinkedinD.ariaLabel}"`,
+    });
+
+    await context.close();
+  }
+}
+
 // --- Checks -----------------------------------------------------------------
 // `results` (built up in main()) is a flat list of { name, pass, gating,
 // detail } that the report step at the bottom prints and gates the exit
@@ -733,6 +1197,12 @@ async function main() {
 
     // ---- Hero load sequence (session 3) — checks 2-7 -----------------------
     await loadSequenceChecks(browser, base, results);
+
+    // ---- Magnetic buttons (session 4) --------------------------------------
+    await magnetChecks(browser, base, results);
+
+    // ---- Cursor label bubble (session 4) -----------------------------------
+    await cursorLabelChecks(browser, base, results);
 
     await browser.close();
   } finally {
