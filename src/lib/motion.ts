@@ -15,6 +15,28 @@ export const DUR = {
 
 export const STAGGER = 0.07
 
+// Hero load sequence (CLAUDE.md "Hero load sequence"). Each letter of
+// "alice guo." (10 characters: 9 glyphs + the word space) rises into place
+// while fading in, staggered left→right with heavy overlap — several
+// letters mid-motion at once is what reads as a flowing wave rather than
+// letters popping in one at a time. No rotation, no perspective, no
+// shimmer: this is a soft ~1.4-1.5s target for the wordmark alone and ~2s
+// for the whole hero, not a hard ceiling — everything else in the sequence
+// (photo stack, bio lines, button) measures its offset in seconds from t=0
+// via the *Start fields below, using EASE throughout.
+export const LOAD = {
+  letterStagger: 0.1,
+  letterDuration: 0.5,
+  letterRiseY: 24, // px, start offset below rest — top of the 16-24px reveal-travel ceiling
+  photoStart: 1.2,
+  bioStart: 1.4,
+  bioStagger: 0.15,
+  buttonStart: 1.85,
+  fadeDuration: 0.3,
+  fadeY: 16, // scroll reveals travel 16-24px, never more — same floor here
+  total: 2.15, // last element (button) at rest; gates the fire-once flag
+} as const
+
 // motion/react's own useReducedMotion reads a ref that is `null` on the
 // server and only set from matchMedia during the client's *hydration*
 // render — before that render's useState can see it. Server renders the

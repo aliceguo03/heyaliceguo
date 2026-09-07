@@ -385,15 +385,26 @@ height the way the previous version's did.
 
 ### Hero load sequence
 
-On page load, in order:
+On page load, in order (built in `src/components/motion/Wordmark.tsx`,
+`useLoadSequence.ts`, and `LoadReveal.tsx` — not FlipText, which the hero doesn't use):
 
-1. Wordmark flips in (FlipText)
+1. Wordmark rises in letter by letter, left→right (`translateY` + `opacity`, no
+   rotation, no perspective, no shimmer), with enough overlap between letters that
+   several are mid-motion at once — that overlap is what reads as a flowing wave
+   rather than letters popping in one at a time
 2. Photo appears
 3. The three bio lines fade in one at a time, staggered
 4. The "VIEW MY WORK" button appears last
 
-Total sequence under 900ms. Use `STAGGER` between the bio lines. This is the one
-orchestrated moment on the page — everything else is quiet.
+Soft target, not a hard ceiling — close is fine: wordmark alone ~1.4-1.5s, full
+sequence ~2s first-paint-to-rest. Timing constants live in `LOAD`
+(`src/lib/motion.ts`), not `STAGGER` — ten characters at `STAGGER`'s 70ms is far too
+fast for this slower, more deliberate read. This is the one orchestrated moment on the
+page — everything else is quiet.
+
+Fires once per hard page load (module-scope flag in `useLoadSequence.ts`, not
+`localStorage`/`sessionStorage`) — a reload replays it, client-side navigation within
+the app does not.
 
 ### Photo stack — `src/components/home/PhotoStack.tsx`
 

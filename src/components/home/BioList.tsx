@@ -1,7 +1,11 @@
+"use client";
+
 import type { ComponentType } from "react";
 import { IslandIcon } from "@/components/ui/icons/IslandIcon";
 import { LightbulbIcon } from "@/components/ui/icons/LightbulbIcon";
 import { BankIcon } from "@/components/ui/icons/BankIcon";
+import { LoadReveal } from "@/components/motion/LoadReveal";
+import { LOAD } from "@/lib/motion";
 
 // Site copy, not project data — projects.ts (rule 9) covers case-study
 // content, not the hero bio. Per Figma node 441:5972: each line trails an
@@ -31,18 +35,29 @@ const BIO_LINES: {
   },
 ];
 
-export function BioList() {
+type BioListProps = {
+  play: boolean;
+  startDelay: number;
+};
+
+export function BioList({ play, startDelay }: BioListProps) {
   return (
     <ul className="flex w-full flex-col gap-sm">
-      {BIO_LINES.map(({ Icon, lead, org, break: hasBreak }) => (
-        <li key={org} className="flex items-start gap-sm">
+      {BIO_LINES.map(({ Icon, lead, org, break: hasBreak }, index) => (
+        <LoadReveal
+          key={org}
+          as="li"
+          play={play}
+          delay={startDelay + index * LOAD.bioStagger}
+          className="flex items-start gap-sm"
+        >
           <Icon className="size-icon shrink-0 text-muted-gray" />
           <p className="min-w-0 flex-1 text-body font-sans text-true-black">
             {lead}
             {hasBreak && <br />}
             <span className="text-accent-blue-light">{org}</span>
           </p>
-        </li>
+        </LoadReveal>
       ))}
     </ul>
   );
