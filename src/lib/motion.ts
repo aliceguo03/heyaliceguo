@@ -88,6 +88,100 @@ export function useViewportTooShort(minHeightPx: number) {
   )
 }
 
+// Third instance of the same useSyncExternalStore shape as
+// usePrefersReducedMotion and useViewportTooShort above — SSR and the
+// hydration render must agree, or components branching on this
+// hydration-mismatch. Shared by every desktop-only interaction (magnetic
+// buttons, the custom cursor bubble); the photo stack deliberately does NOT
+// consume this — it stays interactive on touch, see PhotoStack.tsx.
+//
+// getServerSnapshot assumes a fine pointer (`true`), the mirror of reduced
+// motion assuming motion is "on" until proven otherwise: both guess the
+// richer capability and correct down after hydration. Safe here because
+// nothing that branches on this value affects layout — a magnet only
+// attaches listeners and the cursor bubble is `position: fixed` — so a
+// touch visitor's one-frame "fine pointer" guess never shows up as a
+// hydration flash the way a layout-affecting branch would.
+function subscribePointerFine(callback: () => void) {
+  const media = window.matchMedia("(hover: hover) and (pointer: fine)")
+  media.addEventListener("change", callback)
+  return () => media.removeEventListener("change", callback)
+}
+
+export function usePointerFine() {
+  return useSyncExternalStore(
+    subscribePointerFine,
+    () => window.matchMedia("(hover: hover) and (pointer: fine)").matches,
+    () => true,
+  )
+}
+
+// Photo stack drag (PhotoStack.tsx, CLAUDE.md "Photo stack"). Gesture
+// tuning, not a duration or easing curve, so it sits outside DUR/EASE rather
+// than under the "no new easing curves or durations" rule, which governs
+// those specifically. First-pass values — expected to be tuned once
+// reviewed rendered, per this session's own working style.
+export const DRAG = {
+  // Fraction of the photo's own box width the pointer must travel left,
+  // past release, to complete an advance — a fraction rather than a fixed
+  // px figure so it scales if the box is ever re-measured from Figma.
+  thresholdFraction: 0.28,
+  // Below this many px of total travel, a pointer gesture is a click, not
+  // a drag — see PhotoStack.tsx's click-suppression logic.
+  slop: 5,
+} as const
+
+// The outgoing photo's "deal-left" exit path (PhotoStack.tsx, CLAUDE.md
+// "Photo stack — outgoing photo's exit path"). A single data definition —
+// swapping to a different path later is editing these numbers, not the
+// component. See PhotoStack.tsx for why a literal pass-behind isn't
+// achievable in this geometry (z-index can't tween, and the fanned slots
+// overlap too much for any point on a rightward path to hide a flip), so
+// every viable path hides the flip behind opacity instead. Path A (chosen):
+// the photo continues left past its rest position while fading out, then
+// reappears already in its hidden slot once fully transparent.
+//
+// Tuning fix, session 4 (visible-flash bug). Screenshotting the transition
+// frame-by-frame (sampling computed style turned out to distort the very
+// timing it was measuring — see PhotoLayer's own comment) caught a real
+// paint frame where the outgoing photo was faintly but unmistakably
+// visible. First attempt: assume opacity and the z-index flip were painting
+// a frame apart despite both reading the same exitProgress value, and widen
+// a hold straddling the flip to buy margin. Re-screenshotted: the flash was
+// still there, just ~20ms later — proof the paint-skew theory was
+// incomplete. The actual defect was upstream of z-index entirely: opacity
+// was recovering [0,0.55,1] on the *same* schedule as position's own return
+// trip from the extremum, so for the whole return trip the photo was
+// genuinely visible (opacity > 0) while its geometry hadn't yet reached the
+// coincident spot z-index occlusion depends on — nothing to hide it, at any
+// z-index. `zSwapAt` was never wrong; the shared timeline was.
+//
+// The fix: opacity gets its OWN, later schedule than position
+// (`opacityTimes`, below) — it reaches 0 at the same instant position
+// reaches the extremum (times[1], "fades out while traveling left"), but
+// stays at 0 until 0.85, not until 1. By p=0.85, position — per EASE's own
+// shape, cubicBezier(EASE) sampled and confirmed, not assumed — has covered
+// 99.4% of its 191.65px return trip (1.2px short), so opacity only starts
+// recovering once position is, for any practical purpose, already home.
+// There is no longer a window where the photo is visible and not yet where
+// it needs to be, so z-index no longer needs to land at a precise instant —
+// `zSwapAt` just needs to fall anywhere opacity is still provably 0.
+export const PHOTO_EXIT = {
+  exitX: -140, // px past rest, continuing the advancing (leftward) direction
+  exitY: -18,
+  exitRotate: -6, // degrees, continuing counter-clockwise
+  exitScale: 0.94,
+  // Position: reach the extremum at 0.55, return to rest by 1 — no hold
+  // needed here, since hiding position was never the actual problem.
+  times: [0, 0.55, 1] as const,
+  // Opacity's own, later schedule — see this const's own comment above for
+  // why it can't share `times`.
+  opacityTimes: [0, 0.55, 0.85, 1] as const,
+  // Anywhere in opacity's wide zero window (0.55–0.85) works now; picked
+  // the middle for symmetry, not because precision matters here anymore.
+  zSwapAt: 0.7,
+} as const
+
 // motion/react and the CSS --ease-standard var consume EASE directly as a
 // cubic-bezier curve. Lenis's `easing` option instead expects a sampling
 // function (t: 0..1) => progress: 0..1 — so this adapts the *same* EASE
