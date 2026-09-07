@@ -262,3 +262,15 @@ html.lenis body {
     transform: none !important;
   }
 }
+
+/* Same reasoning as [data-reveal] above, for the hero load sequence
+   (useLoadSequence.ts already reads reduced motion and skips scheduling
+   entirely — this is what covers the first frame before that JS runs, and
+   forever with JS disabled). */
+@media (prefers-reduced-motion: reduce) {
+  [data-load],
+  [data-load-letter] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

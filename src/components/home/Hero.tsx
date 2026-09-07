@@ -5,6 +5,10 @@ import { PhotoStack } from "./PhotoStack";
 import { Button } from "@/components/ui/Button";
 import { Ticker } from "@/components/chassis/Ticker";
 import { useScrollAction } from "@/components/chassis/SmoothScroll";
+import { LoadReveal } from "@/components/motion/LoadReveal";
+import { Wordmark } from "@/components/motion/Wordmark";
+import { useLoadSequence } from "@/components/motion/useLoadSequence";
+import { LOAD } from "@/lib/motion";
 
 // Figma hero frame (441:5965), page "final". Fixed pixel geometry below is
 // specific to this frame at the 1710px reference width, not a design token,
@@ -16,6 +20,7 @@ const ROLES_COLUMN_WIDTH = 320;
 
 export function Hero() {
   const scrollTo = useScrollAction();
+  const { play, loaded } = useLoadSequence();
 
   return (
     <div className="viewport-fill flex w-full flex-col items-center">
@@ -23,17 +28,14 @@ export function Hero() {
         className="my-auto flex flex-col items-center gap-xl py-xl"
         style={{ width: HERO_WIDTH }}
       >
-        {/* Plain text for now — FlipText's per-character flip lands in step 10.
-            id/tabIndex make this the focus target for the sitewide "top of
-            page" scroll action (see SmoothScroll's TOP_FOCUS_ID). */}
-        <h1 id="page-top" tabIndex={-1} className="text-display font-display text-center text-ink">
-          alice guo.
-        </h1>
+        <Wordmark play={play} loaded={loaded} />
 
         <div className="flex items-center gap-lg" style={{ width: HERO_WIDTH }}>
           <div className="relative shrink-0" style={PHOTO_CELL}>
             <div className="absolute" style={PHOTO_STACK_OFFSET}>
-              <PhotoStack />
+              <LoadReveal play={play} delay={LOAD.photoStart}>
+                <PhotoStack />
+              </LoadReveal>
             </div>
           </div>
 
@@ -41,10 +43,12 @@ export function Hero() {
             className="flex flex-col items-start gap-lg"
             style={{ width: ROLES_COLUMN_WIDTH }}
           >
-            <BioList />
-            <Button onClick={() => scrollTo("#selected-work", { offsetVar: "--spacing-nav-height" })}>
-              VIEW MY WORK
-            </Button>
+            <BioList play={play} startDelay={LOAD.bioStart} />
+            <LoadReveal play={play} delay={LOAD.buttonStart}>
+              <Button onClick={() => scrollTo("#selected-work", { offsetVar: "--spacing-nav-height" })}>
+                VIEW MY WORK
+              </Button>
+            </LoadReveal>
           </div>
         </div>
       </section>
