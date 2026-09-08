@@ -9,6 +9,7 @@ import { LoadReveal } from "@/components/motion/LoadReveal";
 import { Wordmark } from "@/components/motion/Wordmark";
 import { useLoadSequence } from "@/components/motion/useLoadSequence";
 import { LOAD } from "@/lib/motion";
+import { roles } from "@/content/roles";
 
 // Figma hero frame (441:5965), page "final". Fixed pixel geometry below is
 // specific to this frame at the 1710px reference width, not a design token,
@@ -53,7 +54,9 @@ export function Hero() {
         </div>
       </section>
 
-      <Ticker />
+      <div className="w-full pb-xl">
+        <Ticker items={roles} />
+      </div>
     </div>
   );
 }
