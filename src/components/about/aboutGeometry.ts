@@ -89,10 +89,14 @@ export const PHOTO_MIN_H = 300;
 // schedule's total post-lock scroll (six holds' worth of HOLD_PX plus the
 // five travel segments between them) — 6 * HOLD_PX + the last hold's own
 // y, measured at the 1710x1040 reference viewport after the text-column
-// width fix (663px column; see TextColumn.tsx's own comment): 960 + 1537 =
-// 2497. Real rendered Satoshi metrics — and which viewport a visitor
-// loads at — will differ; that's exactly what the observer corrects.
-export const PIN_SCROLL_ESTIMATE = 2497;
+// width fix (663px column; see TextColumn.tsx's own comment). Re-measured
+// after the gap-widening pass (TextColumn.tsx's gap-3xl -> gap-4xl,
+// 100px -> 212px): 960 + 2097 = 3057, up from 2497 — the five wider gaps
+// between blocks stretch every hold's own offset, which is exactly what
+// this seed is meant to track. Real rendered Satoshi metrics — and which
+// viewport a visitor loads at — will differ; that's exactly what the
+// observer corrects.
+export const PIN_SCROLL_ESTIMATE = 3057;
 
 // Below this viewport height the frame plus its pin can't hold PHOTO_MIN_H
 // of photo, so AboutSection falls back to normal-flow rows instead of the

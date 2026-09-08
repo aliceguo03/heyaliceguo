@@ -43,6 +43,18 @@ import { textColumnWidthCss } from "./aboutGeometry";
 // Block `i` is filled only while `i === currentIndex` — a plain equality,
 // not a high-water mark, so a paragraph already passed returns to gray as
 // soon as scroll carries it out of the spotlight, in either direction.
+//
+// Gap-widening tuning pass: gap-3xl (100px) → gap-4xl (212px) between
+// blocks. No bespoke literal — the requested "+100px, ~200px" starting
+// point isn't itself on the spacing scale (4/8/12/20/30/50/100/212), and
+// 4xl is already the next step up, already used elsewhere at this same
+// "generous vertical breathing room" register (Footer.tsx, AboutHero.tsx).
+// Free of any knock-on math: useAboutPin.ts's hold/travel schedule reads
+// each block's rendered offset live off the DOM (see its own comment), so
+// a wider gap just produces a longer travel distance between holds — no
+// other file assumes 100px as a literal. AboutFallback.tsx's own gap-3xl
+// is untouched on purpose: it renders a different Figma mock (705:5453)
+// with its own documented 100px row gap, not derived from this column.
 export function TextColumn({
   windowHeight,
   y,
@@ -66,7 +78,7 @@ export function TextColumn({
       <motion.div
         ref={contentRef}
         data-testid="about-text-content"
-        className="flex w-full flex-col items-start gap-3xl"
+        className="flex w-full flex-col items-start gap-4xl"
         style={{ y }}
       >
         {ABOUT_SECTIONS.map((section, index) => (
