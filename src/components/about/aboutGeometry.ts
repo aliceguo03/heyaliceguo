@@ -112,13 +112,12 @@ export const MIN_ABOUT_VIEWPORT_H =
 // A dead zone in scroll distance, not time — same exempt category as
 // PHOTO_MIN_H above (gesture/interaction tuning, not a decorative
 // duration/easing CLAUDE.md's hard rules govern). Felt-duration judgment
-// call: ~80px is roughly what one confident trackpad swipe or a single
-// mechanical wheel click covers — long enough that the frame's "click into
-// place" moment reads as its own beat before scroll starts moving the
-// text, short of reading as the page not responding. Applied AFTER
-// lockStart (useAboutPin.ts), not before it — the frame is already locked
-// throughout the pause, only the text withholds its own motion.
-export const PAUSE_PX = 80;
+// call, doubled from an initial 80px after review — 160px reads as a more
+// definite pause, roughly two confident trackpad swipes or wheel clicks,
+// before scroll starts moving the text. Applied AFTER lockStart
+// (useAboutPin.ts), not before it — the frame is already locked throughout
+// the pause, only the text withholds its own motion.
+export const PAUSE_PX = 160;
 
 // The floor a shrinking text column may not cross, and the gap held once
 // it's shrinking (see textColumnWidthCss below). Judgment call at 24px
