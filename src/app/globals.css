@@ -41,6 +41,11 @@
   --text-body--line-height: 26px;
   --text-body--letter-spacing: 0;
 
+  /* Body large — About page copy only (Figma var Satoshi/Body Large). */
+  --text-body-large: 24px;
+  --text-body-large--line-height: 32px;
+  --text-body-large--letter-spacing: 0;
+
   /* --- Color: backgrounds ---------------------------------------------- */
   --color-porcelain: #fefffd;
   --color-ink: #0a0a0a;
@@ -83,11 +88,12 @@
   /* --- Spacing ---------------------------------------------------------- */
   --spacing-xs: 4px;
   --spacing-s: 8px;
-  --spacing-sm: 12px;
+  --spacing-sm: 12px; /* Figma padding/small — confirmed via get_variable_defs, not guessed */
   --spacing-md: 20px;
   --spacing-lg: 30px;
-  --spacing-xl: 50px;
-  --spacing-2xl: 212px;
+  --spacing-xl: 50px; /* Figma padding/large */
+  --spacing-3xl: 100px; /* Figma padding/xlarge */
+  --spacing-4xl: 212px; /* Figma padding/xxlarge (was --spacing-2xl) */
 
   /* Button padding — separate from the main ramp by design */
   --spacing-btn-x: 24px;
@@ -292,5 +298,17 @@ html.lenis body {
   [data-load-letter] {
     opacity: 1 !important;
     transform: none !important;
+  }
+}
+
+/* Same reasoning again, for the About page's paragraph reveal
+   (ColorReveal.tsx). That component already renders deep-black with no
+   transition once usePrefersReducedMotion resolves client-side — this is
+   what covers the first frame before that JS runs, and forever with JS
+   disabled. !important to beat the component's own inline transition. */
+@media (prefers-reduced-motion: reduce) {
+  [data-color-reveal] {
+    color: var(--color-deep-black) !important;
+    transition: none !important;
   }
 }

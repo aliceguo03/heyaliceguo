@@ -105,11 +105,15 @@ Satoshi is prose.
 
 ### Spacing
 
-`4 / 8 / 12 / 20 / 30 / 50 / 212`
+`4 / 8 / 12 / 20 / 30 / 50 / 100 / 212`
 Buttons: `24` horizontal, `16` vertical.
 
 Token names: `space-xs`, `space-s`, `space-sm`, `space-md`, `space-lg`, `space-xl`,
-`space-2xl`, plus `space-btn-x` and `space-btn-y`.
+`space-3xl`, `space-4xl`, plus `space-btn-x` and `space-btn-y`. Named after their
+Figma variables (`padding/large` → `xl`, `padding/xlarge` → `3xl`, `padding/xxlarge`
+→ `4xl`) rather than `2xl`/`3xl` in ramp order, so a value never sits one letter away
+from a token twice its size — session 5A renamed the 212px token from `2xl` to `4xl`
+when the 100px step was added, to leave that gap open.
 
 ### Radius
 
@@ -466,15 +470,19 @@ src/
 │   └── about/page.tsx
 ├── components/
 │   ├── chassis/          Nav, Footer, Ticker, Container
-│   ├── ui/               Button, StatusPill, MetaRow, SectionLabel
+│   ├── ui/               Button, StatusPill, MetaRow, SectionLabel,
+│   │                     PageTitle, InlineLink
 │   ├── home/             Hero, BioList, ProjectCard, ProjectStack
+│   ├── about/            AboutHero, AboutFrame, TextColumn, PhotoColumn,
+│   │                     aboutGeometry.ts
 │   └── motion/           FlipText, Magnet, CustomCursor, Reveal
-├── content/projects.ts
+├── content/projects.ts, about.ts, tools.ts
 ├── lib/motion.ts
 public/
 ├── fonts/                WOFF2
 ├── projects/             screenshots
 │   └── gradients/        card background images
+└── about/                hero + section photos, frame-gradient.jpg
 ```
 
 The chassis / ui / feature split is load-bearing. Per-project color lives inside the
