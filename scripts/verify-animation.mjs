@@ -1162,12 +1162,15 @@ async function aboutPinChecks(browser, base, results) {
       detail: `navFrameGap(token)=${navFrameGap} offsets(min/max)=${Math.min(...navGapOffsets).toFixed(2)}/${Math.max(...navGapOffsets).toFixed(2)}`,
     });
 
-    // ---- Fix 1: PAUSE_PX dead zone — text holds at progress 0 for a real
-    // stretch of scroll past lockStart, then moves. Doesn't hardcode the
-    // tuned constant (it's a judgment call, expected to get retuned): scans
-    // for the actual observed pause and asserts it's substantial (not a
-    // rounding artifact) and leaves real travel remaining afterward, so a
-    // future retune of PAUSE_PX doesn't need this check rewritten.
+    // ---- Fix 1: HOLD_PX dead zone at hold 0 — text holds at rest for a
+    // real stretch of scroll past lockStart, then starts traveling toward
+    // hold 1. Doesn't hardcode the tuned constant (it's a judgment call,
+    // expected to get retuned): scans for the actual observed pause and
+    // asserts it's substantial (not a rounding artifact) and leaves real
+    // travel remaining afterward, so a future retune of HOLD_PX doesn't
+    // need this check rewritten. (Session 5D: this is now hold 0 of six,
+    // not a standalone pause constant — see the hold-plateau checks below
+    // for the other five.)
     {
       const identityAt = async (y) => {
         await scrollAboutTo(page, y);
@@ -1226,20 +1229,206 @@ async function aboutPinChecks(browser, base, results) {
       });
     }
 
-    // ---- Check 6: last paragraph fully reachable -------------------------
-    await scrollAboutTo(page, win.lockEnd);
-    const atEnd = await aboutSample(page);
-    const reachable =
-      !!atEnd.textContent && !!atEnd.textWindow && Math.abs(atEnd.textContent.bottom - atEnd.textWindow.bottom) < 2;
+    // ---- Session 5D: hold plateaus, and the live color/photo/counter
+    // spotlight at each one. Supersedes the old "last paragraph fully
+    // reachable" check (session 5C's runway requirement — every header
+    // reaching the window's literal top edge — no longer exists; each hold,
+    // including the last, now releases once its block reaches ITS OWN
+    // center, not any shared edge).
+    //
+    // Detects plateaus empirically off the real rendered transform, not by
+    // re-typing HOLD_PX or the measured hold positions — same discipline
+    // as the Fix 1 pause check above, extended from one plateau to six.
+    const parseTranslateY = (transform) => {
+      if (transform === "none") return 0;
+      const match = transform.match(/matrix\(([-\d.,\s]+)\)/);
+      if (!match) return null;
+      const parts = match[1].split(",").map((v) => Number.parseFloat(v.trim()));
+      return parts.length === 6 ? parts[5] : null;
+    };
+
+    const fineSteps = 240;
+    const fineSamples = [];
+    for (let i = 0; i <= fineSteps; i++) {
+      const y = win.lockStart + (win.travel * i) / fineSteps;
+      await scrollAboutTo(page, y);
+      const t = await page.evaluate(
+        () => getComputedStyle(document.querySelector('[data-testid="about-text-content"]')).transform,
+      );
+      fineSamples.push({ scrollY: y, ty: -(parseTranslateY(t) ?? 0) });
+    }
+
+    // A plateau is a maximal run of consecutive samples whose ty doesn't
+    // move (within a rounding tolerance) — a real, substantial dwell, not
+    // a momentary flat spot between two probe steps.
+    const plateaus = [];
+    let runStart = 0;
+    for (let i = 1; i <= fineSamples.length; i++) {
+      const stillFlat = i < fineSamples.length && Math.abs(fineSamples[i].ty - fineSamples[runStart].ty) <= 1;
+      if (stillFlat) continue;
+      const runLen = fineSamples[i - 1].scrollY - fineSamples[runStart].scrollY;
+      if (runLen > 20) {
+        plateaus.push({
+          y: fineSamples[runStart].ty,
+          scrollStart: fineSamples[runStart].scrollY,
+          scrollEnd: fineSamples[i - 1].scrollY,
+        });
+      }
+      runStart = i;
+    }
+
     results.push({
-      name: `${viewport.name}: last paragraph's bottom is fully reachable (no early run-out, no dead space)`,
-      pass: reachable,
+      name: `${viewport.name}: exactly 6 hold plateaus across the pin range`,
+      pass: plateaus.length === 6,
       gating: true,
-      detail: `textContent.bottom=${atEnd.textContent?.bottom.toFixed(2)} textWindow.bottom=${atEnd.textWindow?.bottom.toFixed(2)}`,
+      detail: JSON.stringify(
+        plateaus.map((p) => ({ y: +p.y.toFixed(1), scrollStart: +p.scrollStart.toFixed(0), scrollEnd: +p.scrollEnd.toFixed(0) })),
+      ),
+    });
+
+    // Predicted hold positions from real rendered block rects — an
+    // independent measurement (this evaluate reads the DOM fresh; it does
+    // not import aboutGeometry.ts's pinSchedule or useAboutPin.ts's
+    // measure()), so agreement here is a genuine cross-check, not a
+    // tautology.
+    const predictedHolds = await page.evaluate(() => {
+      const windowEl = document.querySelector('[data-testid="about-text-window"]');
+      const content = document.querySelector('[data-testid="about-text-content"]');
+      const windowH = windowEl.getBoundingClientRect().height;
+      const contentTop = content.getBoundingClientRect().top;
+      let prev = 0;
+      return Array.from(content.querySelectorAll("[data-about-block]"), (block) => {
+        const r = block.getBoundingClientRect();
+        const top = r.top - contentTop;
+        const raw = r.height > windowH ? top : top + r.height / 2 - windowH / 2;
+        const hold = Math.max(prev, Math.max(0, raw));
+        prev = hold;
+        return hold;
+      });
+    });
+
+    const holdsMatch =
+      plateaus.length === predictedHolds.length && plateaus.every((p, i) => Math.abs(p.y - predictedHolds[i]) < 2);
+    results.push({
+      name: `${viewport.name}: each plateau's y matches its block's measured center (±2px)`,
+      pass: holdsMatch,
+      gating: true,
+      detail: `plateaus=${JSON.stringify(plateaus.map((p) => +p.y.toFixed(1)))} predicted=${JSON.stringify(predictedHolds.map((h) => +h.toFixed(1)))}`,
+    });
+
+    // ---- At each plateau's midpoint: counter, photo, and color spotlight,
+    // color-only (no transform/opacity/blur on any block), and — scrolling
+    // back from hold 4 to hold 2 — reversal with no special-casing needed.
+    // The custom property's own raw value (--color-deep-black: #0d0d0d)
+    // isn't the same string format `getComputedStyle(el).color` resolves
+    // to (rgb(13, 13, 13)) — same color, different serialization. Resolve
+    // each token through a real `color` property on a throwaway element so
+    // both sides of the comparison below go through the same
+    // browser-normalized format, rather than comparing a hex literal
+    // against an rgb() string.
+    const revealTokens = await page.evaluate(() => {
+      const probe = document.createElement("span");
+      probe.style.display = "none";
+      document.body.appendChild(probe);
+      probe.style.color = "var(--color-deep-black)";
+      const black = getComputedStyle(probe).color;
+      probe.style.color = "var(--color-dark-gray)";
+      const gray = getComputedStyle(probe).color;
+      probe.remove();
+      return { black, gray };
+    });
+
+    const sampleHold = async (index) => {
+      const plateau = plateaus[index];
+      await scrollAboutTo(page, (plateau.scrollStart + plateau.scrollEnd) / 2);
+      await page.waitForTimeout(650); // DUR.reveal's color transition settling
+      return page.evaluate(() => {
+        const counterEl = document.querySelector('[data-testid="about-photo-window"]').parentElement.querySelector("span");
+        const photos = Array.from(document.querySelectorAll('[data-testid="about-photo-window"] > div'), (el) =>
+          Number.parseFloat(getComputedStyle(el).opacity),
+        );
+        const blocks = Array.from(document.querySelectorAll("[data-color-reveal]"), (p) => {
+          const cs = getComputedStyle(p);
+          return { color: cs.color, transform: cs.transform, opacity: cs.opacity, filter: cs.filter };
+        });
+        return { counter: counterEl?.textContent ?? null, photos, blocks };
+      });
+    };
+
+    const normalizeColor = (c) => c.replace(/\s/g, "");
+    const assertHold = (index, sample) => {
+      const expectedCounter = String(index + 1).padStart(2, "0");
+      results.push({
+        name: `${viewport.name}: hold ${index + 1}/6 — counter reads ${expectedCounter}/06`,
+        pass: sample.counter === expectedCounter,
+        gating: true,
+        detail: `counter=${sample.counter}`,
+      });
+      const photoOk = sample.photos.every((op, i) => (i === index ? op > 0.99 : op < 0.01));
+      results.push({
+        name: `${viewport.name}: hold ${index + 1}/6 — only photo ${index + 1} is at full opacity`,
+        pass: photoOk,
+        gating: true,
+        detail: JSON.stringify(sample.photos.map((o) => +o.toFixed(2))),
+      });
+      const colorOk = sample.blocks.every((b, i) =>
+        i === index
+          ? normalizeColor(b.color) === normalizeColor(revealTokens.black)
+          : normalizeColor(b.color) === normalizeColor(revealTokens.gray),
+      );
+      results.push({
+        name: `${viewport.name}: hold ${index + 1}/6 — only block ${index + 1} is deep-black, every other block (passed or not yet reached) is gray`,
+        pass: colorOk,
+        gating: true,
+        detail: JSON.stringify(sample.blocks.map((b) => b.color)),
+      });
+      const colorOnlyOk = sample.blocks.every(
+        (b) =>
+          (b.transform === "none" || b.transform === "matrix(1, 0, 0, 1, 0, 0)") &&
+          Math.abs(Number.parseFloat(b.opacity) - 1) < 0.01 &&
+          b.filter === "none",
+      );
+      results.push({
+        name: `${viewport.name}: hold ${index + 1}/6 — color only, no transform/opacity/blur on any block`,
+        pass: colorOnlyOk,
+        gating: true,
+        detail: JSON.stringify(sample.blocks.map((b) => ({ transform: b.transform, opacity: b.opacity, filter: b.filter }))),
+      });
+    };
+
+    if (plateaus.length === 6) {
+      for (let i = 0; i < 6; i++) assertHold(i, await sampleHold(i));
+
+      // Reverse: settle at hold 4, then scroll back to hold 2 — the
+      // previously-black paragraph (hold 4, index 3) must be gray again,
+      // with no special-casing (this is the same sampleHold/assertHold
+      // used forward).
+      await sampleHold(3);
+      assertHold(1, await sampleHold(1));
+    }
+
+    // ---- Width regression: the content column matches the WINDOW's own
+    // width, not the clamp's TEXT_COL_MIN_W floor — the bug this session's
+    // §1 fix caught (the content div re-applied textColumnWidthCss, whose
+    // 100% branch resolved against the window itself and floored out).
+    const widthCheck = await page.evaluate(() => {
+      const windowEl = document.querySelector('[data-testid="about-text-window"]');
+      const content = document.querySelector('[data-testid="about-text-content"]');
+      return {
+        windowWidth: windowEl.getBoundingClientRect().width,
+        contentWidth: content.getBoundingClientRect().width,
+      };
+    });
+    results.push({
+      name: `${viewport.name}: text content column matches the window's own width (no clamp-floor regression)`,
+      pass: Math.abs(widthCheck.windowWidth - widthCheck.contentWidth) < 1,
+      gating: true,
+      detail: JSON.stringify(widthCheck),
     });
 
     // ---- Check 7: reverse scroll returns exactly to the starting transform
-    const atRestBefore = await aboutSample(page); // still at lockEnd from above
+    await scrollAboutTo(page, win.lockEnd);
+    const atRestBefore = await aboutSample(page);
     await scrollAboutTo(page, 0);
     const atTop = await aboutSample(page);
     await scrollAboutTo(page, win.lockEnd);
@@ -1264,10 +1453,10 @@ async function aboutPinChecks(browser, base, results) {
     // window), so a taller scrollHeight there is correct-by-design, not
     // overflow. The real invariant is that the right column doesn't poke
     // out past where the frame's padding box actually ends — proxied by
-    // the text column's window bottom, since both columns sit in the same
-    // items-start row inside the same padding box, and the "last
-    // paragraph reachable" check above already proves that edge is
-    // correct for the text side.
+    // the text column's window bottom: that outer window's own bottom edge
+    // is fixed by CSS (frame height minus padding), independent of where
+    // the hold schedule currently has the content translated to, so it's a
+    // stable reference regardless of scroll position.
     await scrollAboutTo(page, win.lockStart);
     const photoSample = await aboutSample(page);
     const photoColumnOverflow =

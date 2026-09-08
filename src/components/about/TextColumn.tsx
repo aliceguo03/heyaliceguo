@@ -16,12 +16,20 @@ import { textColumnWidthCss } from "./aboutGeometry";
 // stays overflow-hidden with a fixed height, and only the inner
 // motion.div's translateY moves.
 //
-// Fix pass: width is textColumnWidthCss (a clamp), not the fixed TEXT_COL_W
-// number — below ~1510px of row width the column shrinks rather than
-// overflowing past the photo column. Both the window and the content
-// motion.div need the same width: if only the window narrowed while the
-// content stayed hard-coded at 663, overflow-hidden would clip text off
-// the right edge instead of letting it reflow at the narrower measure.
+// Fix pass: the window's width is textColumnWidthCss (a clamp) — below
+// ~1510px of row width the column shrinks rather than overflowing past the
+// photo column. The content motion.div only ever needs width: 100% of that
+// window — it must NOT re-apply the same clamp itself. Session 5D fix:
+// doing so was a live bug — the clamp's middle branch is
+// `calc(100% - PHOTO_COL_W - MIN_COLUMN_GAP)`, and inside the content div
+// that `100%` resolves against the *window* (663px at the 1710px
+// reference), not the row the window itself is clamped against. That
+// computes negative (663 - 653 - 100 = -90) and the clamp floors out at
+// TEXT_COL_MIN_W (480px) — so the text rendered 183px narrower than Figma
+// at every viewport, including the reference width, until this fix.
+// `AboutFallbackRow.tsx`'s own use of the clamp is correct and unchanged:
+// its containing block genuinely is the row, not a window already sized by
+// the same expression.
 //
 // `windowRef` and `contentRef` let useAboutPin.ts measure this window's
 // actual rendered height and the content's own height (font-dependent,
@@ -30,23 +38,23 @@ import { textColumnWidthCss } from "./aboutGeometry";
 // changes as text reflows at a narrower measure), so no separate handling
 // is needed for that case.
 //
-// `filledCount` (session 5C): the latched high-water mark useAboutPin.ts
-// derives from aboutProgress. Block `i` is filled once `i < filledCount` —
-// a plain index comparison, so a paragraph that's already filled stays
-// filled on every re-render regardless of which direction progress last
-// moved.
+// `currentIndex` (session 5D, replacing 5C's latched `filledCount`): the
+// single live index useAboutPin.ts derives from the hold/travel schedule.
+// Block `i` is filled only while `i === currentIndex` — a plain equality,
+// not a high-water mark, so a paragraph already passed returns to gray as
+// soon as scroll carries it out of the spotlight, in either direction.
 export function TextColumn({
   windowHeight,
   y,
   windowRef,
   contentRef,
-  filledCount,
+  currentIndex,
 }: {
   windowHeight: string;
   y: MotionValue<number>;
   windowRef: RefObject<HTMLDivElement | null>;
   contentRef: RefObject<HTMLDivElement | null>;
-  filledCount: number;
+  currentIndex: number;
 }) {
   return (
     <div
@@ -58,15 +66,15 @@ export function TextColumn({
       <motion.div
         ref={contentRef}
         data-testid="about-text-content"
-        className="flex flex-col items-start gap-3xl"
-        style={{ width: textColumnWidthCss, y }}
+        className="flex w-full flex-col items-start gap-3xl"
+        style={{ y }}
       >
         {ABOUT_SECTIONS.map((section, index) => (
           <TextBlock
             key={section.id}
             header={section.header}
             body={section.body}
-            filled={index < filledCount}
+            filled={index === currentIndex}
           />
         ))}
       </motion.div>

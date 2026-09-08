@@ -20,9 +20,11 @@ import { DUR, usePrefersReducedMotion } from "@/lib/motion";
 // two decisions locked before this session started.
 //
 // `filled` is a plain boolean, not a MotionValue: useAboutPin.ts already
-// derives a latched high-water mark (filledCount) from the one
-// aboutProgress value, so this component has nothing of its own to
-// compute or subscribe to. Because the animated property is `color`, not a
+// derives a single live currentIndex from its hold/travel schedule
+// (session 5D — a spotlight, not a latch: only the currently-centered
+// paragraph is filled, and this reverses cleanly as scroll direction
+// reverses), so this component has nothing of its own to compute or
+// subscribe to. Because the animated property is `color`, not a
 // transform, this doesn't need motion/react at all — a className swap plus
 // a CSS transition (built from DUR.reveal and --ease-standard, never
 // inline literals) does the whole job with zero per-frame JS.

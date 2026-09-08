@@ -35,10 +35,9 @@ export function AboutSection() {
 
   // Always called (rules of hooks) — a no-op internally whenever the
   // fallback below renders instead; see useAboutPin.ts's own comment.
-  // filledCount and activeIndex (session 5C) are both derived from the
-  // same aboutProgress this hook already owns — see its own comment.
-  const { sectionRef, wrapperRef, windowRef, contentRef, textY, filledCount, activeIndex } =
-    useAboutPin(disabled);
+  // currentIndex drives the paragraph reveal AND the photo/counter snap —
+  // one value, so they can never disagree about which frame they're on.
+  const { sectionRef, wrapperRef, windowRef, contentRef, textY, currentIndex } = useAboutPin(disabled);
 
   if (disabled) {
     return (
@@ -78,9 +77,9 @@ export function AboutSection() {
             y={textY}
             windowRef={windowRef}
             contentRef={contentRef}
-            filledCount={filledCount}
+            currentIndex={currentIndex}
           />
-          <PhotoColumn windowHeight={photoWindowCss} photoHeight={photoHeightCss} activeIndex={activeIndex} />
+          <PhotoColumn windowHeight={photoWindowCss} photoHeight={photoHeightCss} activeIndex={currentIndex} />
         </AboutFrame>
       </div>
     </div>

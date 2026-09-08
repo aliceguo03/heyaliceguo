@@ -13,10 +13,11 @@ import { DUR, EASE } from "@/lib/motion";
 // `windowHeight`/`photoHeight` are now CSS lengths that track the
 // viewport (aboutGeometry.ts's photoWindowCss/photoHeightCss).
 //
-// Session 5C: the photo/counter snap. `activeIndex` (useAboutPin.ts,
-// derived from the same aboutProgress + measured header offsets the
-// paragraph reveal reads — one source, per the plan's Part A) selects
-// which of the six PhotoCaptions is on screen.
+// The photo/counter snap. `activeIndex` (useAboutPin.ts's currentIndex —
+// one source, shared verbatim with the paragraph reveal) selects which of
+// the six PhotoCaptions is on screen. Session 5D: derived from the
+// hold/travel schedule's held block centers, not header-top thresholds,
+// and switches at each hold's start rather than being a latched value.
 //
 // All six stay mounted, stacked in one CSS grid cell (col/row-start-1) and
 // cross-faded by opacity via motion.div — no mount/unmount, no absolute
