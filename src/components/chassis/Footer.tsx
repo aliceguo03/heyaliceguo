@@ -67,7 +67,7 @@ export function Footer() {
     // 1610px cap and gutter as the card frames above it (max-w-page,
     // globals.css) instead of growing unbounded past ~1725px viewports.
     <div className="px-xl pb-lg">
-      <footer className="mx-auto flex max-w-page flex-col gap-2xl rounded-card bg-ink p-lg">
+      <footer className="mx-auto flex max-w-page flex-col gap-4xl rounded-card bg-ink p-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-lg">
             <p className="flex items-center gap-sm text-mono font-mono text-pure-white">
