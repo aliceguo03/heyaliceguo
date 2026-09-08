@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { AboutHero } from "@/components/about/AboutHero";
-import { AboutFrame } from "@/components/about/AboutFrame";
+import { AboutSection } from "@/components/about/AboutSection";
 
 export const metadata: Metadata = {
   title: "About — Alice Guo",
@@ -11,13 +11,12 @@ export default function About() {
   return (
     <main>
       <AboutHero />
-      {/* Full-bleed padded wrapper + capped, centered frame — same pattern
-          Footer.tsx uses so this tracks the same 1610px cap and 50px
-          gutter as the rest of the page's chrome. */}
+      {/* Full-bleed padded wrapper — same 1610px cap / 50px gutter pattern
+          Footer.tsx uses. AboutSection owns the centered frame itself
+          (session 5B: the pin needs its own ref on that centering wrapper
+          to measure scroll position off it). */}
       <div className="px-xl pb-lg">
-        <div className="mx-auto max-w-page">
-          <AboutFrame />
-        </div>
+        <AboutSection />
       </div>
     </main>
   );

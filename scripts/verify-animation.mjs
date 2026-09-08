@@ -955,6 +955,413 @@ async function cursorLabelChecks(browser, base, results) {
   }
 }
 
+// --- About page pin checks (session 5B, aboutGeometry.ts) -------------------
+// The frame-locks/text-column-scrolls mechanic on /about. Same discipline as
+// verify-project-section.mjs: every check reads real rendered rects and
+// computed styles off the page rather than re-typing NAV_CLEARANCE/
+// BOTTOM_GAP/etc. as literals here, so a real drift between aboutGeometry.ts
+// and the rendered page is exactly what these catch. BOTTOM_GAP and
+// NAV_CLEARANCE are read back as the underlying --spacing-lg /
+// --spacing-nav-height custom properties they mirror. Kept as its own
+// section (own viewport list, own helpers) so the home-page checks above
+// aren't perturbed.
+
+const ABOUT_VIEWPORTS = [
+  { name: '16" MBP', width: 1710, height: 1040 },
+  { name: '13" Air (900)', width: 1440, height: 900 },
+  { name: '13" Air (760)', width: 1440, height: 760 },
+];
+
+// Below this height none of the three ABOUT_VIEWPORTS sit — chosen well
+// under aboutGeometry.ts's own MIN_ABOUT_VIEWPORT_H (717) without
+// hardcoding that number here.
+const ABOUT_SUBTHRESHOLD_VIEWPORT = { width: 1440, height: 650 };
+
+async function readAboutTokens(page) {
+  return page.evaluate(() => {
+    const cs = getComputedStyle(document.documentElement);
+    return {
+      bottomGap: Number.parseFloat(cs.getPropertyValue("--spacing-lg")),
+      navClearance: Number.parseFloat(cs.getPropertyValue("--spacing-nav-height")),
+    };
+  });
+}
+
+async function aboutSample(page) {
+  return page.evaluate(() => {
+    function rectOf(sel) {
+      const el = document.querySelector(sel);
+      return el ? el.getBoundingClientRect() : null;
+    }
+    const photoWindowEl = document.querySelector('[data-testid="about-photo-window"]');
+    const textContentEl = document.querySelector('[data-testid="about-text-content"]');
+    return {
+      scrollY: window.scrollY,
+      innerHeight: window.innerHeight,
+      frame: rectOf('[data-testid="about-frame"]'),
+      nav: rectOf('nav[aria-label="Main"]'),
+      ticker: rectOf(".ticker-fade"),
+      photo: rectOf('[data-testid="about-photo"]'),
+      photoWindow: rectOf('[data-testid="about-photo-window"]'),
+      photoWindowClientH: photoWindowEl?.clientHeight ?? null,
+      photoWindowScrollH: photoWindowEl?.scrollHeight ?? null,
+      textWindow: rectOf('[data-testid="about-text-window"]'),
+      textContent: rectOf('[data-testid="about-text-content"]'),
+      textContentTransform: textContentEl ? getComputedStyle(textContentEl).transform : null,
+    };
+  });
+}
+
+// Predicted pin window from measured rects — NOT from an imported copy of
+// aboutGeometry.ts's constants. sectionTop/sectionHeight/frameHeight are
+// all read off the real rendered elements, so this only assumes the same
+// *shape* of relationship (frame position bottom = viewportH - bottomGap
+// for a sticky element inside a section sized to frame + travel) that a
+// generic sticky-pin mechanic has — the frame's actual on-screen position
+// throughout the scan is governed by CSS (position: sticky) entirely
+// independent of this formula, so comparing the two is a real check, not
+// a tautology.
+async function computeAboutPinWindow(page, bottomGap) {
+  return page.evaluate((gap) => {
+    const section = document.querySelector('[data-testid="about-section"]');
+    const wrapper = document.querySelector('[data-testid="about-sticky-wrapper"]');
+    if (!section || !wrapper) return null;
+    const sectionRect = section.getBoundingClientRect();
+    const sectionTop = sectionRect.top + window.scrollY;
+    const sectionHeight = section.offsetHeight;
+    const frameHeight = wrapper.offsetHeight;
+    const lockStart = sectionTop - (window.innerHeight - gap - frameHeight);
+    const travel = Math.max(0, sectionHeight - frameHeight);
+    return { lockStart, lockEnd: lockStart + travel, travel, frameHeight };
+  }, bottomGap);
+}
+
+async function scrollAboutTo(page, y) {
+  await page.evaluate((yy) => window.scrollTo(0, Math.max(0, yy)), y);
+  // Let motion/react's rAF-driven `scrollY`/`textY` MotionValues settle —
+  // direct window.scrollTo (unlike a wheel gesture) doesn't fight Lenis
+  // (verified empirically: Lenis only syncs its own state from the native
+  // scroll position, it doesn't animate away from a position it didn't
+  // itself initiate), so two rAFs is enough, no settleScroll() polling
+  // loop needed.
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+}
+
+async function aboutPinChecks(browser, base, results) {
+  const aboutUrl = new URL("/about", base).toString();
+  const perViewportPhoto = [];
+
+  for (const viewport of ABOUT_VIEWPORTS) {
+    const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height } });
+    const page = await context.newPage();
+    await page.addInitScript(() => {
+      window.__aboutCls = 0;
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if (!entry.hadRecentInput) window.__aboutCls += entry.value;
+        }
+      }).observe({ type: "layout-shift", buffered: true });
+    });
+    await page.goto(aboutUrl, { waitUntil: "networkidle" });
+
+    const { bottomGap, navClearance } = await readAboutTokens(page);
+    const win = await computeAboutPinWindow(page, bottomGap);
+
+    if (!win) {
+      results.push({
+        name: `${viewport.name}: About pin — section/sticky-wrapper found in DOM`,
+        pass: false,
+        gating: true,
+        detail: "no [data-testid=about-section] / [data-testid=about-sticky-wrapper] — page may have rendered the fallback at this viewport unexpectedly",
+      });
+      await context.close();
+      continue;
+    }
+
+    // ---- Structural stacking check (the acec80d signature) --------------
+    // Static, deterministic proxy for "the background gradient doesn't
+    // paint over the content" — checks the actual stacking order rule
+    // (z-10 content wrapper vs z-0 image) rather than sampling pixels,
+    // which would be flaky against anti-aliased text and JPEG compression.
+    const stacking = await page.evaluate(() => {
+      const frame = document.querySelector('[data-testid="about-frame"]');
+      const img = frame?.querySelector("img");
+      const contentWrapper = img?.nextElementSibling;
+      if (!frame || !img || !contentWrapper) return null;
+      return {
+        imgZ: getComputedStyle(img).zIndex,
+        imgPosition: getComputedStyle(img).position,
+        contentZ: getComputedStyle(contentWrapper).zIndex,
+        contentPosition: getComputedStyle(contentWrapper).position,
+      };
+    });
+    results.push({
+      name: `${viewport.name}: About frame — background image stacks below content (no acec80d regression)`,
+      pass: !!stacking && stacking.imgPosition === "absolute" && stacking.contentPosition === "relative" &&
+        Number(stacking.contentZ) > (Number.isNaN(Number(stacking.imgZ)) ? 0 : Number(stacking.imgZ)),
+      gating: true,
+      detail: JSON.stringify(stacking),
+    });
+
+    // ---- Sticky wrapper carries no z-index (own stacking-context risk) --
+    const wrapperZ = await page.evaluate(
+      () => getComputedStyle(document.querySelector('[data-testid="about-sticky-wrapper"]')).zIndex,
+    );
+    results.push({
+      name: `${viewport.name}: sticky wrapper has no z-index (falls through to auto)`,
+      pass: wrapperZ === "auto",
+      gating: true,
+      detail: `zIndex=${wrapperZ}`,
+    });
+
+    // ---- Scan the pin window + a margin before/after --------------------
+    const margin = Math.max(200, win.travel * 0.1);
+    const scanStart = Math.max(0, win.lockStart - margin);
+    const scanEnd = win.lockEnd + margin;
+    const steps = 30;
+    const samples = [];
+    for (let i = 0; i <= steps; i++) {
+      const y = scanStart + ((scanEnd - scanStart) * i) / steps;
+      await scrollAboutTo(page, y);
+      samples.push(await aboutSample(page));
+    }
+
+    const inPin = samples.filter((s) => s.scrollY >= win.lockStart - 1 && s.scrollY <= win.lockEnd + 1);
+
+    // ---- Check 1: frame bottom sits exactly bottomGap above viewport bottom
+    const bottomOffsets = inPin.map((s) => s.innerHeight - s.frame.bottom);
+    const bottomOk = bottomOffsets.every((off) => Math.abs(off - bottomGap) < 1.5);
+    results.push({
+      name: `${viewport.name}: frame bottom holds exactly BOTTOM_GAP above viewport bottom through the pin`,
+      pass: bottomOk && inPin.length > 0,
+      gating: true,
+      detail: `bottomGap=${bottomGap} offsets(min/max)=${Math.min(...bottomOffsets)?.toFixed(2)}/${Math.max(...bottomOffsets)?.toFixed(2)} samples=${inPin.length}`,
+    });
+
+    // ---- Check 3: frame top never overlaps the nav in the pinned range --
+    const topOk = inPin.every((s) => s.frame.top >= s.nav.bottom - 0.5);
+    results.push({
+      name: `${viewport.name}: frame top never overlaps the nav during the pin`,
+      pass: topOk,
+      gating: true,
+      detail: `navClearance(token)=${navClearance} min(frame.top-nav.bottom)=${Math.min(...inPin.map((s) => s.frame.top - s.nav.bottom)).toFixed(2)}`,
+    });
+
+    // ---- Check 2: ticker never partially clipped at lock onset ----------
+    await scrollAboutTo(page, win.lockStart);
+    const atLock = await aboutSample(page);
+    const tickerPartial =
+      atLock.ticker !== null && atLock.ticker.top < -0.5 && atLock.ticker.bottom > 0.5;
+    results.push({
+      name: `${viewport.name}: ticker not partially clipped at the viewport's top edge at lock onset`,
+      pass: !tickerPartial,
+      gating: true,
+      detail: atLock.ticker ? JSON.stringify(atLock.ticker) : "ticker off-screen (null rect not expected — element always mounted)",
+    });
+
+    // Report (non-gating) where the ticker's accepted transit falls,
+    // relative to the pin window — this is documented, accepted behavior
+    // (aboutGeometry.ts's TICKER_H comment / plan §A4), not a defect, so
+    // it's visible in the run rather than silently unverified.
+    {
+      const fine = [];
+      const fineStart = Math.max(0, win.lockStart - 400);
+      for (let i = 0; i <= 40; i++) {
+        const y = fineStart + (400 * i) / 40;
+        await scrollAboutTo(page, y);
+        const s = await aboutSample(page);
+        if (s.ticker && s.ticker.top < -0.5 && s.ticker.bottom > 0.5) fine.push(s.scrollY);
+      }
+      const transitInPin = fine.length > 0 && fine[0] >= win.lockStart - 1;
+      results.push({
+        name: `${viewport.name}: ticker transit window (report only, accepted per plan §A4)`,
+        pass: true,
+        gating: false,
+        detail: fine.length
+          ? `ticker partially clipped for scrollY [${fine[0].toFixed(0)}, ${fine[fine.length - 1].toFixed(0)}], lockStart=${win.lockStart.toFixed(0)} (inside pin: ${transitInPin})`
+          : "no partial-clip window found in the scanned range",
+      });
+    }
+
+    // ---- Check 6: last paragraph fully reachable -------------------------
+    await scrollAboutTo(page, win.lockEnd);
+    const atEnd = await aboutSample(page);
+    const reachable =
+      !!atEnd.textContent && !!atEnd.textWindow && Math.abs(atEnd.textContent.bottom - atEnd.textWindow.bottom) < 2;
+    results.push({
+      name: `${viewport.name}: last paragraph's bottom is fully reachable (no early run-out, no dead space)`,
+      pass: reachable,
+      gating: true,
+      detail: `textContent.bottom=${atEnd.textContent?.bottom.toFixed(2)} textWindow.bottom=${atEnd.textWindow?.bottom.toFixed(2)}`,
+    });
+
+    // ---- Check 7: reverse scroll returns exactly to the starting transform
+    const atRestBefore = await aboutSample(page); // still at lockEnd from above
+    await scrollAboutTo(page, 0);
+    const atTop = await aboutSample(page);
+    await scrollAboutTo(page, win.lockEnd);
+    const atEndAgain = await aboutSample(page);
+    results.push({
+      name: `${viewport.name}: scrolling back to top returns text column to its exact starting transform`,
+      pass: atTop.textContentTransform === "none" || atTop.textContentTransform === "matrix(1, 0, 0, 1, 0, 0)",
+      gating: true,
+      detail: `transform=${atTop.textContentTransform}`,
+    });
+    results.push({
+      name: `${viewport.name}: scrolling back down reaches the exact same end transform as before`,
+      pass: atEndAgain.textContentTransform === atRestBefore.textContentTransform,
+      gating: true,
+      detail: `before=${atRestBefore.textContentTransform} after=${atEndAgain.textContentTransform}`,
+    });
+
+    // ---- Check 4: photo never exceeds 448px; right column never extends
+    // past the frame's own content box. NOT `photoWindow.scrollHeight <=
+    // clientHeight` — that window deliberately clips five of its six
+    // stacked photos at rest (overflow: hidden, same as TextColumn's own
+    // window), so a taller scrollHeight there is correct-by-design, not
+    // overflow. The real invariant is that the right column doesn't poke
+    // out past where the frame's padding box actually ends — proxied by
+    // the text column's window bottom, since both columns sit in the same
+    // items-start row inside the same padding box, and the "last
+    // paragraph reachable" check above already proves that edge is
+    // correct for the text side.
+    await scrollAboutTo(page, win.lockStart);
+    const photoSample = await aboutSample(page);
+    const photoColumnOverflow =
+      !!photoSample.photoWindow && !!photoSample.textWindow && photoSample.photoWindow.bottom > photoSample.textWindow.bottom + 1.5;
+    results.push({
+      name: `${viewport.name}: photo window never overflows the frame`,
+      pass: !photoColumnOverflow,
+      gating: true,
+      detail: `photoWindow.bottom=${photoSample.photoWindow?.bottom.toFixed(2)} textWindow.bottom=${photoSample.textWindow?.bottom.toFixed(2)}`,
+    });
+    results.push({
+      name: `${viewport.name}: photo height never exceeds Figma's 448px`,
+      pass: !!photoSample.photo && photoSample.photo.height <= 448.5,
+      gating: true,
+      detail: `photo.height=${photoSample.photo?.height.toFixed(2)}`,
+    });
+    perViewportPhoto.push({ name: viewport.name, height: photoSample.photo?.height ?? null, viewportH: viewport.height });
+
+    // ---- Check 8: CLS = 0 across pin entry and exit ----------------------
+    await page.evaluate(() => {
+      window.__aboutCls = 0;
+    });
+    await scrollAboutTo(page, Math.max(0, win.lockStart - 300));
+    await scrollAboutTo(page, win.lockStart);
+    await scrollAboutTo(page, win.lockEnd);
+    await scrollAboutTo(page, win.lockEnd + 300);
+    const cls = await page.evaluate(() => window.__aboutCls ?? 0);
+    results.push({
+      name: `${viewport.name}: no cumulative layout shift across pin entry and exit`,
+      pass: cls < 0.01,
+      gating: true,
+      detail: `CLS=${cls}`,
+    });
+
+    // ---- Sticky-ancestor invariant, /about specifically ------------------
+    const offenders = await page.evaluate(() => {
+      const bad = [];
+      for (const el of document.querySelectorAll("*")) {
+        if (getComputedStyle(el).position !== "sticky") continue;
+        let node = el.parentElement;
+        while (node) {
+          const s = getComputedStyle(node);
+          if (
+            (s.transform && s.transform !== "none") ||
+            (s.filter && s.filter !== "none") ||
+            (s.perspective && s.perspective !== "none") ||
+            s.contain?.includes("paint")
+          ) {
+            bad.push({ sticky: el.tagName + (el.id ? `#${el.id}` : ""), ancestor: node.tagName });
+            break;
+          }
+          node = node.parentElement;
+        }
+      }
+      return bad;
+    });
+    results.push({
+      name: `${viewport.name}: /about — no sticky element has a transformed/filtered/perspective ancestor`,
+      pass: offenders.length === 0,
+      gating: true,
+      detail: offenders.length ? JSON.stringify(offenders) : "clean",
+    });
+
+    // ---- Screenshot for direct visual inspection (not just computed styles)
+    try {
+      const shotDir = process.env.VERIFY_SHOT_DIR || ".";
+      await scrollAboutTo(page, win.lockStart + win.travel / 2);
+      await page.locator('[data-testid="about-frame"]').screenshot({
+        path: `${shotDir}/about-pin-${viewport.width}x${viewport.height}.png`,
+      });
+    } catch {
+      // Non-fatal — the structural stacking check above is the gating
+      // signal; this screenshot is for a human/direct look, per the plan.
+    }
+
+    await context.close();
+  }
+
+  // ---- Cross-viewport: photo shrinks (never grows) as FRAME_H shrinks ----
+  const heights = perViewportPhoto.map((p) => p.height);
+  const monotonicNonIncreasing = heights.every((h, i) => i === 0 || h <= heights[i - 1] + 0.5);
+  results.push({
+    name: "Photo height shrinks (never grows) as viewport height shrinks, across all three sizes",
+    pass: monotonicNonIncreasing,
+    gating: true,
+    detail: JSON.stringify(perViewportPhoto),
+  });
+
+  // ---- Reduced motion: no pin, no clip, no transform, no listeners -------
+  {
+    const context = await browser.newContext({
+      viewport: { width: 1710, height: 1040 },
+      reducedMotion: "reduce",
+    });
+    const page = await context.newPage();
+    await page.goto(aboutUrl, { waitUntil: "networkidle" });
+    await sleep(300);
+
+    const state = await page.evaluate(() => ({
+      hasStickyWrapper: !!document.querySelector('[data-testid="about-sticky-wrapper"]'),
+      hasFallback: !!document.querySelector('[data-testid="about-section-fallback"]'),
+      hasPhotoWindow: !!document.querySelector('[data-testid="about-photo-window"]'),
+      photoCount: document.querySelectorAll('[data-testid="about-photo"]').length,
+    }));
+    results.push({
+      name: "Reduced motion: /about renders the plain fallback (no pin, no clipped photo window)",
+      pass: !state.hasStickyWrapper && state.hasFallback && !state.hasPhotoWindow && state.photoCount === 6,
+      gating: true,
+      detail: JSON.stringify(state),
+    });
+
+    await context.close();
+  }
+
+  // ---- Sub-threshold viewport: same fallback, no listeners ---------------
+  {
+    const context = await browser.newContext({ viewport: ABOUT_SUBTHRESHOLD_VIEWPORT });
+    const page = await context.newPage();
+    await page.goto(aboutUrl, { waitUntil: "networkidle" });
+    await sleep(300);
+
+    const state = await page.evaluate(() => ({
+      hasStickyWrapper: !!document.querySelector('[data-testid="about-sticky-wrapper"]'),
+      hasFallback: !!document.querySelector('[data-testid="about-section-fallback"]'),
+      photoCount: document.querySelectorAll('[data-testid="about-photo"]').length,
+    }));
+    results.push({
+      name: `Sub-threshold viewport (${ABOUT_SUBTHRESHOLD_VIEWPORT.width}x${ABOUT_SUBTHRESHOLD_VIEWPORT.height}): /about renders the plain fallback`,
+      pass: !state.hasStickyWrapper && state.hasFallback && state.photoCount === 6,
+      gating: true,
+      detail: JSON.stringify(state),
+    });
+
+    await context.close();
+  }
+}
+
 // --- Checks -----------------------------------------------------------------
 // `results` (built up in main()) is a flat list of { name, pass, gating,
 // detail } that the report step at the bottom prints and gates the exit
@@ -1203,6 +1610,9 @@ async function main() {
 
     // ---- Cursor label bubble (session 4) -----------------------------------
     await cursorLabelChecks(browser, base, results);
+
+    // ---- About page pin (session 5B) ---------------------------------------
+    await aboutPinChecks(browser, base, results);
 
     await browser.close();
   } finally {
