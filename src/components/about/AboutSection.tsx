@@ -35,7 +35,10 @@ export function AboutSection() {
 
   // Always called (rules of hooks) — a no-op internally whenever the
   // fallback below renders instead; see useAboutPin.ts's own comment.
-  const { sectionRef, wrapperRef, windowRef, contentRef, textY } = useAboutPin(disabled);
+  // filledCount (session 5C B1) is derived from the same aboutProgress
+  // this hook already owns — see its own comment. activeIndex (B2) is
+  // wired in alongside PhotoColumn's snap.
+  const { sectionRef, wrapperRef, windowRef, contentRef, textY, filledCount } = useAboutPin(disabled);
 
   if (disabled) {
     return (
@@ -70,7 +73,13 @@ export function AboutSection() {
         style={{ top: stickyTopCss, height: frameHeightCss }}
       >
         <AboutFrame height="100%">
-          <TextColumn windowHeight={textWindowCss} y={textY} windowRef={windowRef} contentRef={contentRef} />
+          <TextColumn
+            windowHeight={textWindowCss}
+            y={textY}
+            windowRef={windowRef}
+            contentRef={contentRef}
+            filledCount={filledCount}
+          />
           <PhotoColumn windowHeight={photoWindowCss} photoHeight={photoHeightCss} />
         </AboutFrame>
       </div>

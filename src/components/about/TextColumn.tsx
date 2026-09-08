@@ -29,16 +29,24 @@ import { textColumnWidthCss } from "./aboutGeometry";
 // change also re-triggers that same ResizeObserver (the content's height
 // changes as text reflows at a narrower measure), so no separate handling
 // is needed for that case.
+//
+// `filledCount` (session 5C): the latched high-water mark useAboutPin.ts
+// derives from aboutProgress. Block `i` is filled once `i < filledCount` —
+// a plain index comparison, so a paragraph that's already filled stays
+// filled on every re-render regardless of which direction progress last
+// moved.
 export function TextColumn({
   windowHeight,
   y,
   windowRef,
   contentRef,
+  filledCount,
 }: {
   windowHeight: string;
   y: MotionValue<number>;
   windowRef: RefObject<HTMLDivElement | null>;
   contentRef: RefObject<HTMLDivElement | null>;
+  filledCount: number;
 }) {
   return (
     <div
@@ -53,8 +61,13 @@ export function TextColumn({
         className="flex flex-col items-start gap-3xl"
         style={{ width: textColumnWidthCss, y }}
       >
-        {ABOUT_SECTIONS.map((section) => (
-          <TextBlock key={section.id} header={section.header} body={section.body} />
+        {ABOUT_SECTIONS.map((section, index) => (
+          <TextBlock
+            key={section.id}
+            header={section.header}
+            body={section.body}
+            filled={index < filledCount}
+          />
         ))}
       </motion.div>
     </div>

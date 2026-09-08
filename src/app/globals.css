@@ -300,3 +300,15 @@ html.lenis body {
     transform: none !important;
   }
 }
+
+/* Same reasoning again, for the About page's paragraph reveal
+   (ColorReveal.tsx). That component already renders deep-black with no
+   transition once usePrefersReducedMotion resolves client-side — this is
+   what covers the first frame before that JS runs, and forever with JS
+   disabled. !important to beat the component's own inline transition. */
+@media (prefers-reduced-motion: reduce) {
+  [data-color-reveal] {
+    color: var(--color-deep-black) !important;
+    transition: none !important;
+  }
+}

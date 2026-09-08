@@ -81,13 +81,17 @@ export const TICKER_H = 26;
 // Figma measurement. The only non-derived number in this file.
 export const PHOTO_MIN_H = 300;
 
-// Pre-measurement seed for --about-text-content-h (useAboutPin.ts), so the
+// Pre-measurement seed for --about-text-travel (useAboutPin.ts), so the
 // section's height is already close to correct on the server-rendered
 // pass and the post-hydration ResizeObserver correction is a few px, not a
-// full-height jump. Figma's own text content height (696:5290) — real
-// rendered Satoshi metrics will differ slightly; that's exactly what the
-// observer corrects.
-export const TEXT_CONTENT_H_ESTIMATE = 1960;
+// full-height jump. Renamed from TEXT_CONTENT_H_ESTIMATE (1960, the
+// content column's total height) in session 5C: what sectionHeightCss
+// needs is now the scroll travel itself, not the content height — see the
+// "extend the runway" fix below — and travel is block 06's own header
+// offset, not the full column. Figma's own value (696:5306's `y`) — real
+// rendered Satoshi metrics will differ slightly at narrower widths; that's
+// exactly what the observer corrects.
+export const TEXT_TRAVEL_ESTIMATE = 1818;
 
 // Below this viewport height the frame plus its pin can't hold PHOTO_MIN_H
 // of photo, so AboutSection falls back to normal-flow rows instead of the
@@ -118,6 +122,18 @@ export const MIN_ABOUT_VIEWPORT_H =
 // (useAboutPin.ts), not before it — the frame is already locked throughout
 // the pause, only the text withholds its own motion.
 export const PAUSE_PX = 160;
+
+// Mirror of PAUSE_PX at the other end of the pin, added in session 5C for
+// the photo/counter snap's tail: with travel now extended so block 06's
+// header genuinely reaches the text window's top edge (see
+// sectionHeightCss below), progress hits 1 right as that header lands —
+// with no dwell, the pin would release in the same instant 06 becomes
+// current. This holds the frame pinned (progress clamped at 1, same
+// pure-function-of-scrollY symmetry PAUSE_PX already has) for one more
+// beat before releasing, so 06 is actually readable rather than glimpsed.
+// Same gesture-tuning exemption as PAUSE_PX — scroll distance, not a
+// decorative duration or curve.
+export const TAIL_DWELL_PX = 160;
 
 // The floor a shrinking text column may not cross, and the gap held once
 // it's shrinking (see textColumnWidthCss below). Judgment call at 24px
@@ -213,15 +229,25 @@ export const photoHeightCss = `min(${PHOTO_H}px, calc(${photoWindowCss} - ${PHOT
 
 // The section's total scroll runway: the sticky stage holds still for
 // frameHeightCss, plus PAUSE_PX of dead-zone scroll before the text moves
-// at all, while the text column travels its own overflow past it, then
-// releases immediately. The PAUSE_PX term has to live here, not just in
+// at all, while the text column travels its own scroll distance past it,
+// plus TAIL_DWELL_PX holding the pin once travel completes, then releases.
+// The PAUSE_PX and TAIL_DWELL_PX terms have to live here, not just in
 // useAboutPin.ts's progress math — the CSS sticky mechanic's own "how long
 // do I stay stuck" duration is purely sectionHeight - frameHeight, so
-// without this the pin would release PAUSE_PX early and the text would
-// run out of scroll room before the JS-side pause even finished consuming
-// it. --about-text-content-h is written by useAboutPin.ts's
-// ResizeObserver (seeded at TEXT_CONTENT_H_ESTIMATE for the pre-hydration
-// render); max(0px, …) guards the (only possible on an extremely
-// tall/narrow window) case where content fits without scrolling at all,
-// so the section is never shorter than the frame itself plus the pause.
-export const sectionHeightCss = `calc(${frameHeightCss} + ${PAUSE_PX}px + max(0px, calc(var(--about-text-content-h, ${TEXT_CONTENT_H_ESTIMATE}px) - ${textWindowCss})))`;
+// without these the pin would release early and the text would run out of
+// scroll room before the JS-side pause/dwell even finished consuming it.
+//
+// Session 5C, "extend the runway": the travel term used to be
+// contentH - textWindowH (how far the column had to move to show its last
+// pixel). It's now block 06's own header offset within the content column
+// — the distance the column must travel for that header to reach the
+// window's top edge, which is what the photo/counter snap's trigger
+// literally requires (see the plan's Part A; the old value left headers
+// 05/06 structurally unreachable by that trigger). Renamed
+// --about-text-content-h -> --about-text-travel to match: useAboutPin.ts's
+// ResizeObserver now writes the travel distance directly, seeded at
+// TEXT_TRAVEL_ESTIMATE for the pre-hydration render. max(0px, …) guards
+// the (only possible on an extremely tall/narrow window) case where
+// content fits without scrolling at all, so the section is never shorter
+// than the frame itself plus the pause and dwell.
+export const sectionHeightCss = `calc(${frameHeightCss} + ${PAUSE_PX}px + ${TAIL_DWELL_PX}px + max(0px, var(--about-text-travel, ${TEXT_TRAVEL_ESTIMATE}px)))`;
