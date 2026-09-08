@@ -88,7 +88,7 @@
   /* --- Spacing ---------------------------------------------------------- */
   --spacing-xs: 4px;
   --spacing-s: 8px;
-  --spacing-sm: 12px;
+  --spacing-sm: 12px; /* Figma padding/small — confirmed via get_variable_defs, not guessed */
   --spacing-md: 20px;
   --spacing-lg: 30px;
   --spacing-xl: 50px; /* Figma padding/large */

@@ -10,11 +10,11 @@
 // Renamed from FRAME_H (5A) to FRAME_H_MAX in session 5B: the frame's
 // actual rendered height is now viewport-dependent (frameHeightCss below)
 // and this is only its ceiling — the exact Figma number, reached only on
-// viewports tall enough that NAV_CLEARANCE + BOTTOM_GAP leave 940px of
-// room (100svh >= 1064px — an external monitor, not any laptop in the
-// supported range). Nothing imports this raw number directly; every
-// consumer goes through frameHeightCss so there's one place the ceiling
-// is applied.
+// viewports tall enough that NAV_CLEARANCE + NAV_FRAME_GAP + BOTTOM_GAP
+// leave 940px of room (100svh >= 1076px — an external monitor, not any
+// laptop in the supported range). Nothing imports this raw number
+// directly; every consumer goes through frameHeightCss so there's one
+// place the ceiling is applied.
 export const FRAME_H_MAX = 940; // 523:6601
 export const FRAME_PAD_Y = 100; // Figma padding/xlarge, --spacing-3xl
 
@@ -48,6 +48,15 @@ export const HERO_W = 868; // "hero" (523:6847), the title+photos column
 // structurally, not assumed: Nav.tsx is `sticky top-0 h-nav-height`, so it
 // occupies exactly this many px of viewport at every scroll position.
 export const NAV_CLEARANCE = 94;
+
+// Breathing room between the nav and the frame's locked top edge, added in
+// the fix-pass after 5B shipped (flush against NAV_CLEARANCE alone read as
+// the frame sitting right on top of the nav pill). Figma variable
+// "padding/small" — confirmed via get_variable_defs on the nav instance
+// (523:6647) rather than invented — the same value as --spacing-sm.
+// Trade confirmed: the frame's max height gives up these 12px at every
+// viewport so this gap can exist; see frameHeightCss below.
+export const NAV_FRAME_GAP = 12;
 
 // Gap held between the frame's bottom edge and the viewport's bottom edge
 // for the whole pinned range (mirrors --spacing-lg). Figma corroborates
@@ -85,10 +94,63 @@ export const TEXT_CONTENT_H_ESTIMATE = 1960;
 // pin (see AboutFallback.tsx) — same "the whole thing must fit, not some
 // smaller floor" principle as projectGeometry.ts's MIN_VIEWPORT_H.
 // PHOTO_MIN_H + CAPTION_H + PHOTO_CAPTION_GAP + PILL_H + PILL_GAP
-//   + 2*FRAME_PAD_Y + NAV_CLEARANCE + BOTTOM_GAP
-// = 300 + 21 + 20 + 32 + 20 + 200 + 94 + 30 = 717
+//   + 2*FRAME_PAD_Y + NAV_CLEARANCE + NAV_FRAME_GAP + BOTTOM_GAP
+// = 300 + 21 + 20 + 32 + 20 + 200 + 94 + 12 + 30 = 729
 export const MIN_ABOUT_VIEWPORT_H =
-  PHOTO_MIN_H + CAPTION_H + PHOTO_CAPTION_GAP + PILL_H + PILL_GAP + 2 * FRAME_PAD_Y + NAV_CLEARANCE + BOTTOM_GAP;
+  PHOTO_MIN_H +
+  CAPTION_H +
+  PHOTO_CAPTION_GAP +
+  PILL_H +
+  PILL_GAP +
+  2 * FRAME_PAD_Y +
+  NAV_CLEARANCE +
+  NAV_FRAME_GAP +
+  BOTTOM_GAP;
+
+// --- Fix pass (post-5B tuning): pause, and the narrow-width column fix ----
+//
+// A dead zone in scroll distance, not time — same exempt category as
+// PHOTO_MIN_H above (gesture/interaction tuning, not a decorative
+// duration/easing CLAUDE.md's hard rules govern). Felt-duration judgment
+// call: ~80px is roughly what one confident trackpad swipe or a single
+// mechanical wheel click covers — long enough that the frame's "click into
+// place" moment reads as its own beat before scroll starts moving the
+// text, short of reading as the page not responding. Applied AFTER
+// lockStart (useAboutPin.ts), not before it — the frame is already locked
+// throughout the pause, only the text withholds its own motion.
+export const PAUSE_PX = 80;
+
+// The floor a shrinking text column may not cross, and the gap held once
+// it's shrinking (see textColumnWidthCss below). Judgment call at 24px
+// Satoshi Body Large / 32px line-height: 480px holds ~38-40 characters per
+// line — narrower than the reference 663px column's ~52-55 but still a
+// comfortable reading measure, and it leaves a real margin under the
+// 487px ceiling the arithmetic actually allows at exactly 1440px browser
+// width (measured: 1440px width -> 1240px frame content box -> 1240 -
+// PHOTO_COL_W(653) - MIN_COLUMN_GAP(100) = 487px). Confirmed against a
+// live measured rect, not just hand arithmetic — see the fix-pass plan.
+export const TEXT_COL_MIN_W = 480;
+
+// --spacing-3xl. Held as the floor gap between the two columns as the row
+// narrows — below TEXT_COL_MIN_W's own floor this can't literally hold
+// (the columns would collide before the gap does), but that point is well
+// under 1440px, out of scope for this pass.
+export const MIN_COLUMN_GAP = 100;
+
+// The text column's width, both in the pinned view (TextColumn.tsx) and
+// the fallback (AboutFallbackRow.tsx) — same expression, shared, because
+// both sit inside the same "content row" shape (a flex row whose own
+// width traces back to the same frame content box) and resolves to the
+// same numbers in each: confirmed by measuring both at 1440px width, not
+// assumed from the markup alone.
+//
+// At the reference 1510px-wide row (1710px browser width) the clamp's
+// middle branch (1510 - 653 - 100 = 757) exceeds the ceiling, so this
+// resolves to exactly TEXT_COL_W (663) — Figma's own split, unchanged.
+// Below that, the middle branch takes over and the text column absorbs
+// the shrink while MIN_COLUMN_GAP holds exactly, down to TEXT_COL_MIN_W.
+// PHOTO_COL_W stays fixed for now — only the text side flexes.
+export const textColumnWidthCss = `clamp(${TEXT_COL_MIN_W}px, calc(100% - ${PHOTO_COL_W}px - ${MIN_COLUMN_GAP}px), ${TEXT_COL_W}px)`;
 
 // --- Derived CSS length expressions ---------------------------------------
 //
@@ -102,15 +164,18 @@ export const MIN_ABOUT_VIEWPORT_H =
 // --about-text-content-h.
 
 // The frame's rendered height. Caps at FRAME_H_MAX; below that it tracks
-// the viewport exactly, leaving NAV_CLEARANCE clear at top and BOTTOM_GAP
-// clear at bottom.
-export const frameHeightCss = `min(${FRAME_H_MAX}px, calc(100svh - ${NAV_CLEARANCE + BOTTOM_GAP}px))`;
+// the viewport exactly, leaving NAV_CLEARANCE + NAV_FRAME_GAP clear at
+// top and BOTTOM_GAP clear at bottom.
+export const frameHeightCss = `min(${FRAME_H_MAX}px, calc(100svh - ${NAV_CLEARANCE + NAV_FRAME_GAP + BOTTOM_GAP}px))`;
 
 // Where the sticky wrapper pins. Reduces algebraically to
-// max(94px, calc(100svh - 970px)) — kept in this definitional form (rather
-// than pre-simplified) so it stays checkable by eye against the lock
-// condition in the plan (frame bottom = viewportH - BOTTOM_GAP) as the
-// constants above change.
+// max(106px, calc(100svh - 970px)) — kept in this definitional form
+// (rather than pre-simplified) so it stays checkable by eye against the
+// lock condition in the plan (frame bottom = viewportH - BOTTOM_GAP) as
+// the constants above change. The 106 is NAV_CLEARANCE + NAV_FRAME_GAP;
+// the 970 (FRAME_H_MAX + BOTTOM_GAP) doesn't move when NAV_FRAME_GAP
+// changes — it only ever governs the OTHER branch of frameHeightCss's
+// min().
 export const stickyTopCss = `calc(100svh - ${BOTTOM_GAP}px - ${frameHeightCss})`;
 
 // The left column's visible window. Arithmetic on the frame, not an
@@ -148,10 +213,16 @@ export const photoWindowCss = `min(${PHOTO_WINDOW_MAX}px, calc(${textWindowCss} 
 export const photoHeightCss = `min(${PHOTO_H}px, calc(${photoWindowCss} - ${PHOTO_CAPTION_GAP + CAPTION_H}px))`;
 
 // The section's total scroll runway: the sticky stage holds still for
-// frameHeightCss while the text column travels its own overflow past it,
-// then releases immediately. --about-text-content-h is written by
-// useAboutPin.ts's ResizeObserver (seeded at TEXT_CONTENT_H_ESTIMATE for
-// the pre-hydration render); max(0px, …) guards the (only possible on an
-// extremely tall/narrow window) case where content fits without scrolling
-// at all, so the section is never shorter than the frame itself.
-export const sectionHeightCss = `calc(${frameHeightCss} + max(0px, calc(var(--about-text-content-h, ${TEXT_CONTENT_H_ESTIMATE}px) - ${textWindowCss})))`;
+// frameHeightCss, plus PAUSE_PX of dead-zone scroll before the text moves
+// at all, while the text column travels its own overflow past it, then
+// releases immediately. The PAUSE_PX term has to live here, not just in
+// useAboutPin.ts's progress math — the CSS sticky mechanic's own "how long
+// do I stay stuck" duration is purely sectionHeight - frameHeight, so
+// without this the pin would release PAUSE_PX early and the text would
+// run out of scroll room before the JS-side pause even finished consuming
+// it. --about-text-content-h is written by useAboutPin.ts's
+// ResizeObserver (seeded at TEXT_CONTENT_H_ESTIMATE for the pre-hydration
+// render); max(0px, …) guards the (only possible on an extremely
+// tall/narrow window) case where content fits without scrolling at all,
+// so the section is never shorter than the frame itself plus the pause.
+export const sectionHeightCss = `calc(${frameHeightCss} + ${PAUSE_PX}px + max(0px, calc(var(--about-text-content-h, ${TEXT_CONTENT_H_ESTIMATE}px) - ${textWindowCss})))`;

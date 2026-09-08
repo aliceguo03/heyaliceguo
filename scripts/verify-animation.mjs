@@ -983,6 +983,10 @@ async function readAboutTokens(page) {
     return {
       bottomGap: Number.parseFloat(cs.getPropertyValue("--spacing-lg")),
       navClearance: Number.parseFloat(cs.getPropertyValue("--spacing-nav-height")),
+      // Fix-pass: the nav/frame breathing-room gap mirrors this token
+      // (Figma "padding/small") — read back from the page, not re-typed as
+      // a literal.
+      navFrameGap: Number.parseFloat(cs.getPropertyValue("--spacing-sm")),
     };
   });
 }
@@ -1064,7 +1068,7 @@ async function aboutPinChecks(browser, base, results) {
     });
     await page.goto(aboutUrl, { waitUntil: "networkidle" });
 
-    const { bottomGap, navClearance } = await readAboutTokens(page);
+    const { bottomGap, navClearance, navFrameGap } = await readAboutTokens(page);
     const win = await computeAboutPinWindow(page, bottomGap);
 
     if (!win) {
@@ -1146,6 +1150,45 @@ async function aboutPinChecks(browser, base, results) {
       gating: true,
       detail: `navClearance(token)=${navClearance} min(frame.top-nav.bottom)=${Math.min(...inPin.map((s) => s.frame.top - s.nav.bottom)).toFixed(2)}`,
     });
+
+    // ---- Fix 2: frame locks exactly navFrameGap (--spacing-sm) below the
+    // nav, not just "doesn't overlap" — the whole point of the fix.
+    const navGapOffsets = inPin.map((s) => s.frame.top - s.nav.bottom);
+    const navGapOk = navGapOffsets.every((off) => Math.abs(off - navFrameGap) < 1.5);
+    results.push({
+      name: `${viewport.name}: frame locks exactly navFrameGap (--spacing-sm) below the nav`,
+      pass: navGapOk,
+      gating: true,
+      detail: `navFrameGap(token)=${navFrameGap} offsets(min/max)=${Math.min(...navGapOffsets).toFixed(2)}/${Math.max(...navGapOffsets).toFixed(2)}`,
+    });
+
+    // ---- Fix 1: PAUSE_PX dead zone — text holds at progress 0 for a real
+    // stretch of scroll past lockStart, then moves. Doesn't hardcode the
+    // tuned constant (it's a judgment call, expected to get retuned): scans
+    // for the actual observed pause and asserts it's substantial (not a
+    // rounding artifact) and leaves real travel remaining afterward, so a
+    // future retune of PAUSE_PX doesn't need this check rewritten.
+    {
+      const identityAt = async (y) => {
+        await scrollAboutTo(page, y);
+        const t = await page.evaluate(
+          () => getComputedStyle(document.querySelector('[data-testid="about-text-content"]')).transform,
+        );
+        return t === "none" || t === "matrix(1, 0, 0, 1, 0, 0)";
+      };
+      let observedPause = 0;
+      const probeStep = Math.max(4, Math.round(win.travel * 0.02));
+      for (let dy = 0; dy <= win.travel; dy += probeStep) {
+        if (!(await identityAt(win.lockStart + dy))) break;
+        observedPause = dy;
+      }
+      results.push({
+        name: `${viewport.name}: a real scroll dead-zone holds the text at rest after lock (Fix 1)`,
+        pass: observedPause > 20 && observedPause < win.travel * 0.5,
+        gating: true,
+        detail: `observedPause≈${observedPause}px (probe step ${probeStep}px), travel=${win.travel.toFixed(0)}`,
+      });
+    }
 
     // ---- Check 2: ticker never partially clipped at lock onset ----------
     await scrollAboutTo(page, win.lockStart);
@@ -1312,6 +1355,84 @@ async function aboutPinChecks(browser, base, results) {
     gating: true,
     detail: JSON.stringify(perViewportPhoto),
   });
+
+  // ---- Fix 3: text/photo columns hold with no overflow/collision, and
+  // match Figma at the reference width, at 1440/1600/1710 — both in the
+  // pinned view and the fallback (which had the same shape of bug: no
+  // fixed width at all, so it silently never matched Figma, not caught by
+  // any 5B check). Deliberately not testing narrower than 1440 — that's
+  // still the deferred responsive pass, per the plan.
+  {
+    const COLUMN_WIDTHS = [1440, 1600, 1710];
+    for (const width of COLUMN_WIDTHS) {
+      // Pinned view.
+      const context = await browser.newContext({ viewport: { width, height: 1040 } });
+      const page = await context.newPage();
+      await page.goto(aboutUrl, { waitUntil: "networkidle" });
+      await page.mouse.wheel(0, 1500);
+      await page.waitForTimeout(400);
+      const pinned = await page.evaluate(() => {
+        const frame = document.querySelector('[data-testid="about-frame"]').getBoundingClientRect();
+        const textWindow = document.querySelector('[data-testid="about-text-window"]').getBoundingClientRect();
+        const photoWindow = document.querySelector('[data-testid="about-photo-window"]').getBoundingClientRect();
+        return {
+          textWidth: textWindow.width,
+          photoWidth: photoWindow.width,
+          gap: photoWindow.left - textWindow.right,
+          overlap: photoWindow.left < textWindow.right - 0.5,
+          photoOverflowsFrame: photoWindow.right > frame.right + 0.5,
+        };
+      });
+      results.push({
+        name: `${width}px width: pinned columns don't collide or overflow the frame`,
+        pass: !pinned.overlap && !pinned.photoOverflowsFrame && pinned.gap >= 0,
+        gating: true,
+        detail: JSON.stringify(pinned),
+      });
+      await context.close();
+
+      // Fallback — same two-column shape, checked separately since it had
+      // no width constraint at all before this fix.
+      const fbContext = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: "reduce" });
+      const fbPage = await fbContext.newPage();
+      await fbPage.goto(aboutUrl, { waitUntil: "networkidle" });
+      await fbPage.waitForTimeout(300);
+      const fallback = await fbPage.evaluate(() => {
+        const rows = document.querySelectorAll('[data-testid="about-section-fallback"] .flex.w-full.flex-col.gap-3xl > div');
+        const row = rows[0];
+        if (!row) return null;
+        const textWrap = row.children[0].getBoundingClientRect();
+        const photo = row.children[1].getBoundingClientRect();
+        return { textWidth: textWrap.width, photoWidth: photo.width, gap: photo.left - textWrap.right, overlap: photo.left < textWrap.right - 0.5 };
+      });
+      results.push({
+        name: `${width}px width: fallback columns don't collide`,
+        pass: !!fallback && !fallback.overlap && fallback.gap >= 0,
+        gating: true,
+        detail: JSON.stringify(fallback),
+      });
+      await fbContext.close();
+    }
+
+    // Reference width reproduces Figma's exact split, in both layouts.
+    const refContext = await browser.newContext({ viewport: { width: 1710, height: 1040 } });
+    const refPage = await refContext.newPage();
+    await refPage.goto(aboutUrl, { waitUntil: "networkidle" });
+    await refPage.mouse.wheel(0, 1500);
+    await refPage.waitForTimeout(400);
+    const refPinned = await refPage.evaluate(() => {
+      const textWindow = document.querySelector('[data-testid="about-text-window"]').getBoundingClientRect();
+      const photoWindow = document.querySelector('[data-testid="about-photo-window"]').getBoundingClientRect();
+      return { textWidth: textWindow.width, gap: photoWindow.left - textWindow.right };
+    });
+    results.push({
+      name: "1710px width: pinned view reproduces Figma's 663/194/653 split exactly",
+      pass: Math.abs(refPinned.textWidth - 663) < 1 && Math.abs(refPinned.gap - 194) < 1,
+      gating: true,
+      detail: JSON.stringify(refPinned),
+    });
+    await refContext.close();
+  }
 
   // ---- Reduced motion: no pin, no clip, no transform, no listeners -------
   {

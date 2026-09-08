@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import { useScroll, useTransform } from "motion/react";
-import { BOTTOM_GAP } from "./aboutGeometry";
+import { BOTTOM_GAP, PAUSE_PX } from "./aboutGeometry";
 
 // Drives the About page's pin (session 5B — see CLAUDE.md's "session-5b"
 // plan). Layout itself is CSS (aboutGeometry.ts's *Css exports) — this
@@ -91,7 +91,14 @@ export function useAboutPin(disabled: boolean) {
   const { scrollY } = useScroll();
   const aboutProgress = useTransform(scrollY, (latest) => {
     if (travel <= 0) return 0;
-    return Math.min(1, Math.max(0, (latest - lockStartRef.current) / travel));
+    // PAUSE_PX dead zone: the first PAUSE_PX of scroll past lockStart holds
+    // progress at 0 — the frame is already locked (that's lockStart's own
+    // job, unaffected), only the text withholds its own motion a beat
+    // longer. Pure function of scrollY, so reverse-scroll symmetry falls
+    // out for free: re-entering this same stretch from either direction
+    // clamps to 0 the same way, no latched state needed.
+    const afterPause = latest - lockStartRef.current - PAUSE_PX;
+    return Math.min(1, Math.max(0, afterPause / travel));
   });
   // Transform only — this MotionValue is what TextColumn's motion.div
   // binds its `y` style to. Never native scroll of an inner element, never
