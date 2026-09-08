@@ -470,15 +470,19 @@ src/
 │   └── about/page.tsx
 ├── components/
 │   ├── chassis/          Nav, Footer, Ticker, Container
-│   ├── ui/               Button, StatusPill, MetaRow, SectionLabel
+│   ├── ui/               Button, StatusPill, MetaRow, SectionLabel,
+│   │                     PageTitle, InlineLink
 │   ├── home/             Hero, BioList, ProjectCard, ProjectStack
+│   ├── about/            AboutHero, AboutFrame, TextColumn, PhotoColumn,
+│   │                     aboutGeometry.ts
 │   └── motion/           FlipText, Magnet, CustomCursor, Reveal
-├── content/projects.ts
+├── content/projects.ts, about.ts, tools.ts
 ├── lib/motion.ts
 public/
 ├── fonts/                WOFF2
 ├── projects/             screenshots
 │   └── gradients/        card background images
+└── about/                hero + section photos, frame-gradient.jpg
 ```
 
 The chassis / ui / feature split is load-bearing. Per-project color lives inside the
