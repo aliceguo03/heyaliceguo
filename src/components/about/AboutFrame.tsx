@@ -13,6 +13,14 @@ import { PhotoColumn } from "./PhotoColumn";
 // lands on FRAME_H (940) naturally, since TextColumn's fixed
 // TEXT_WINDOW_H (740) plus this frame's own 100px top/bottom padding sums
 // to exactly 940 — see aboutGeometry.ts.
+//
+// The content wrapper needs its own stacking position (relative z-10):
+// the background image is position:absolute (fill), and an
+// absolutely-positioned element paints above a statically-positioned one
+// regardless of DOM order — so without this, the columns rendered after
+// the image in markup still painted underneath it, washing everything in
+// the gradient's 40% opacity instead of leaving it visible only in the
+// empty space around them.
 export function AboutFrame() {
   return (
     <div className="relative flex items-start justify-between overflow-hidden rounded-card px-xl py-3xl">
@@ -21,11 +29,13 @@ export function AboutFrame() {
         alt=""
         fill
         sizes="(max-width: 1710px) 100vw, 1610px"
-        className="object-cover object-bottom opacity-40"
+        className="z-0 object-cover object-bottom opacity-40"
       />
 
-      <TextColumn />
-      <PhotoColumn />
+      <div className="relative z-10 flex w-full items-start justify-between">
+        <TextColumn />
+        <PhotoColumn />
+      </div>
     </div>
   );
 }
