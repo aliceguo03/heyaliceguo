@@ -13,9 +13,13 @@ import { useScrollAction } from "@/components/chassis/SmoothScroll";
 import { usePrefersReducedMotion, useViewportTooShort } from "@/lib/motion";
 import type { Project } from "@/content/projects";
 import {
+  BUFFER,
   contentClipPath,
+  CONTENT_INSET_BOTTOM,
+  CONTENT_INSET_TOP,
   FRAME_H,
   FRAME_PIN,
+  FRAME_STRIP_H,
   GUTTER,
   MIN_VIEWPORT_H,
   NAV_H,
@@ -23,8 +27,6 @@ import {
   SECTION_H,
   STAGE_H,
   TILE_H,
-  TILE_INSET_BOTTOM,
-  TILE_INSET_TOP,
   TILE_TOP,
   TRAVEL,
 } from "./projectGeometry";
@@ -103,9 +105,11 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
   // play/pause. `full` (>=TILE_H) is new: a project's CTA is only
   // magnet-eligible while its whole frame — not just a sliver — is under the
   // card, so a button doesn't start pulling while it's still mid-clip. The
-  // geometry makes `full` hold across s ∈ [-60, +60] inside the 810px pitch
-  // (projectGeometry.ts's TILE_INSET_TOP/BOTTOM, both 60), so at rest exactly
-  // one card CTA is ever magnet-eligible and mid-transition none are.
+  // geometry makes `full` hold across s ∈ [-260, +260] inside the 1210px
+  // pitch (projectGeometry.ts's CONTENT_INSET_TOP/BOTTOM, both 60+BUFFER —
+  // widened this session, on purpose: the same dwell that keeps content
+  // unclipped longer also keeps a CTA magnet-eligible longer), so at rest
+  // exactly one card CTA is ever magnet-eligible and mid-transition none are.
   //
   // Both masks are recomputed on every `stripY` write (the same frequency
   // L1/L3's transform already updates at) but committed to React state
@@ -207,17 +211,28 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
             gutter *between* frames, which this outer mask never touches
             since gutters sit in the interior, not at this box's edge,
             except for one narrow instant per transition — see the seam
-            layer's comment below for why that instant isn't a problem. */}
+            layer's comment below for why that instant isn't a problem.
+            Session gradient-extend: each ProjectFrame here is FRAME_STRIP_H
+            tall now (FRAME_H core + BUFFER buffer on each edge), not FRAME_H
+            — this mask's own height stays FRAME_H, so it shows only the
+            centered core slice of whatever frame currently lines up, same as
+            before. The translated column itself carries a static
+            marginTop: -BUFFER, unrelated to the --strip-y transform: without
+            it, project i's core would sit BUFFER below where i*PITCH expects
+            it (since the core sits BUFFER into each taller element, not at
+            its top edge), which would desync every rest position from
+            useProjectSnap's i*PITCH slots and from contentClipPath's `s`.
+            This offset is what keeps that alignment exact. */}
         <div className="absolute inset-x-0 px-xl" style={{ top: FRAME_PIN, height: FRAME_H, zIndex: 10 }}>
           <div className="mx-auto h-full max-w-page overflow-hidden rounded-card">
-            <div style={{ transform: "translate3d(0, var(--strip-y), 0)" }}>
+            <div style={{ transform: "translate3d(0, var(--strip-y), 0)", marginTop: -BUFFER }}>
               {projects.map((project, i) => (
                 <div
                   key={project.slug}
                   data-project-frame={i}
                   style={{ marginTop: i === 0 ? 0 : GUTTER }}
                 >
-                  <ProjectFrame color={project.color} gradient={project.gradient} />
+                  <ProjectFrame color={project.color} gradient={project.gradient} height={FRAME_STRIP_H} />
                 </div>
               ))}
             </div>
@@ -266,8 +281,11 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
             this seam must stay in front of the card, so the two can't share
             one clipped container. Checked, not assumed, that this doesn't
             square off the mask's rounded corners: a band's own rect (top:
-            i*PITCH+FRAME_H, height: GUTTER) sits exactly in a frame gap, so
-            it never overlaps actual frame pixels regardless of the mask.
+            i*PITCH+FRAME_H+BUFFER, height: GUTTER — the +BUFFER is new this
+            session: each strip element now runs BUFFER px past FRAME_H
+            before the real gutter starts, see FRAME_STRIP_H) sits exactly in
+            a frame gap, so it never overlaps actual frame pixels regardless
+            of the mask.
             The one moment a band does reach this box's top/bottom edge —
             a few px into a transition, as a gutter crosses the boundary —
             the mask's cutout there was only ever revealing porcelain
@@ -286,7 +304,7 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
               key={project.slug}
               data-seam-band={i}
               className="absolute inset-x-0 bg-porcelain"
-              style={{ top: i * PITCH + FRAME_H, height: GUTTER }}
+              style={{ top: i * PITCH + FRAME_H + BUFFER, height: GUTTER }}
             />
           ))}
         </div>
@@ -333,8 +351,8 @@ function visibilityMasks(stripY: number, count: number): { partial: number; full
   let full = 0;
   for (let i = 0; i < count; i++) {
     const s = i * PITCH + stripY;
-    const topInset = Math.max(0, s - TILE_INSET_TOP);
-    const bottomInset = Math.max(0, -s - TILE_INSET_BOTTOM);
+    const topInset = Math.max(0, s - CONTENT_INSET_TOP);
+    const bottomInset = Math.max(0, -s - CONTENT_INSET_BOTTOM);
     const visibleHeight = TILE_H - topInset - bottomInset;
     if (visibleHeight > 0) partial |= 1 << i;
     if (visibleHeight >= TILE_H) full |= 1 << i;

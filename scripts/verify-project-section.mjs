@@ -418,8 +418,16 @@ async function main() {
         detail: shotPath,
       });
 
-      // Buttons gap: scroll to the very end of the section, then measure
-      // frame 04's bottom edge to BACK TO TOP's top edge.
+      // Buttons gap: scroll to the very end of the section, then measure the
+      // visible frame boundary's bottom edge to BACK TO TOP's top edge.
+      // Session gradient-extend: measured against the sticky stage's own
+      // bottom, not [data-project-frame="3"]'s bounding rect — that element
+      // is FRAME_STRIP_H tall now (FRAME_H core + BUFFER overflow that
+      // scrolls past the mask), so its raw DOM box no longer coincides with
+      // the visible boundary the way it did before BUFFER existed. The
+      // sticky stage's own height is exactly STAGE_H = FRAME_PIN + FRAME_H
+      // (projectGeometry.ts, unchanged by BUFFER), so its bottom edge is
+      // still the right proxy for "frame 04's visible bottom."
       await wheelToSectionFraction(page, 1);
       await settleScroll(page);
       // Continue past the pin's release so the buttons row scrolls onto screen.
@@ -430,12 +438,12 @@ async function main() {
       await settleScroll(page);
 
       const gap = await page.evaluate(() => {
-        const frame = document.querySelector('[data-project-frame="3"]');
+        const stage = document.querySelector('[data-project-frame="3"]')?.closest(".sticky");
         const backToTop = [...document.querySelectorAll("button, a")].find(
           (el) => el.textContent?.trim().toUpperCase().includes("BACK TO TOP"),
         );
-        if (!frame || !backToTop) return null;
-        return backToTop.getBoundingClientRect().top - frame.getBoundingClientRect().bottom;
+        if (!stage || !backToTop) return null;
+        return backToTop.getBoundingClientRect().top - stage.getBoundingClientRect().bottom;
       });
       results.push({
         name: "frame 04 -> BACK TO TOP gap matches Figma (30px)",
@@ -461,13 +469,16 @@ async function main() {
         await sleep(20);
       }
       await settleScroll(page);
+      // See the identically-reasoned comment on the check above: measured
+      // against the sticky stage's bottom, not the (now buffer-overhanging)
+      // frame element's own bounding rect.
       const gap = await page.evaluate(() => {
-        const frame = document.querySelector('[data-project-frame="3"]');
+        const stage = document.querySelector('[data-project-frame="3"]')?.closest(".sticky");
         const backToTop = [...document.querySelectorAll("button, a")].find(
           (el) => el.textContent?.trim().toUpperCase().includes("BACK TO TOP"),
         );
-        if (!frame || !backToTop) return null;
-        return backToTop.getBoundingClientRect().top - frame.getBoundingClientRect().bottom;
+        if (!stage || !backToTop) return null;
+        return backToTop.getBoundingClientRect().top - stage.getBoundingClientRect().bottom;
       });
       results.push({
         name: `frame 04 -> BACK TO TOP gap constant across viewport heights (${height}px tall)`,
