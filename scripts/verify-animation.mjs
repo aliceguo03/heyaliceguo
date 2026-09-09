@@ -1162,37 +1162,6 @@ async function aboutPinChecks(browser, base, results) {
       detail: `navFrameGap(token)=${navFrameGap} offsets(min/max)=${Math.min(...navGapOffsets).toFixed(2)}/${Math.max(...navGapOffsets).toFixed(2)}`,
     });
 
-    // ---- Fix 1: HOLD_PX dead zone at hold 0 — text holds at rest for a
-    // real stretch of scroll past lockStart, then starts traveling toward
-    // hold 1. Doesn't hardcode the tuned constant (it's a judgment call,
-    // expected to get retuned): scans for the actual observed pause and
-    // asserts it's substantial (not a rounding artifact) and leaves real
-    // travel remaining afterward, so a future retune of HOLD_PX doesn't
-    // need this check rewritten. (Session 5D: this is now hold 0 of six,
-    // not a standalone pause constant — see the hold-plateau checks below
-    // for the other five.)
-    {
-      const identityAt = async (y) => {
-        await scrollAboutTo(page, y);
-        const t = await page.evaluate(
-          () => getComputedStyle(document.querySelector('[data-testid="about-text-content"]')).transform,
-        );
-        return t === "none" || t === "matrix(1, 0, 0, 1, 0, 0)";
-      };
-      let observedPause = 0;
-      const probeStep = Math.max(4, Math.round(win.travel * 0.02));
-      for (let dy = 0; dy <= win.travel; dy += probeStep) {
-        if (!(await identityAt(win.lockStart + dy))) break;
-        observedPause = dy;
-      }
-      results.push({
-        name: `${viewport.name}: a real scroll dead-zone holds the text at rest after lock (Fix 1)`,
-        pass: observedPause > 20 && observedPause < win.travel * 0.5,
-        gating: true,
-        detail: `observedPause≈${observedPause}px (probe step ${probeStep}px), travel=${win.travel.toFixed(0)}`,
-      });
-    }
-
     // ---- Check 2: ticker never partially clipped at lock onset ----------
     await scrollAboutTo(page, win.lockStart);
     const atLock = await aboutSample(page);
@@ -1229,16 +1198,11 @@ async function aboutPinChecks(browser, base, results) {
       });
     }
 
-    // ---- Session 5D: hold plateaus, and the live color/photo/counter
-    // spotlight at each one. Supersedes the old "last paragraph fully
-    // reachable" check (session 5C's runway requirement — every header
-    // reaching the window's literal top edge — no longer exists; each hold,
-    // including the last, now releases once its block reaches ITS OWN
-    // center, not any shared edge).
-    //
-    // Detects plateaus empirically off the real rendered transform, not by
-    // re-typing HOLD_PX or the measured hold positions — same discipline
-    // as the Fix 1 pause check above, extended from one plateau to six.
+    // ---- Session 5E: the hold/travel schedule is deleted outright, so the
+    // column's translateY is now a straight negation of the (clamped)
+    // post-lock scroll distance — motion must be continuous across the
+    // whole travel, with no flat zone anywhere (not even the one that used
+    // to be intentional at hold 0).
     const parseTranslateY = (transform) => {
       if (transform === "none") return 0;
       const match = transform.match(/matrix\(([-\d.,\s]+)\)/);
@@ -1258,17 +1222,18 @@ async function aboutPinChecks(browser, base, results) {
       fineSamples.push({ scrollY: y, ty: -(parseTranslateY(t) ?? 0) });
     }
 
-    // A plateau is a maximal run of consecutive samples whose ty doesn't
-    // move (within a rounding tolerance) — a real, substantial dwell, not
-    // a momentary flat spot between two probe steps.
-    const plateaus = [];
+    // A flat run is a maximal stretch of consecutive samples whose ty
+    // doesn't move (within a rounding tolerance) over a real span of
+    // scroll, not just one probe step — same detector the old plateau
+    // check used to confirm dwells existed; here it must find none.
+    const flatRuns = [];
     let runStart = 0;
     for (let i = 1; i <= fineSamples.length; i++) {
       const stillFlat = i < fineSamples.length && Math.abs(fineSamples[i].ty - fineSamples[runStart].ty) <= 1;
       if (stillFlat) continue;
       const runLen = fineSamples[i - 1].scrollY - fineSamples[runStart].scrollY;
       if (runLen > 20) {
-        plateaus.push({
+        flatRuns.push({
           y: fineSamples[runStart].ty,
           scrollStart: fineSamples[runStart].scrollY,
           scrollEnd: fineSamples[i - 1].scrollY,
@@ -1278,52 +1243,52 @@ async function aboutPinChecks(browser, base, results) {
     }
 
     results.push({
-      name: `${viewport.name}: exactly 6 hold plateaus across the pin range`,
-      pass: plateaus.length === 6,
+      name: `${viewport.name}: motion is continuous — no flat zones anywhere across the pin's travel`,
+      pass: flatRuns.length === 0,
       gating: true,
-      detail: JSON.stringify(
-        plateaus.map((p) => ({ y: +p.y.toFixed(1), scrollStart: +p.scrollStart.toFixed(0), scrollEnd: +p.scrollEnd.toFixed(0) })),
-      ),
+      detail: flatRuns.length ? JSON.stringify(flatRuns) : "no flat runs found",
     });
 
-    // Predicted hold positions from real rendered block rects — an
+    // Predicted per-block targets from real rendered block rects — an
     // independent measurement (this evaluate reads the DOM fresh; it does
-    // not import aboutGeometry.ts's pinSchedule or useAboutPin.ts's
-    // measure()), so agreement here is a genuine cross-check, not a
-    // tautology.
-    const predictedHolds = await page.evaluate(() => {
+    // not import aboutGeometry.ts's nearestBlockIndex or useAboutPin.ts's
+    // measure()), so agreement below is a genuine cross-check, not a
+    // tautology. Same formula as before hold removal (centered, except
+    // top-aligned when a block is taller than the window) — only the
+    // schedule that consumed it changed.
+    const predicted = await page.evaluate(() => {
       const windowEl = document.querySelector('[data-testid="about-text-window"]');
       const content = document.querySelector('[data-testid="about-text-content"]');
       const windowH = windowEl.getBoundingClientRect().height;
       const contentTop = content.getBoundingClientRect().top;
       let prev = 0;
-      return Array.from(content.querySelectorAll("[data-about-block]"), (block) => {
+      const heights = [];
+      const targets = Array.from(content.querySelectorAll("[data-about-block]"), (block) => {
         const r = block.getBoundingClientRect();
+        heights.push(r.height);
         const top = r.top - contentTop;
         const raw = r.height > windowH ? top : top + r.height / 2 - windowH / 2;
-        const hold = Math.max(prev, Math.max(0, raw));
-        prev = hold;
-        return hold;
+        const target = Math.max(prev, Math.max(0, raw));
+        prev = target;
+        return target;
       });
+      return { targets, heights, windowH };
     });
 
-    const holdsMatch =
-      plateaus.length === predictedHolds.length && plateaus.every((p, i) => Math.abs(p.y - predictedHolds[i]) < 2);
     results.push({
-      name: `${viewport.name}: each plateau's y matches its block's measured center (±2px)`,
-      pass: holdsMatch,
+      name: `${viewport.name}: pin's total scroll matches the last block's own predicted target`,
+      pass: Math.abs(win.travel - predicted.targets[predicted.targets.length - 1]) < 2,
       gating: true,
-      detail: `plateaus=${JSON.stringify(plateaus.map((p) => +p.y.toFixed(1)))} predicted=${JSON.stringify(predictedHolds.map((h) => +h.toFixed(1)))}`,
+      detail: `travel=${win.travel.toFixed(1)} predicted last target=${predicted.targets[predicted.targets.length - 1].toFixed(1)}`,
     });
 
-    // ---- At each plateau's midpoint: counter, photo, and color spotlight,
-    // color-only (no transform/opacity/blur on any block), and — scrolling
-    // back from hold 4 to hold 2 — reversal with no special-casing needed.
-    // The custom property's own raw value (--color-deep-black: #0d0d0d)
-    // isn't the same string format `getComputedStyle(el).color` resolves
-    // to (rgb(13, 13, 13)) — same color, different serialization. Resolve
-    // each token through a real `color` property on a throwaway element so
-    // both sides of the comparison below go through the same
+    // ---- At each predicted target: counter, photo, and color spotlight,
+    // color-only (no transform/opacity/blur on any block). The custom
+    // property's own raw value (--color-deep-black: #0d0d0d) isn't the same
+    // string format `getComputedStyle(el).color` resolves to
+    // (rgb(13, 13, 13)) — same color, different serialization. Resolve each
+    // token through a real `color` property on a throwaway element so both
+    // sides of the comparison below go through the same
     // browser-normalized format, rather than comparing a hex literal
     // against an rgb() string.
     const revealTokens = await page.evaluate(() => {
@@ -1338,10 +1303,9 @@ async function aboutPinChecks(browser, base, results) {
       return { black, gray };
     });
 
-    const sampleHold = async (index) => {
-      const plateau = plateaus[index];
-      await scrollAboutTo(page, (plateau.scrollStart + plateau.scrollEnd) / 2);
-      await page.waitForTimeout(650); // DUR.reveal's color transition settling
+    const sampleAt = async (s) => {
+      await scrollAboutTo(page, win.lockStart + s);
+      await page.waitForTimeout(1050); // DUR.photoFade's color/opacity transition settling
       return page.evaluate(() => {
         const counterEl = document.querySelector('[data-testid="about-photo-window"]').parentElement.querySelector("span");
         const photos = Array.from(document.querySelectorAll('[data-testid="about-photo-window"] > div'), (el) =>
@@ -1356,17 +1320,17 @@ async function aboutPinChecks(browser, base, results) {
     };
 
     const normalizeColor = (c) => c.replace(/\s/g, "");
-    const assertHold = (index, sample) => {
+    const assertAtTarget = (index, sample) => {
       const expectedCounter = String(index + 1).padStart(2, "0");
       results.push({
-        name: `${viewport.name}: hold ${index + 1}/6 — counter reads ${expectedCounter}/06`,
+        name: `${viewport.name}: block ${index + 1}/6 centered — counter reads ${expectedCounter}/06`,
         pass: sample.counter === expectedCounter,
         gating: true,
         detail: `counter=${sample.counter}`,
       });
       const photoOk = sample.photos.every((op, i) => (i === index ? op > 0.99 : op < 0.01));
       results.push({
-        name: `${viewport.name}: hold ${index + 1}/6 — only photo ${index + 1} is at full opacity`,
+        name: `${viewport.name}: block ${index + 1}/6 centered — only photo ${index + 1} is at full opacity`,
         pass: photoOk,
         gating: true,
         detail: JSON.stringify(sample.photos.map((o) => +o.toFixed(2))),
@@ -1377,7 +1341,7 @@ async function aboutPinChecks(browser, base, results) {
           : normalizeColor(b.color) === normalizeColor(revealTokens.gray),
       );
       results.push({
-        name: `${viewport.name}: hold ${index + 1}/6 — only block ${index + 1} is deep-black, every other block (passed or not yet reached) is gray`,
+        name: `${viewport.name}: block ${index + 1}/6 centered — only that block is deep-black, every other block (passed or not yet reached) is gray`,
         pass: colorOk,
         gating: true,
         detail: JSON.stringify(sample.blocks.map((b) => b.color)),
@@ -1389,22 +1353,69 @@ async function aboutPinChecks(browser, base, results) {
           b.filter === "none",
       );
       results.push({
-        name: `${viewport.name}: hold ${index + 1}/6 — color only, no transform/opacity/blur on any block`,
+        name: `${viewport.name}: block ${index + 1}/6 centered — color only, no transform/opacity/blur on any block`,
         pass: colorOnlyOk,
         gating: true,
         detail: JSON.stringify(sample.blocks.map((b) => ({ transform: b.transform, opacity: b.opacity, filter: b.filter }))),
       });
     };
 
-    if (plateaus.length === 6) {
-      for (let i = 0; i < 6; i++) assertHold(i, await sampleHold(i));
+    for (let i = 0; i < predicted.targets.length; i++) {
+      assertAtTarget(i, await sampleAt(predicted.targets[i]));
+    }
 
-      // Reverse: settle at hold 4, then scroll back to hold 2 — the
-      // previously-black paragraph (hold 4, index 3) must be gray again,
-      // with no special-casing (this is the same sampleHold/assertHold
-      // used forward).
-      await sampleHold(3);
-      assertHold(1, await sampleHold(1));
+    // Reverse: settle at target 4 (index 3), then scroll back to target 2
+    // (index 1) — the previously-black paragraph must be gray again, with
+    // no special-casing (nearestBlockIndex is a pure function of s, so
+    // re-entering any point from either direction resolves the same way).
+    await sampleAt(predicted.targets[3]);
+    assertAtTarget(1, await sampleAt(predicted.targets[1]));
+
+    // ---- Isolation: at each block's own target, no OTHER block's rect
+    // overlaps the text window at all. Block 1 (index 0) is excluded — it
+    // never reaches its own centered position (clamped to S=0, the
+    // schedule's floor: there's no content above it to push it down to
+    // center), so a sliver of block 2 is unavoidably visible right at the
+    // very start of the pin regardless of BLOCK_GAP. Pre-existing (worse,
+    // in fact: held flat for a full HOLD_PX under the old schedule) and out
+    // of the scope the gap-widening pass targets (a *centered* paragraph's
+    // isolation), not a regression this check should fail on.
+    for (let i = 1; i < predicted.targets.length; i++) {
+      await scrollAboutTo(page, win.lockStart + predicted.targets[i]);
+      const overlaps = await page.evaluate(() => {
+        const winRect = document.querySelector('[data-testid="about-text-window"]').getBoundingClientRect();
+        return Array.from(document.querySelectorAll("[data-about-block]"), (b) => {
+          const r = b.getBoundingClientRect();
+          return Math.max(0, Math.min(r.bottom, winRect.bottom) - Math.max(r.top, winRect.top));
+        });
+      });
+      const isolated = overlaps.every((overlap, idx) => idx === i || overlap < 1);
+      results.push({
+        name: `${viewport.name}: block ${i + 1}/6 centered — zero neighbor content visible in the window`,
+        pass: isolated,
+        gating: true,
+        detail: JSON.stringify(overlaps.map((o) => +o.toFixed(1))),
+      });
+    }
+
+    // ---- Oversized-block exception: a block taller than its own window
+    // (measured: block 2 at 1440x760) top-aligns at its target instead of
+    // centering — still correct after hold removal, since the exception
+    // lives in the same per-block formula the schedule always read from.
+    for (let i = 0; i < predicted.targets.length; i++) {
+      if (predicted.heights[i] <= predicted.windowH) continue;
+      await scrollAboutTo(page, win.lockStart + predicted.targets[i]);
+      const topOffset = await page.evaluate((idx) => {
+        const winRect = document.querySelector('[data-testid="about-text-window"]').getBoundingClientRect();
+        const blockRect = document.querySelectorAll("[data-about-block]")[idx].getBoundingClientRect();
+        return Math.abs(blockRect.top - winRect.top);
+      }, i);
+      results.push({
+        name: `${viewport.name}: oversized block ${i + 1}/6 (${predicted.heights[i].toFixed(0)}px in a ${predicted.windowH.toFixed(0)}px window) top-aligns, not centered`,
+        pass: topOffset < 1.5,
+        gating: true,
+        detail: `top-offset=${topOffset.toFixed(2)}`,
+      });
     }
 
     // ---- Width regression: the content column matches the WINDOW's own

@@ -15,9 +15,9 @@ import { DUR, EASE } from "@/lib/motion";
 //
 // The photo/counter snap. `activeIndex` (useAboutPin.ts's currentIndex —
 // one source, shared verbatim with the paragraph reveal) selects which of
-// the six PhotoCaptions is on screen. Session 5D: derived from the
-// hold/travel schedule's held block centers, not header-top thresholds,
-// and switches at each hold's start rather than being a latched value.
+// the six PhotoCaptions is on screen — the nearest block's target to the
+// current post-lock scroll (aboutGeometry.ts's nearestBlockIndex), not
+// header-top thresholds, and it can move either direction.
 //
 // All six stay mounted, stacked in one CSS grid cell (col/row-start-1) and
 // cross-faded by opacity via motion.div — no mount/unmount, no absolute
@@ -27,7 +27,8 @@ import { DUR, EASE } from "@/lib/motion";
 // and the caption never moves. `initial={false}` so nothing fades in on
 // first paint — only index changes animate. `aria-hidden` on every
 // non-active layer keeps only the visible photo's alt text in the
-// accessibility tree.
+// accessibility tree. DUR.photoFade (not DUR.reveal): slower/softer on
+// request, same EASE curve — see that constant's own comment.
 export function PhotoColumn({
   windowHeight,
   photoHeight,
@@ -52,7 +53,7 @@ export function PhotoColumn({
             className="col-start-1 row-start-1"
             initial={false}
             animate={{ opacity: index === activeIndex ? 1 : 0 }}
-            transition={{ duration: DUR.reveal, ease: EASE }}
+            transition={{ duration: DUR.photoFade, ease: EASE }}
             aria-hidden={index !== activeIndex}
           >
             <PhotoCaption

@@ -4,7 +4,7 @@ import { motion, type MotionValue } from "motion/react";
 import type { RefObject } from "react";
 import { ABOUT_SECTIONS } from "@/content/about";
 import { TextBlock } from "./TextBlock";
-import { textColumnWidthCss } from "./aboutGeometry";
+import { BLOCK_GAP, textColumnWidthCss } from "./aboutGeometry";
 
 // Left column (Figma "text scroll", 523:6602). Session 5A rendered all six
 // blocks clipped with overflow:hidden at a fixed TEXT_WINDOW_H. Session 5B
@@ -38,23 +38,22 @@ import { textColumnWidthCss } from "./aboutGeometry";
 // changes as text reflows at a narrower measure), so no separate handling
 // is needed for that case.
 //
-// `currentIndex` (session 5D, replacing 5C's latched `filledCount`): the
-// single live index useAboutPin.ts derives from the hold/travel schedule.
+// `currentIndex`: the single live index useAboutPin.ts derives from the
+// continuous nearest-target mapping (aboutGeometry.ts's nearestBlockIndex).
 // Block `i` is filled only while `i === currentIndex` — a plain equality,
 // not a high-water mark, so a paragraph already passed returns to gray as
 // soon as scroll carries it out of the spotlight, in either direction.
 //
-// Gap-widening tuning pass: gap-3xl (100px) → gap-4xl (212px) between
-// blocks. No bespoke literal — the requested "+100px, ~200px" starting
-// point isn't itself on the spacing scale (4/8/12/20/30/50/100/212), and
-// 4xl is already the next step up, already used elsewhere at this same
-// "generous vertical breathing room" register (Footer.tsx, AboutHero.tsx).
-// Free of any knock-on math: useAboutPin.ts's hold/travel schedule reads
-// each block's rendered offset live off the DOM (see its own comment), so
-// a wider gap just produces a longer travel distance between holds — no
-// other file assumes 100px as a literal. AboutFallback.tsx's own gap-3xl
-// is untouched on purpose: it renders a different Figma mock (705:5453)
-// with its own documented 100px row gap, not derived from this column.
+// Paragraph-isolation pass (session 5E): the gap between blocks is
+// BLOCK_GAP (320px, aboutGeometry.ts) applied as an inline style, not a
+// `gap-*` utility class — unlike the earlier 100px→212px tuning pass this
+// widens to, 320px isn't backed by any Figma variable (this page's Figma
+// file has no scroll mechanic to have measured it from), and globals.css's
+// own header rules out adding an @theme token without one. See BLOCK_GAP's
+// comment for the isolation requirement that sets its value.
+// AboutFallback.tsx's own gap-3xl is untouched on purpose: it renders a
+// different Figma mock (705:5453) with its own documented 100px row gap,
+// not derived from this column.
 export function TextColumn({
   windowHeight,
   y,
@@ -78,8 +77,8 @@ export function TextColumn({
       <motion.div
         ref={contentRef}
         data-testid="about-text-content"
-        className="flex w-full flex-col items-start gap-4xl"
-        style={{ y }}
+        className="flex w-full flex-col items-start"
+        style={{ y, gap: BLOCK_GAP }}
       >
         {ABOUT_SECTIONS.map((section, index) => (
           <TextBlock

@@ -84,19 +84,14 @@ export const PHOTO_MIN_H = 300;
 // Pre-measurement seed for --about-pin-scroll (useAboutPin.ts), so the
 // section's height is already close to correct on the server-rendered pass
 // and the post-hydration ResizeObserver correction is a few px, not a
-// full-height jump. Renamed from TEXT_TRAVEL_ESTIMATE (session 5D): what
-// sectionHeightCss needs is no longer a single travel distance but the
-// schedule's total post-lock scroll (six holds' worth of HOLD_PX plus the
-// five travel segments between them) — 6 * HOLD_PX + the last hold's own
-// y, measured at the 1710x1040 reference viewport after the text-column
-// width fix (663px column; see TextColumn.tsx's own comment). Re-measured
-// after the gap-widening pass (TextColumn.tsx's gap-3xl -> gap-4xl,
-// 100px -> 212px): 960 + 2097 = 3057, up from 2497 — the five wider gaps
-// between blocks stretch every hold's own offset, which is exactly what
-// this seed is meant to track. Real rendered Satoshi metrics — and which
-// viewport a visitor loads at — will differ; that's exactly what the
-// observer corrects.
-export const PIN_SCROLL_ESTIMATE = 3057;
+// full-height jump. Session 5E (hold removal): the schedule collapsed to a
+// single number — the S at which the last block reaches its own ideal
+// framing (centered, or top-aligned if it's taller than the window; see
+// useAboutPin.ts's measure()) — so this is just that block's target,
+// measured at the 1710x1040 reference viewport with the widened 320px
+// BLOCK_GAP. Real rendered Satoshi metrics — and which viewport a visitor
+// loads at — will differ; that's exactly what the observer corrects.
+export const PIN_SCROLL_ESTIMATE = 2637;
 
 // Below this viewport height the frame plus its pin can't hold PHOTO_MIN_H
 // of photo, so AboutSection falls back to normal-flow rows instead of the
@@ -116,27 +111,8 @@ export const MIN_ABOUT_VIEWPORT_H =
   NAV_FRAME_GAP +
   BOTTOM_GAP;
 
-// --- Fix pass (post-5B tuning): pause, and the narrow-width column fix ----
+// --- Fix pass (post-5B tuning): the narrow-width column fix ---------------
 //
-// A dead zone in scroll distance, not time — same exempt category as
-// PHOTO_MIN_H above (gesture/interaction tuning, not a decorative
-// duration/easing CLAUDE.md's hard rules govern). Felt-duration judgment
-// call, doubled from an initial 80px after review — 160px reads as a more
-// definite pause, roughly two confident trackpad swipes or wheel clicks.
-//
-// Session 5D, "center-locked reading rhythm": this used to be one pause at
-// lockStart (PAUSE_PX) plus a second, separately-named dwell at the very
-// end (TAIL_DWELL_PX) — two constants that happened to share a value. The
-// hold/travel schedule generalizes both into the SAME dwell reused at
-// EVERY one of the six centered holds, so they collapse into this one
-// constant. Hold 0 (block 01, which never centers — see its own comment on
-// useAboutPin.ts's holds computation) reproduces the old pause exactly;
-// hold 5 reproduces the old tail dwell. Applied at each hold via
-// pinSchedule (below), not as a flat addend before/after travel — the
-// pin's total scroll runway is no longer travel + two endpoint terms, it's
-// six dwells interleaved with five travel segments.
-export const HOLD_PX = 160;
-
 // The floor a shrinking text column may not cross, and the gap held once
 // it's shrinking (see textColumnWidthCss below). Judgment call at 24px
 // Satoshi Body Large / 32px line-height: 480px holds ~38-40 characters per
@@ -153,6 +129,30 @@ export const TEXT_COL_MIN_W = 480;
 // (the columns would collide before the gap does), but that point is well
 // under 1440px, out of scope for this pass.
 export const MIN_COLUMN_GAP = 100;
+
+// --- Paragraph isolation pass ---------------------------------------------
+//
+// Gap between text blocks inside the pinned column (TextColumn.tsx) — not a
+// design token: this page's Figma file has no scroll mechanic (same
+// exemption as HOLD_PX previously, PHOTO_MIN_H, and TEXT_COL_MIN_W above),
+// so nothing in globals.css's @theme block can back it, and that file's own
+// header ("do not add values here without a matching Figma variable") rules
+// out inventing one there. Applied as an inline style in TextColumn.tsx, not
+// a `gap-*` utility class.
+//
+// The requirement: a centered block must have zero neighbor content visible
+// in the text window. Binding case is the shortest block in the tallest
+// window — "Everything Else" (block 6, 142px tall at the 663px reference
+// column width) inside the 1710x1040 viewport's 704px window — because a
+// short block leaves the most headroom on each side of center for a
+// neighbor to intrude into. At that pairing the minimum gap is
+// (windowH - blockH) / 2 = (704 - 142) / 2 = 281px; every other
+// viewport/block pairing measured needs less (195px at 1440x900, 125px at
+// 1440x760 — both against the 174px-tall "Everything Else" block at the
+// narrower 487px column width). 320px clears the binding case with ~40px of
+// margin. Re-derive this if body copy, column width, or FRAME_H_MAX changes
+// — it's arithmetic on real rendered rects, not a fixed ratio.
+export const BLOCK_GAP = 320;
 
 // The text column's width, both in the pinned view (TextColumn.tsx) and
 // the fallback (AboutFallbackRow.tsx) — same expression, shared, because
@@ -230,74 +230,66 @@ export const photoWindowCss = `min(${PHOTO_WINDOW_MAX}px, calc(${textWindowCss} 
 export const photoHeightCss = `min(${PHOTO_H}px, calc(${photoWindowCss} - ${PHOTO_CAPTION_GAP + CAPTION_H}px))`;
 
 // The section's total scroll runway: the sticky stage holds still for
-// frameHeightCss, plus the pin's total post-lock scroll — six HOLD_PX
-// dwells interleaved with the five travel segments between them (see
-// pinSchedule below). The CSS sticky mechanic's own "how long do I stay
-// stuck" duration is purely sectionHeight - frameHeight, so without this
-// term the pin would release before the JS-side schedule finished
-// consuming the scroll it needs.
+// frameHeightCss, plus the pin's total post-lock scroll. The CSS sticky
+// mechanic's own "how long do I stay stuck" duration is purely
+// sectionHeight - frameHeight, so without this term the pin would release
+// before the column finished traveling to its last block's target.
 //
-// Session 5D, "center-locked reading rhythm": superseded session 5C's
-// "extend the runway" (travel = block 06's own header offset, so headers
-// could reach the window's literal top edge). That requirement is gone —
-// each hold, including the last, now releases once its block reaches
-// center, not the top edge — so this no longer needs a term chosen to make
-// any one header reachable. Renamed --about-text-travel ->
-// --about-pin-scroll to match: useAboutPin.ts's ResizeObserver now writes
-// the schedule's total scroll distance (6 * HOLD_PX + the last hold's own
-// y) directly, seeded at PIN_SCROLL_ESTIMATE for the pre-hydration render.
-// max(0px, …) guards the (only possible on an extremely tall/narrow
-// window) case where content fits without scrolling at all, so the
-// section is never shorter than the frame itself.
+// Session 5E (hold removal): collapses close to `contentH - windowH` — a
+// plain "translate the column until its bottom meets the window's bottom"
+// distance — but isn't exactly that. It's the S at which the LAST block
+// reaches its own ideal framing (see targetFor below), which sits
+// (windowH - lastBlockH) / 2 further than flat bottom-alignment whenever
+// the last block is shorter than the window (the common case — a bottom-
+// aligned scroll would stop with the last block's own bottom flush against
+// the window's bottom, past where it's actually centered). useAboutPin.ts's
+// ResizeObserver writes this value directly, seeded at PIN_SCROLL_ESTIMATE
+// for the pre-hydration render. max(0px, …) guards the (only possible on an
+// extremely tall/narrow window) case where content fits without scrolling
+// at all, so the section is never shorter than the frame itself.
 export const sectionHeightCss = `calc(${frameHeightCss} + max(0px, var(--about-pin-scroll, ${PIN_SCROLL_ESTIMATE}px)))`;
 
-// --- Session 5D: the hold/travel schedule ---------------------------------
+// --- Session 5E: continuous nearest-block mapping (replaces the hold/travel
+// schedule) ------------------------------------------------------------
 //
-// Six hold points (one per paragraph, each — with one exception — centered
-// in the text window) connected by travel segments where the text
-// translates continuously between one paragraph's held position and the
-// next. useAboutPin.ts's measure() computes `holds` (each block's own held
-// y, ascending) off real rendered rects; this function turns that array
-// plus a live post-lock scroll distance `s` into "where is the column, and
-// which block is current" — the one place both are derived, so textY and
-// currentIndex can never disagree about which frame they're looking at.
+// The previous session's six hold points, each with its own HOLD_PX dwell
+// and the travel segments stitching them together, are gone outright — not
+// tuned, deleted. With BLOCK_GAP widened so a centered paragraph is fully
+// isolated (see that constant's own comment), a reading pause no longer
+// needs a scroll dead-zone to manufacture it: the isolation itself is what
+// reads as a pause. What survives from that schedule is a single idea,
+// simplified: each block still has an ideal S (the post-lock scroll value
+// at which it's best framed) — centered in the window, or top-aligned if
+// it's taller than the window (useAboutPin.ts's measure() computes this
+// array, `targets`, off real rendered rects — same formula the old `holds`
+// array used, since the per-block exception is unrelated to the schedule
+// that consumed it).
 //
-// Hold i owns scroll range [S_i, S_i + HOLD_PX], where S_i is the
-// telescoping sum of every dwell and segment before it: S_0 = 0, and
-// S_{i+1} = S_i + HOLD_PX + (holds[i+1] - holds[i]). Equivalently or,
-// closed-form, S_i = i * HOLD_PX + holds[i] — i dwells already spent, plus
-// however far the column has had to travel to get here (each segment's own
-// length telescopes away). The travel segment after hold i, s in
-// (S_i + HOLD_PX, S_{i+1}), maps linearly back onto y: shifting by
-// (i + 1) * HOLD_PX (all dwells spent so far) leaves exactly the raw
-// cumulative travel distance, which IS holds[i+1] once simplified — so
-// y during that segment is simply s - (i + 1) * HOLD_PX, no separate
-// per-segment interpolation needed.
+// The column's translateY is now literally `-clamp(s, 0, targets[last])` —
+// no scheduling function needed for position at all. useAboutPin.ts writes
+// this directly as `pinScroll` (already clamped to that range), and textY
+// just negates it. Motion is continuous end to end: there is no s at which
+// y stops changing, because y IS s (clamped), not a piecewise function of
+// it.
 //
-// currentIndex flips at each hold's START (s >= S_i), not its midpoint or
-// end — so during the travel segment leading up to hold i+1, the outgoing
-// block (i) stays the filled one right up until i+1 lands centered. Pure
-// function of s, so reverse-scroll symmetry falls out for free: re-entering
-// any point from either direction resolves to the same {y, index}.
-export function pinSchedule(s: number, holds: number[]): { y: number; index: number } {
-  if (holds.length === 0) return { y: 0, index: 0 };
+// currentIndex is the one thing still derived from `targets`: the nearest
+// target to the current (clamped) s. Because `targets` is ascending, the
+// boundary between block i and i+1 falls exactly at their midpoint — "the
+// transition between two blocks is the midpoint between their centers"
+// falls out of a plain nearest-neighbor search, nothing bespoke required.
+// Pure function of s, so reverse-scroll symmetry holds for free: re-entering
+// any point from either direction resolves to the same index.
+export function nearestBlockIndex(s: number, targets: number[]): number {
+  if (targets.length === 0) return 0;
 
   let index = 0;
-  for (let i = 1; i < holds.length; i++) {
-    const holdStart = i * HOLD_PX + holds[i];
-    if (s < holdStart) break;
-    index = i;
+  let bestDist = Math.abs(targets[0] - s);
+  for (let i = 1; i < targets.length; i++) {
+    const dist = Math.abs(targets[i] - s);
+    if (dist < bestDist) {
+      bestDist = dist;
+      index = i;
+    }
   }
-
-  // Within hold `index`'s own dwell (s up to dwellStart + HOLD_PX), y stays
-  // flat at holds[index] — not the same expression as the travel branch
-  // below evaluated at those s values, which would ramp across the dwell
-  // instead of holding still (holds[index] - HOLD_PX at the dwell's start,
-  // climbing to holds[index] only at its end). Past the dwell, y resumes
-  // the linear travel toward holds[index + 1]; s - (index + 1) * HOLD_PX
-  // is continuous with the flat value at the dwell's own end by
-  // construction (see the derivation above).
-  const dwellStart = index * HOLD_PX + holds[index];
-  const y = s <= dwellStart + HOLD_PX ? holds[index] : s - (index + 1) * HOLD_PX;
-  return { y: Math.max(0, y), index };
+  return index;
 }
