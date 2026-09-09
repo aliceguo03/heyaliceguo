@@ -17,16 +17,23 @@ import { FRAME_H } from "./projectGeometry";
 export function ProjectFrame({
   color,
   gradient,
+  height = FRAME_H,
   children,
 }: {
   color?: string;
   gradient?: string;
+  // Defaults to FRAME_H (the visible-window size) for the static
+  // ProjectCard fallback. The L1 strip (ProjectSection.tsx) passes
+  // FRAME_STRIP_H instead — object-cover just reveals more of the same
+  // gradient image, no crop/position change needed (see projectGeometry.ts's
+  // BUFFER comment).
+  height?: number;
   children?: ReactNode;
 }) {
   return (
     <div
       className="relative flex w-full items-center justify-center overflow-hidden rounded-card"
-      style={{ height: FRAME_H, backgroundColor: color }}
+      style={{ height, backgroundColor: color }}
     >
       {/* Solid `color` above is the pre-load fallback — it shows through
           until this image decodes, and stays as the base if `gradient` is

@@ -15,8 +15,21 @@
 // --- Primitives, read directly off Figma --------------------------------
 
 export const FRAME_W = 1610; // gradient frame width (= --container-page)
-export const FRAME_H = 780; // gradient frame height
+export const FRAME_H = 780; // gradient frame height — the VISIBLE slice only; see FRAME_STRIP_H
 export const GUTTER = 30; // gap between stacked gradient frames (space-lg)
+
+// Extra gradient height carried above and below FRAME_H in the L1 strip
+// only — pure buffer that scrolls past off-window, giving each project more
+// scroll distance ("dwell") before the wipe to the next project begins.
+// Session gradient-extend: checked the actual gradient PNGs pixel-by-pixel
+// before picking a number — they're smooth mesh-gradient/noise images with
+// no baked artwork, already exported far taller than the FRAME_H crop shown
+// today (every current asset has 600px+ of clean margin on each side), and
+// object-cover is width-bound at this container width regardless of height,
+// so growing the strip element just reveals more of the same image — no new
+// Figma exports needed for 200. Never feeds FRAME_H, which stays the
+// mask/viewport size — see FRAME_STRIP_H below for the one place this feeds.
+export const BUFFER = 200;
 
 export const TILE_W = 863; // white card width
 export const TILE_H = 660; // white card height
@@ -51,11 +64,22 @@ export const FRAME_PIN = NAV_H + BANNER_H + BANNER_GAP;
 
 // --- Derived — computed from the primitives, never typed as literals ----
 
-// Vertical distance from one frame's top to the next frame's top. 780 + 30 = 810.
-export const PITCH = FRAME_H + GUTTER;
+// Height of one ProjectFrame instance *in the L1 strip only*. ProjectFrame's
+// `height` prop defaults to FRAME_H (used by the static ProjectCard
+// fallback, and by the mask/viewport below); the strip passes this instead.
+// This is the decoupling: FRAME_H stays the visible-window size, and this is
+// the only thing BUFFER feeds into scroll pacing. 780 + 2*200 = 1180.
+export const FRAME_STRIP_H = FRAME_H + 2 * BUFFER;
+
+// Vertical distance from one frame's top to the next frame's top. Built from
+// FRAME_STRIP_H, not FRAME_H — that's the strip element's actual height now
+// that it carries buffer content; FRAME_H alone would only describe the
+// visible slice, not the scroll distance a full element occupies.
+// 1180 + 30 = 1210.
+export const PITCH = FRAME_STRIP_H + GUTTER;
 
 // Total distance the gradient strip and seam layer travel to carry project 1
-// all the way to project PROJECT_COUNT's position. (4 - 1) * 810 = 2430.
+// all the way to project PROJECT_COUNT's position. (4 - 1) * 1210 = 3630.
 export const TRAVEL = (PROJECT_COUNT - 1) * PITCH;
 
 // The card's fixed top offset within the pinned stage. 162 + 60 = 222.
@@ -67,6 +91,9 @@ export const TILE_BOTTOM = TILE_TOP + TILE_H; // 222 + 660 = 882
 // instant frame 04 clears it, which is what lets the section's scroll
 // runway end at frame 04's bottom edge instead of one further viewport's
 // worth of scrolling. 162 + 780 = 942.
+// Deliberately FRAME_H, not FRAME_STRIP_H — the visible mask/viewport never
+// grows just because the strip carries more scrollable content per project
+// (session gradient-extend). Growing this was the mistake to avoid.
 export const STAGE_H = FRAME_PIN + FRAME_H;
 
 // The section's total scroll runway: the sticky stage holds still for
@@ -120,24 +147,43 @@ export const SNAP_DEADZONE = 8;
 
 // --- Content clipping -----------------------------------------------------
 
+// TILE_INSET_TOP/BOTTOM place the card inside the *visible* FRAME_H window —
+// they answer "where does the card sit," not "how long should content stay
+// unclipped." That second question needs BUFFER folded in: the strip element
+// backing content layer `i` is FRAME_STRIP_H tall (FRAME_H core + BUFFER on
+// each edge), so this project's own gradient is still on screen for BUFFER
+// px beyond where the plain FRAME_H math would start clipping it. Clipping
+// on the unmodified insets would cut the content the instant `s` passes
+// TILE_INSET_TOP, while the gradient behind it still plainly reads as this
+// project's — i.e. exactly the FRAME_H/viewport coupling this session
+// exists to remove, reintroduced one level down. One pair of constants, used
+// here and by visibilityMasks in ProjectSection.tsx, so the two can't drift.
+export const CONTENT_INSET_TOP = TILE_INSET_TOP + BUFFER;
+export const CONTENT_INSET_BOTTOM = TILE_INSET_BOTTOM + BUFFER;
+
 // Clip-path for content layer `i`, expressed in terms of the same
 // `--strip-y` custom property that drives the gradient strip and the seam
 // layer (ProjectSection.tsx) — so a layer's visible region can never drift
 // from where its gradient frame actually is.
 //
 // Derived from the target mechanic's general formula
-//   inset(max(0, frameTop_i - cardTop) 0 max(0, cardBottom - frameBottom_i) 0)
-// with frameTop_i = FRAME_PIN + i*PITCH + stripY, cardTop = FRAME_PIN +
-// TILE_INSET_TOP, cardBottom = cardTop + TILE_H, frameBottom_i = frameTop_i +
-// FRAME_H. FRAME_PIN cancels in both subtractions, leaving each side a
-// function of `s = i*PITCH + stripY` alone:
-//   top    = max(0, s - TILE_INSET_TOP)
-//   bottom = max(0, -s - TILE_INSET_BOTTOM)
-// This holds however TILE_INSET_TOP/BOTTOM relate to FRAME_H - TILE_H; it
-// isn't relying on them being equal (they both happen to be 60 today).
+//   inset(max(0, elementTop_i - cardTop) 0 max(0, cardBottom - elementBottom_i) 0)
+// with elementTop_i = FRAME_PIN + i*PITCH + stripY, cardTop = FRAME_PIN +
+// TILE_INSET_TOP, cardBottom = cardTop + TILE_H, elementBottom_i =
+// elementTop_i + FRAME_STRIP_H. Note elementTop_i, not the FRAME_H core's own
+// top — the strip's static -BUFFER offset (ProjectSection.tsx's L1 wrapper)
+// is what keeps `i*PITCH` landing exactly on each project's core-visible
+// rest position despite the element being taller than its core; that offset
+// is what lets `s` below keep meaning the same thing it always has. FRAME_PIN
+// cancels in both subtractions, leaving each side a function of
+// `s = i*PITCH + stripY` alone:
+//   top    = max(0, s - CONTENT_INSET_TOP)
+//   bottom = max(0, -s - CONTENT_INSET_BOTTOM)
+// This holds however the insets relate to FRAME_STRIP_H - TILE_H; it isn't
+// relying on any particular relationship between them.
 export function contentClipPath(i: number): string {
   const s = `${i * PITCH}px + var(--strip-y)`;
-  const top = `max(0px, calc(${s} - ${TILE_INSET_TOP}px))`;
-  const bottom = `max(0px, calc(-1 * (${s}) - ${TILE_INSET_BOTTOM}px))`;
+  const top = `max(0px, calc(${s} - ${CONTENT_INSET_TOP}px))`;
+  const bottom = `max(0px, calc(-1 * (${s}) - ${CONTENT_INSET_BOTTOM}px))`;
   return `inset(${top} 0px ${bottom} 0px)`;
 }
