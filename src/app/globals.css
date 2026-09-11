@@ -46,6 +46,13 @@
   --text-body-large--line-height: 32px;
   --text-body-large--letter-spacing: 0;
 
+  /* Case study impact metric (736:6109 etc.) — Satoshi Black 100/100. No
+     Figma text style backs this; it's raw in the file, flagged and taken
+     with sign-off (P1 plan "Flags" #2). Used nowhere else. */
+  --text-stat: 100px;
+  --text-stat--line-height: 100px;
+  --text-stat--letter-spacing: 0;
+
   /* --- Color: backgrounds ---------------------------------------------- */
   --color-porcelain: #fefffd;
   --color-ink: #0a0a0a;
@@ -84,6 +91,16 @@
   --color-project-chase: #3a9bd9;
   --color-project-geminicut: #7ec8f0;
   --color-project-blink: #5fd4c4;
+
+  /* --- Color: case study accent ------------------------------------------ */
+  /* Set per project on the case-study root wrapper from Project.accent
+     (content/projects.ts) — every descendant reads it via text-accent-project
+     with no arbitrary value. Default is Accent/F3Global, #4839CD, the only
+     value the Figma file defines today. There is no Figma source for a
+     second "strong" project accent — InlineLink stays on the sitewide blue
+     (--color-accent-blue-light) inside case studies, same as everywhere
+     else, so no second token was added for it (P1 plan "Flags" #1). */
+  --color-accent-project: #4839cd;
 
   /* --- Spacing ---------------------------------------------------------- */
   --spacing-xs: 4px;
@@ -145,6 +162,11 @@
   /* White project card, floating over its gradient frame. */
   --shadow-card: 8px 15px 37px 0px rgba(0, 0, 0, 0.1);
 
+  /* Case study hero card (730:6005) — a distinct, shallower shadow from
+     --shadow-card above, confirmed against Figma, not a copy/paste of it.
+     Flagged (P1 plan "Flags" #3). */
+  --shadow-case-card: 5px 13px 30px 0px rgba(0, 0, 0, 0.1);
+
   /* --- Easing ------------------------------------------------------------- */
   /* Mirrors EASE in src/lib/motion.ts. Use for CSS transitions only —
      JS-driven motion imports EASE directly. */
@@ -172,6 +194,55 @@
    token — flagged per CLAUDE.md's "stop and ask" rule on new tokens. */
 :root {
   --z-cursor: 60;
+}
+
+/* Case study per-project gradient (Accent/F3 Gradient etc., an *image* fill
+   in Figma, not a CSS gradient). Not in @theme: Tailwind v4's --color-*
+   namespace only ever generates background-color utilities, which can't
+   take a url() — bg-gradient-project would emit invalid CSS. A plain
+   custom property + one hand-written utility instead, same precedent as
+   --z-cursor above. Overridden per project on the case-study root wrapper
+   from Project.gradient (content/projects.ts); default is F3Global's, the
+   only project with case-study data this session. */
+:root {
+  --gradient-project: url("/projects/gradients/gradient-f3global.png");
+}
+
+.text-gradient-project {
+  background-image: var(--gradient-project);
+  background-size: cover;
+  background-position: center;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Browsers without background-clip: text (verify at ship time — Baseline
+   coverage is broad but not universal) fall back to the flat project
+   accent rather than invisible text. */
+@supports not ((background-clip: text) or (-webkit-background-clip: text)) {
+  .text-gradient-project {
+    background-image: none;
+    color: var(--color-accent-project);
+    -webkit-text-fill-color: currentColor;
+  }
+}
+
+/* A link nested inside .text-gradient-project (Statement.tsx) needs to
+   break out of the inherited transparent fill to read as a link at rest —
+   per the approved answer, it paints the sitewide blue
+   (--color-accent-blue-light / hover --color-accent-blue), not the project
+   accent, same values InlineLink already uses everywhere else.
+   -webkit-text-fill-color is a separate inherited property Tailwind's
+   color utilities don't touch, so the override needs this tiny utility
+   alongside InlineLink's own text-accent-blue-light/hover:text-accent-blue
+   classes (which still cover the @supports-not fallback above). */
+.text-gradient-link {
+  -webkit-text-fill-color: var(--color-accent-blue-light);
+}
+.text-gradient-link:hover {
+  -webkit-text-fill-color: var(--color-accent-blue);
 }
 
 /* ==========================================================================
