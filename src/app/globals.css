@@ -184,6 +184,21 @@
   initial-value: 0px;
 }
 
+/* Design Decisions carousel (CarouselStage.tsx). The pagination bars' fill
+   and useCarouselScrub.ts's committed index both derive from scroll
+   position, but only the bars need a continuous value read every frame —
+   same "one shared custom property" pattern as --strip-y above, for the
+   same reason: an IntersectionObserver can't express a continuously
+   shared scroll position, which is what a shared, non-stepped fill needs.
+   Registered as <number>, not <length> — this tracks "how many items'
+   worth of scroll have elapsed" (0..items.length), not a pixel offset, so
+   each bar's own fill is a plain calc() subtracting its own index. */
+@property --carousel-progress {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
 /* Cursor label bubble (CursorLabel.tsx). Not in @theme — Tailwind v4 has no
    z-* theme namespace to put a token in, and z-[60] is a banned arbitrary
    value (CLAUDE.md hard rule 2) — so this is a plain CSS var, read via

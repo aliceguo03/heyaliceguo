@@ -1,4 +1,5 @@
 import { STAT_W } from "@/components/case-study/caseStudyGeometry";
+import { StatValue } from "./StatValue";
 import type { Block } from "@/content/case-studies/types";
 
 type StatsBlock = Extract<Block, { kind: "stats" }>;
@@ -30,7 +31,7 @@ export function Stats({ items }: Omit<StatsBlock, "kind">) {
     >
       {items.map((item, index) => (
         <div key={index} className="flex w-full flex-col items-center gap-md">
-          <p className="text-gradient-project w-full text-stat font-sans font-black">{item.value}</p>
+          <StatValue value={item.value} />
           <p className="w-full text-body font-sans text-deep-black">{item.label}</p>
         </div>
       ))}

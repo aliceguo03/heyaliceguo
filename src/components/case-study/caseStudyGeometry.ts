@@ -123,3 +123,28 @@ export const CONTENT_MIN_W =
 // 2*SECTION_PAD_X, the same box PANEL_CONTENT_GAP and PANEL_W are
 // subtracted from here.
 export const contentColumnWidthCss = `clamp(${CONTENT_MIN_W}px, calc(100% - ${PANEL_W}px - ${PANEL_CONTENT_GAP}px), ${CONTENT_W}px)`;
+
+// --- Design Decisions carousel (760:6790) --------------------------------
+//
+// Re-read fresh this session, after a text->figure gap fix in Figma. Every
+// internal gap in the node is now 20px/gap-md, identical to ProseFigure's
+// own rhythm: 32 (heading) + 20 + 78 (body, item 0's own height) + 20 + 556
+// (figure) + 20 + 8 (bars) = 734. The body height is specific to item 0's
+// own copy — items 1 and 2 wrap to different line counts, and the column
+// itself clamps narrower below 1710px — but CarouselStage.tsx's
+// grid-stacked slots size themselves to whichever item is tallest at the
+// current column width with zero measurement, so this constant is never
+// used as a literal height on the component. It exists only to derive the
+// viewport floor below, the same role FRAME_H/TILE_H play for
+// MIN_VIEWPORT_H in projectGeometry.ts.
+export const CAROUSEL_STAGE_H = 734;
+
+// Same "the whole thing must fit in full" rule as MIN_VIEWPORT_H (home)
+// and MIN_PANEL_VIEWPORT_H above. Below this, Carousel.tsx renders the P1
+// stacked fallback instead of pinning. Approximate below the 1710px
+// reference width (CAROUSEL_STAGE_H is that width's own measure, and the
+// stage can run a little taller once the column clamps and bodies wrap to
+// more lines) — flagged in the plan rather than solved with a second
+// measurement pass, since deciding "is the stage too tall" would otherwise
+// require the stage already rendered.
+export const MIN_CAROUSEL_VIEWPORT_H = STICKY_TOP + CAROUSEL_STAGE_H + PANEL_BOTTOM_GAP; // 870

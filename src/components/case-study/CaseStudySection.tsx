@@ -1,5 +1,15 @@
 import { BLOCK_REGISTRY } from "./blocks/registry";
-import type { Section } from "@/content/case-studies/types";
+import { ScrollReveal } from "@/components/motion/ScrollReveal";
+import type { Block, Section } from "@/content/case-studies/types";
+
+// The carousel owns a pinned, `position: sticky` stage (CarouselStage.tsx)
+// — ScrollReveal's own header comment is explicit that a transformed
+// ancestor becomes the containing block for a sticky descendant, breaking
+// it. Every other block kind is ordinary static-flow content, safe to
+// wrap. This covers both of the carousel's own renderings (the pinned
+// mechanic and its short-viewport/reduced-motion stacked fallback) since
+// neither should be wrapped, not just the pinned one.
+const NO_REVEAL: ReadonlySet<Block["kind"]> = new Set(["carousel"]);
 
 // One case-study section (e.g. 736:6074 "our approach"): title row, then
 // gap-md down to the first block, then gap-xl between every block after
@@ -22,16 +32,25 @@ export function CaseStudySection({ section }: { section: Section }) {
       tabIndex={-1}
       className="flex w-full scroll-mt-nav-height flex-col"
     >
-      <div className="flex w-full items-center justify-between py-sm text-mono-header font-mono">
+      <ScrollReveal as="div" className="flex w-full items-center justify-between py-sm text-mono-header font-mono">
         <p className="text-deep-black">{section.navLabel}</p>
         <p className="text-muted-gray">{section.number}</p>
-      </div>
+      </ScrollReveal>
 
       <div className="mt-md flex w-full flex-col gap-xl">
         {section.blocks.map((block, index) => {
           const { kind, ...props } = block;
-          const Block = BLOCK_REGISTRY[kind];
-          return <Block key={index} {...props} />;
+          const BlockComponent = BLOCK_REGISTRY[kind];
+          const rendered = <BlockComponent {...props} />;
+          return NO_REVEAL.has(kind) ? (
+            <div key={index} className="w-full">
+              {rendered}
+            </div>
+          ) : (
+            <ScrollReveal key={index} as="div" className="w-full">
+              {rendered}
+            </ScrollReveal>
+          );
         })}
       </div>
     </div>
