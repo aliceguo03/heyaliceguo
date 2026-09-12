@@ -17,11 +17,19 @@ export function Stats({ items }: Omit<StatsBlock, "kind">) {
 
   return (
     <div
-      className="grid gap-x-3xl gap-y-xl"
-      style={{ gridTemplateColumns: `repeat(${cols}, ${STAT_W}px)` }}
+      className="grid w-full gap-x-3xl gap-y-xl"
+      // minmax(0, STAT_W), not a flat STAT_W: each track holds exactly
+      // 411px (left-packed, per the approved answer) whenever the content
+      // column has room, but shrinks below it once the column itself
+      // shrinks under caseStudyGeometry.ts's 1440px floor — the same
+      // clamp() shrink the column's own width already gets, just
+      // expressed as a track ceiling instead of a clamp() string, since
+      // CSS grid's own sizing algorithm already does exactly this once a
+      // track is capped rather than fixed.
+      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, ${STAT_W}px))` }}
     >
       {items.map((item, index) => (
-        <div key={index} className="flex flex-col items-center gap-md" style={{ width: STAT_W }}>
+        <div key={index} className="flex w-full flex-col items-center gap-md">
           <p className="text-gradient-project w-full text-stat font-sans font-black">{item.value}</p>
           <p className="w-full text-body font-sans text-deep-black">{item.label}</p>
         </div>

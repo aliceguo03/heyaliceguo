@@ -1,7 +1,7 @@
 import { InfoPanel } from "./InfoPanel";
 import { PanelNav } from "./PanelNav";
 import { CaseStudySection } from "./CaseStudySection";
-import { CONTENT_W } from "./caseStudyGeometry";
+import { contentColumnWidthCss } from "./caseStudyGeometry";
 import type { Project } from "@/content/projects";
 import type { Section } from "@/content/case-studies/types";
 
@@ -17,7 +17,7 @@ export function CaseStudy({ project, sections }: { project: Project; sections: S
         <PanelNav sections={sections} activeId={sections[0]?.id ?? ""} status={project.status} />
       </InfoPanel>
 
-      <div className="flex flex-col gap-3xl" style={{ width: CONTENT_W }}>
+      <div className="flex flex-col gap-3xl" style={{ width: contentColumnWidthCss }}>
         {sections.map((section) => (
           <CaseStudySection key={section.id} section={section} />
         ))}

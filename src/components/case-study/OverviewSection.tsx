@@ -3,7 +3,7 @@ import { PanelMeta } from "./PanelMeta";
 import { Statement } from "./blocks/Statement";
 import { Figure } from "./blocks/Figure";
 import { Segments } from "./Segments";
-import { CONTENT_W } from "./caseStudyGeometry";
+import { contentColumnWidthCss } from "./caseStudyGeometry";
 import type { Project } from "@/content/projects";
 import type { CaseStudy } from "@/content/case-studies/types";
 
@@ -25,7 +25,7 @@ export function OverviewSection({
         <PanelMeta project={project} />
       </InfoPanel>
 
-      <div className="flex flex-col gap-lg" style={{ width: CONTENT_W }}>
+      <div className="flex flex-col gap-lg" style={{ width: contentColumnWidthCss }}>
         <div className="flex w-full flex-col gap-md">
           <Statement text={overview.hook} />
           {overview.paragraphs.map((paragraph, index) => (
