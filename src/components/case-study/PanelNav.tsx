@@ -37,7 +37,9 @@ export function PanelNav({
           </a>
         );
       })}
-      {status && <StatusPill label={status.label} kind={status.kind} href={status.href} />}
+      {status && (
+        <StatusPill label={status.label} kind={status.kind} href={status.href} arrowHover="right" />
+      )}
     </div>
   );
 }

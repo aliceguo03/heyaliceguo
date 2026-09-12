@@ -34,7 +34,12 @@ export function PanelMeta({ project }: { project: Project }) {
         })}
       </div>
       {project.status && (
-        <StatusPill label={project.status.label} kind={project.status.kind} href={project.status.href} />
+        <StatusPill
+          label={project.status.label}
+          kind={project.status.kind}
+          href={project.status.href}
+          arrowHover="right"
+        />
       )}
     </div>
   );

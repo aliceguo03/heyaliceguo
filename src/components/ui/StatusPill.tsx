@@ -3,6 +3,18 @@
 // matching Figma treating `link` as independent of `light`.
 export type StatusKind = "live" | "nda" | "prototype" | "shipped";
 
+// Which element carries the on-hover shift, and which way. "left" (the
+// default, unchanged) is the homepage project cards' existing treatment —
+// the dot+label group nudges left, away from a stationary arrow, cheaper
+// than animating the arrow itself and correct for a compact card row.
+// "right" is the case study side panel's own pill (InfoPanel via
+// PanelMeta/PanelNav): a bigger, more central CTA, where the arrow itself
+// slides right on hover instead — a direct "go forward" cue, and the
+// opposite element/opposite direction from "left", not a sign flip of the
+// same transform. No Figma reference for the panel's hover state; this
+// session's own call.
+export type ArrowHoverDirection = "left" | "right";
+
 const DOT_COLOR: Record<StatusKind, string> = {
   live: "bg-accent-success",
   shipped: "bg-accent-success",
@@ -18,10 +30,12 @@ export function StatusPill({
   label,
   kind,
   href,
+  arrowHover = "left",
 }: {
   label: string;
   kind: StatusKind;
   href?: string;
+  arrowHover?: ArrowHoverDirection;
 }) {
   const dot = (
     <span
@@ -49,13 +63,19 @@ export function StatusPill({
     >
       {/* Dot + label move together as one unit on hover, so the transform
           lives on this shared span rather than on the label alone. */}
-      <span className="flex items-center gap-btn-y transition-transform duration-200 ease-standard group-hover:-translate-x-sm">
+      <span
+        className={`flex items-center gap-btn-y transition-transform duration-200 ease-standard ${
+          arrowHover === "left" ? "group-hover:-translate-x-sm" : ""
+        }`}
+      >
         {dot}
         {label}
       </span>
       <span
         aria-hidden="true"
-        className="flex size-icon shrink-0 items-center justify-center"
+        className={`flex size-icon shrink-0 items-center justify-center transition-transform duration-200 ease-standard ${
+          arrowHover === "right" ? "group-hover:translate-x-sm" : ""
+        }`}
       >
         ↗
       </span>
