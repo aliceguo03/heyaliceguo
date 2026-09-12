@@ -64,7 +64,14 @@ export function BlackButton({
   children,
 }: BlackButtonProps) {
   const outlinePaddingX = arrow ? OUTLINE_PADDING_X.withArrow : OUTLINE_PADDING_X.noArrow;
-  const classes = `inline-flex items-center justify-center gap-sm rounded-btn text-mono font-mono transition-colors duration-200 ease-standard ${VARIANT_CLASSES[variant]} ${variant === "outline" ? outlinePaddingX : ""}`;
+  // `uppercase` here, not on the content passed in: every caller so far
+  // hand-types its label already in caps, but CaseStudyActions.tsx's NEXT
+  // PROJECT button interpolates a project's own `footerLabel` ("Chase",
+  // "GeminiCut" — deliberately mixed-case elsewhere, e.g. Footer.tsx's
+  // link columns, per content/projects.ts's own comment). This component's
+  // established style is all-caps mono regardless of source casing, so the
+  // transform belongs on the button chrome, not on a per-caller string.
+  const classes = `inline-flex items-center justify-center gap-sm rounded-btn text-mono font-mono uppercase transition-colors duration-200 ease-standard ${VARIANT_CLASSES[variant]} ${variant === "outline" ? outlinePaddingX : ""}`;
 
   // BACK TO TOP (outline) is excluded regardless of the prop — the outline
   // variant is never one of the six primary black-fill buttons the magnet
