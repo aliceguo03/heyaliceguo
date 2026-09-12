@@ -11,6 +11,12 @@ export const DUR = {
   // this, so a click reads as "weighted and settling" rather than a snap.
   // Distinct from page/reveal/hover, which are motion/react transitions.
   scroll: 1.2,
+  // About page photo/counter crossfade (PhotoColumn.tsx). Slower than
+  // DUR.reveal on request — the swap is scroll-linked, not click-triggered,
+  // so it can afford to read as unhurried. Still EASE, not a new curve:
+  // CLAUDE.md's "one curve, everywhere" holds for opacity crossfades same
+  // as transforms, and a slower duration alone is what "soften" asked for.
+  photoFade: 0.9,
 } as const
 
 export const STAGGER = 0.07
