@@ -6,13 +6,55 @@
 // (space-md/xl/lg/3xl) and are used as Tailwind utilities directly, not
 // duplicated here.
 
+import { STICKY_TOP } from "@/components/chassis/navGeometry";
+
 // info/panel shell (383x840 at x=100 — both the overview metadata panel,
 // 736:6047, and the section sidebar, 736:6071). Fixed height, not
-// content-driven: both variants pad their content to the same 840px so a
-// later session can pin this shell against the content column's own
-// height without it changing size as the active topic changes.
+// content-driven: both variants pad their content to the same 840px so the
+// panel behavior session's sticky shell doesn't change size as the active
+// topic changes.
 export const PANEL_W = 383;
 export const PANEL_H = 840;
+
+// Compact panel shell (839:3145 "type=info", 839:3144 "type=jump section",
+// page "final") — the variant that keeps the panel sticky at viewports too
+// short for the full 840px shell to fit under STICKY_TOP + PANEL_BOTTOM_GAP.
+// Re-measured fresh this session: shell height shrinks to 600, and three
+// type sizes step down to --text-mono-caption (16/21) inside it (nav header,
+// meta label, meta value); everything else — padding, gaps, the pill, the
+// vertical justify-between distribution — is identical to the full variant.
+// See PanelMeta.tsx / PanelNav.tsx's own `compact` prop for exactly which
+// classes swap.
+export const PANEL_COMPACT_H = 600;
+
+// Gap held between the panel's bottom edge and the viewport's bottom edge
+// once it's sticky (mirrors --spacing-lg) — same role as aboutGeometry.ts's
+// own BOTTOM_GAP, named separately here since the two aren't the same
+// number by coincidence worth conflating.
+export const PANEL_BOTTOM_GAP = 30;
+
+// The viewport-height thresholds a sticky panel needs to fit *in full*, not
+// just past some smaller structural floor — same "whole thing must fit"
+// principle as projectGeometry.ts's MIN_VIEWPORT_H and aboutGeometry.ts's
+// MIN_ABOUT_VIEWPORT_H. Below MIN_PANEL_VIEWPORT_H the full shell no longer
+// fits and CasePanel.tsx switches to the compact shell; below
+// MIN_PANEL_COMPACT_VIEWPORT_H the compact shell's own bottom clips (out of
+// this project's supported viewport range — CLAUDE.md's 1440x760 floor sits
+// 24px above it).
+export const MIN_PANEL_VIEWPORT_H = STICKY_TOP + PANEL_H + PANEL_BOTTOM_GAP; // 976
+export const MIN_PANEL_COMPACT_VIEWPORT_H = STICKY_TOP + PANEL_COMPACT_H + PANEL_BOTTOM_GAP; // 736
+
+// The reading line: a section is "current" once its top has crossed this
+// fraction of the viewport height (useCaseStudyPanel.ts). A judgment call,
+// not a Figma measurement or a derived value — same exempt category as
+// aboutGeometry.ts's HOLD_PX/PHOTO_MIN_H (interaction tuning, not a
+// decorative duration or curve CLAUDE.md's hard rules govern). 40%, not
+// center (50%): centering jitters at boundaries once sections are this
+// unequal in height (3030px vs 470px in this case study alone) — a section
+// boundary crossing the reading line once, near the top third of the
+// screen, is a single unambiguous event regardless of how tall the
+// sections on either side of it are.
+export const READING_LINE = 0.4;
 
 // Content column width shared by the overview section and every
 // case-study section (736:6063, 736:6072).

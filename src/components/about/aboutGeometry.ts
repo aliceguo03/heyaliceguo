@@ -5,6 +5,8 @@
 // Re-measure from Figma rather than assuming these hold; see
 // projectGeometry.ts's own comment for why that discipline matters.
 
+import { NAV_CLEARANCE, NAV_FRAME_GAP } from "@/components/chassis/navGeometry";
+
 // --- Base measurements, all read directly off 523:6601's subtree -------
 
 // Renamed from FRAME_H (5A) to FRAME_H_MAX in session 5B: the frame's
@@ -44,19 +46,13 @@ export const HERO_W = 868; // "hero" (523:6847), the title+photos column
 // holds still on screen. See the 5B plan for the full derivation; this
 // file only carries the constants and the CSS expressions built from them.
 
-// Nav's own rendered height (mirrors --spacing-nav-height). Verified
-// structurally, not assumed: Nav.tsx is `sticky top-0 h-nav-height`, so it
-// occupies exactly this many px of viewport at every scroll position.
-export const NAV_CLEARANCE = 94;
-
-// Breathing room between the nav and the frame's locked top edge, added in
-// the fix-pass after 5B shipped (flush against NAV_CLEARANCE alone read as
-// the frame sitting right on top of the nav pill). Figma variable
-// "padding/small" — confirmed via get_variable_defs on the nav instance
-// (523:6647) rather than invented — the same value as --spacing-sm.
-// Trade confirmed: the frame's max height gives up these 12px at every
-// viewport so this gap can exist; see frameHeightCss below.
-export const NAV_FRAME_GAP = 12;
+// NAV_CLEARANCE and NAV_FRAME_GAP used to be declared here (session 5B/fix
+// pass). Lifted to chassis/navGeometry.ts (session "case-study panel
+// behaviour") once the case study's sticky info panel needed the same
+// nav-clearance-plus-gap offset — a chassis fact, not an About-page one.
+// Re-exported under their original names so every consumer below (and
+// anything importing them from this module) is unaffected by the move.
+export { NAV_CLEARANCE, NAV_FRAME_GAP };
 
 // Gap held between the frame's bottom edge and the viewport's bottom edge
 // for the whole pinned range (mirrors --spacing-lg). Figma corroborates

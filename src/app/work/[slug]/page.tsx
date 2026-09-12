@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PageTitle } from "@/components/ui/PageTitle";
 import { CaseStudyHero } from "@/components/case-study/CaseStudyHero";
-import { OverviewSection } from "@/components/case-study/OverviewSection";
-import { CaseStudy } from "@/components/case-study/CaseStudy";
+import { CaseStudyBody } from "@/components/case-study/CaseStudyBody";
 import { CaseStudyActions } from "@/components/case-study/CaseStudyActions";
 import { PROJECTS } from "@/content/projects";
 import { CASE_STUDIES } from "@/content/case-studies";
@@ -59,8 +58,7 @@ export default async function CaseStudyPage({ params }: { params: Promise<Params
       }
     >
       <CaseStudyHero project={project} hero={caseStudy.hero} />
-      <OverviewSection project={project} overview={caseStudy.overview} />
-      <CaseStudy project={project} sections={caseStudy.sections} />
+      <CaseStudyBody project={project} overview={caseStudy.overview} sections={caseStudy.sections} />
       <CaseStudyActions next={next} />
     </main>
   );

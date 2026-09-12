@@ -142,7 +142,16 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
       } else {
         const element = resolveElement(target);
         if (element) {
-          const top = element.getBoundingClientRect().top + window.scrollY + offset;
+          // Mirrors Lenis's own scrollTo (lenis.mjs): it reads the target's
+          // own `scroll-margin-top` and folds it into the landing position
+          // automatically, so an element like CaseStudySection.tsx's
+          // `scroll-mt-nav-height` needs no caller-supplied `offsetVar` on
+          // top of it — this branch has to apply that same subtraction by
+          // hand, or a target that relies on its own scroll-margin (rather
+          // than an explicit offsetVar) would land flush under the nav here
+          // while landing correctly through Lenis.
+          const scrollMargin = Number.parseFloat(getComputedStyle(element).scrollMarginTop) || 0;
+          const top = element.getBoundingClientRect().top + window.scrollY - scrollMargin + offset;
           window.scrollTo({ top, behavior: "auto" });
         }
       }

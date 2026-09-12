@@ -14,11 +14,18 @@ const ROWS: { label: string; key: "role" | "timeline" | "type" | "tools" | "team
   { label: "TEAM /", key: "team" },
 ];
 
-// Overview section's metadata panel content (736:6047/736:6048) — five
-// label/value rows at gap-md, then one large justify-between gap down to
-// the LIVE SITE pill. Values are already stored all-caps in
-// content/projects.ts, so no CSS text-transform here (CLAUDE.md rule 9).
-export function PanelMeta({ project }: { project: Project }) {
+// Overview section's metadata panel content (736:6047/736:6048, compact
+// variant 839:3145 "type=info") — five label/value rows at gap-md, then one
+// large justify-between gap down to the LIVE SITE pill. Values are already
+// stored all-caps in content/projects.ts, so no CSS text-transform here
+// (CLAUDE.md rule 9).
+//
+// `compact` steps both label and value down from --text-mono (20/26) to
+// --text-mono-caption (16/21) — the only difference the compact Figma
+// variant shows; padding, gaps, and the pill are unchanged (see
+// caseStudyGeometry.ts's PANEL_COMPACT_H comment).
+export function PanelMeta({ project, compact = false }: { project: Project; compact?: boolean }) {
+  const type = compact ? "text-mono-caption" : "text-mono";
   return (
     <div className="flex h-full w-full flex-col justify-between">
       <div className="flex flex-col gap-md">
@@ -27,8 +34,8 @@ export function PanelMeta({ project }: { project: Project }) {
           if (!value) return null;
           return (
             <div key={key} className="flex flex-col gap-s">
-              <p className="text-mono font-mono text-accent-project">{label}</p>
-              <p className="text-mono font-mono text-deep-black">{value}</p>
+              <p className={`${type} font-mono text-accent-project`}>{label}</p>
+              <p className={`${type} font-mono text-deep-black`}>{value}</p>
             </div>
           );
         })}
