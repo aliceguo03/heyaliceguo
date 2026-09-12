@@ -66,7 +66,7 @@ export function PanelNav({
             className={`flex flex-col ${titleGap} ${color}`}
           >
             <div className={`flex gap-sm whitespace-nowrap ${headerType} font-mono`}>
-              <span>{section.number}/</span>
+              <span>{section.number} /</span>
               <span>{section.navLabel}</span>
             </div>
             <p className="text-body font-sans">{section.navSubLabel}</p>
