@@ -22,14 +22,24 @@ const BUTTON_HEIGHT = "62px";
 
 // Each variant has its own Figma padding scheme — they aren't the same
 // component scaled by color. Filled: symmetric px-lg/py-sm (380:1977).
-// Outline: left bound to the 24px "side" var (space-btn-x), right and
-// vertical bound to the 16px "top-bottom" var (space-btn-y) — asymmetric
-// horizontal padding, confirmed intentional in the source file, not a
-// mistake to normalize away.
+//
+// Outline covers two distinct Figma components sharing one style, not one
+// padding scheme: "back to top button" (400:3559, arrow="up") is bound to
+// the 24px "side" var (space-btn-x) on the left but the 16px "top-bottom"
+// var (space-btn-y) on the right — asymmetric, because that right padding
+// is scoped to the trailing arrow glyph's own whitespace, not a general
+// outline-button rule. "secondary button" (677:4690, e.g. BACK TO HOME,
+// no icon) is symmetric space-btn-x on both sides — confirmed by re-reading
+// that node fresh, not inherited from the icon-bearing one. Keyed off
+// `arrow` below rather than duplicated per caller.
 const VARIANT_CLASSES = {
   filled: "px-lg py-sm bg-ink text-pure-white hover:bg-ink/85",
-  outline:
-    "pl-btn-x pr-btn-y py-btn-y border border-dark-gray bg-porcelain text-dark-gray hover:bg-divider",
+  outline: "py-btn-y border border-dark-gray bg-porcelain text-dark-gray hover:bg-divider",
+} as const;
+
+const OUTLINE_PADDING_X = {
+  withArrow: "pl-btn-x pr-btn-y",
+  noArrow: "px-btn-x",
 } as const;
 
 type BlackButtonProps = {
@@ -53,7 +63,8 @@ export function BlackButton({
   magnetEnabled,
   children,
 }: BlackButtonProps) {
-  const classes = `inline-flex items-center justify-center gap-sm rounded-btn text-mono font-mono transition-colors duration-200 ease-standard ${VARIANT_CLASSES[variant]}`;
+  const outlinePaddingX = arrow ? OUTLINE_PADDING_X.withArrow : OUTLINE_PADDING_X.noArrow;
+  const classes = `inline-flex items-center justify-center gap-sm rounded-btn text-mono font-mono transition-colors duration-200 ease-standard ${VARIANT_CLASSES[variant]} ${variant === "outline" ? outlinePaddingX : ""}`;
 
   // BACK TO TOP (outline) is excluded regardless of the prop — the outline
   // variant is never one of the six primary black-fill buttons the magnet

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { BioList } from "./BioList";
 import { PhotoStack } from "./PhotoStack";
 import { Button } from "@/components/ui/Button";
@@ -22,6 +23,35 @@ const ROLES_COLUMN_WIDTH = 320;
 export function Hero() {
   const scrollTo = useScrollAction();
   const { play, loaded } = useLoadSequence();
+
+  // Diagnosis (before this fix): the root layout (Nav/SmoothScroll/Footer)
+  // never unmounts between routes, so Lenis's own scroll state isn't the
+  // culprit — nothing here caches or restores a prior position. What was
+  // actually missing is exactly the second half of that question: nothing
+  // told the freshly-mounted Home page to land at #page-top through this
+  // app's own scroll system. Next's default Link behavior happens to reset
+  // the raw scroll offset to 0 on its own, but silently — no Lenis
+  // animation, and critically no focus move, so a keyboard/screen-reader
+  // user arriving via "BACK TO HOME" (or any other client-side link to "/")
+  // got no landing cue at all, unlike every other "top" landing on this
+  // site (WorkSectionActions' BACK TO TOP), which goes through scrollTo
+  // ("top") for exactly that reason.
+  //
+  // `useLoadSequence`'s own `play` is the right signal for "did this mount
+  // arrive via a fresh hard reload (play=true, nothing to correct — the
+  // browser's already at 0) or via client-side navigation (play=false, the
+  // module-scope flag already flipped from an earlier visit)" — frozen at
+  // mount via useState, the same reason that hook freezes its own
+  // hasPlayedAtMount, so a later reduced-motion toggle can't retrigger this.
+  // Generalizes to arriving from any route (not just a case study, and not
+  // keyed to any specific one) since Hero remounts fresh every time "/" is
+  // (re)entered.
+  const [arrivedViaNavigation] = useState(() => !play);
+  useEffect(() => {
+    if (arrivedViaNavigation) {
+      scrollTo("top");
+    }
+  }, [arrivedViaNavigation, scrollTo]);
 
   return (
     <div className="viewport-fill flex w-full flex-col items-center">

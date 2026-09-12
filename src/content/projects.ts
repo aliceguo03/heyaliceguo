@@ -29,6 +29,15 @@ export type Project = {
   role?: string;
   timeline?: string;
   type?: string;
+  // Case study metadata panel only (info/panel, 736:6049–758:6788): two more
+  // rows Figma shows beyond role/timeline/type. Verbatim, all-caps, rendered
+  // with no text-transform, same as every other field on this record.
+  tools?: string; // "FIGMA, DESIGN SYSTEMS, USABILITY AUDITING, …"
+  team?: string; // "3 DESIGNERS, 9 DEVELOPERS, 1 ENGINEERING MANAGER, 1 PROJECT MANAGER"
+  // Case study accent (Accent/F3Global etc., one Figma variable per project) —
+  // set on the case-study root wrapper as --color-accent-project. Distinct
+  // from `color`, the card's solid background fallback.
+  accent?: string;
   color?: string; // fallback shown behind `gradient` before it loads
   gradient?: string; // path in public/projects/gradients/
   thumbnail?: string;
@@ -47,6 +56,9 @@ export const PROJECTS: Project[] = [
     role: "DESIGN LEAD",
     timeline: "8 MOS",
     type: "WEBSITE & ADMIN PORTAL",
+    tools: "FIGMA, DESIGN SYSTEMS, USABILITY AUDITING, USER TESTING, RESPONSIVE DESIGN, AI-ASSISTED WORKFLOWS",
+    team: "3 DESIGNERS, 9 DEVELOPERS, 1 ENGINEERING MANAGER, 1 PROJECT MANAGER",
+    accent: "#4839cd",
     color: "var(--color-project-f3global)",
     gradient: "/projects/gradients/gradient-f3global.png",
     thumbnail: "/projects/f3global.jpg",

@@ -38,9 +38,18 @@ function CaretDownIcon({ className }: { className?: string }) {
   );
 }
 
+// "/work/f3global" -> "f3global"; "/work" (the index) or anything else -> null.
+// Keyed off the route itself against PROJECTS' own slugs, not a per-page
+// value, so a fifth/sixth/... case study needs no change here.
+function activeProjectSlug(pathname: string) {
+  if (!pathname.startsWith("/work/")) return null;
+  return pathname.slice("/work/".length).split("/")[0] || null;
+}
+
 export function Nav() {
   const pathname = usePathname();
   const { isHome, isWork, isAbout } = useActiveRoute();
+  const activeSlug = activeProjectSlug(pathname);
 
   const [open, setOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
@@ -154,22 +163,44 @@ export function Nav() {
 
         {open && (
           <ul id="nav-work-menu" className="flex flex-col gap-sm pl-lg">
-            {PROJECTS.map((project) => (
-              <li key={project.slug}>
-                <Link
-                  href={project.href}
-                  className="group flex items-center gap-lg text-mono-header font-mono text-light-gray transition-colors duration-200 ease-standard hover:text-pure-white"
-                >
-                  {project.name}
-                  <span
-                    aria-hidden="true"
-                    className="opacity-0 transition-opacity duration-200 ease-standard group-hover:opacity-100"
+            {PROJECTS.map((project) => {
+              // The current project reads permanently in --color-pure-white
+              // (#F0F0F0) — the same color every item already brightens to
+              // on hover, i.e. "ink's dark-mode counterpart" for text: the
+              // established bright-on-dark token, not a new one (no Figma
+              // reference for this state; --color-true-white was considered
+              // and rejected — it's documented as an absolute/background
+              // value in globals.css, not this system's text-on-dark color,
+              // and pure-white is already exactly that role in this exact
+              // dropdown). It gets no hover treatment at all — not just a
+              // suppressed arrow — since every hover-only class is dropped
+              // rather than overridden.
+              const isActive = project.slug === activeSlug;
+              return (
+                <li key={project.slug}>
+                  <Link
+                    href={project.href}
+                    className={
+                      isActive
+                        ? "group flex items-center gap-lg text-mono-header font-mono text-pure-white"
+                        : "group flex items-center gap-lg text-mono-header font-mono text-light-gray transition-colors duration-200 ease-standard hover:text-pure-white"
+                    }
                   >
-                    →
-                  </span>
-                </Link>
-              </li>
-            ))}
+                    {project.name}
+                    <span
+                      aria-hidden="true"
+                      className={
+                        isActive
+                          ? "opacity-0"
+                          : "opacity-0 transition-opacity duration-200 ease-standard group-hover:opacity-100"
+                      }
+                    >
+                      →
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
