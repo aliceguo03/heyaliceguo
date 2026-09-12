@@ -17,6 +17,10 @@ export const DUR = {
   // CLAUDE.md's "one curve, everywhere" holds for opacity crossfades same
   // as transforms, and a slower duration alone is what "soften" asked for.
   photoFade: 0.9,
+  // Case study stat count-up (StatValue.tsx). Slower than DUR.page on
+  // request — a slightly more deliberate count than the P4 first pass's
+  // 0.8s. Still EASE, same "one curve everywhere" as photoFade above.
+  statCount: 1.2,
 } as const
 
 export const STAGGER = 0.07
@@ -227,6 +231,19 @@ export const CURSOR = {
   offsetX: 20,
   offsetY: 20,
 } as const
+
+// Design Decisions carousel scrub distance (useCarouselScrub.ts, CLAUDE.md
+// "Design Decisions carousel"). A scroll distance, not a duration or
+// easing curve, so — like DRAG/MAGNET/CURSOR above — this sits outside
+// hard rule 8's "no new durations" (that rule governs decorative motion
+// timing; this is how much scroll one carousel item owns). Total pin
+// runway is `items.length * CAROUSEL_ITEM_SCRUB`, so this has to work
+// unchanged for 2 or 4 items, not just this case study's 3. Sibling
+// precedent: the About page's own per-block scrub, aboutGeometry.ts's
+// BLOCK_GAP = 320px — this is deliberately looser, since a whole 1077x556
+// figure crossfading reads as a bigger event than About's paragraph swap.
+// First-pass tuning value, expected to change once scrolled and reviewed.
+export const CAROUSEL_ITEM_SCRUB = 600
 
 // motion/react and the CSS --ease-standard var consume EASE directly as a
 // cubic-bezier curve. Lenis's `easing` option instead expects a sampling

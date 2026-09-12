@@ -23,6 +23,7 @@ import { PANEL_COMPACT_H, PANEL_H, PANEL_W } from "./caseStudyGeometry";
 export function InfoPanel({ children, compact = false }: { children: ReactNode; compact?: boolean }) {
   return (
     <div
+      data-info-panel
       className="sticky shrink-0 rounded-card border border-divider p-lg"
       style={{ top: STICKY_TOP, width: PANEL_W, height: compact ? PANEL_COMPACT_H : PANEL_H }}
     >

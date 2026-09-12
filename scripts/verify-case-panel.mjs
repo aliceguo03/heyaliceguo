@@ -5,6 +5,13 @@
 // `node scripts/verify-case-panel.mjs` — not wired into `build` or `test`.
 // Same harness shape as verify-project-section.mjs; every check here is a
 // measured box or computed style, never an eyeball call.
+//
+// Selector note: the info panel is found via `[data-info-panel]`, not the
+// generic `.sticky[style*='top']` this script used before the Design
+// Decisions carousel (verify-case-carousel.mjs) landed — CarouselStage.tsx
+// pins with that exact same class-plus-inline-top shape, so the old
+// selector would now match two elements on this page for an unrelated
+// reason, not zero or one.
 
 import { chromium } from "playwright";
 import { spawn } from "node:child_process";
@@ -60,7 +67,7 @@ function startDevServer(port) {
 
 async function panelRect(page) {
   return page.evaluate(() => {
-    const el = document.querySelector(".sticky[style*='top']");
+    const el = document.querySelector("[data-info-panel]");
     if (!el) return null;
     const r = el.getBoundingClientRect();
     const cs = getComputedStyle(el);
@@ -125,7 +132,7 @@ async function main() {
       const page = await context.newPage();
       await page.goto(url, { waitUntil: "networkidle" });
 
-      const count = await page.evaluate(() => document.querySelectorAll(".sticky[style*='top']").length);
+      const count = await page.evaluate(() => document.querySelectorAll("[data-info-panel]").length);
       results.push({
         name: `exactly one sticky panel at ${viewport.width}x${viewport.height}`,
         pass: count === 1,
