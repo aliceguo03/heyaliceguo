@@ -74,6 +74,15 @@ export const HERO_PHOTO_H = 522;
 // Hero card's header text column (730:5994).
 export const HERO_HEADER_W = 929;
 
+// Credits photo grid (Chase "photos", 801:2707/801:2716) — two columns at
+// gap-md, cells 528.5x272.444 at the 1077px content column. Not the
+// 1077:556 figure ratio (that would give 272.834): this is Figma's own
+// 516:266 aspect, held as a ratio rather than a literal height so the grid
+// still holds proportion if the content column ever clamps narrower
+// (caseStudyGeometry.ts's own contentColumnWidthCss). Within 0.07px of the
+// source photos' own 1057x545, so object-cover crops essentially nothing.
+export const CREDITS_PHOTO_ASPECT = "516 / 266";
+
 // stats block column width (736:6108) — two 411px columns at gap-3xl
 // (100px), left-packed in the 1077 content column rather than stretched
 // full width (P1 plan "Flags" #7 — this deviates from the brief's "full

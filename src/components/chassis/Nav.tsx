@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type FocusEvent } from "react";
 import { PROJECTS } from "@/content/projects";
-import { useActiveRoute } from "@/lib/useActiveRoute";
+import { useActiveRoute, useActiveProjectSlug } from "@/lib/useActiveRoute";
 import { MailButton, LinkedinLink, useCopyEmail } from "@/components/ui/ContactLinks";
 
 const RESUME_HREF = "/resume.pdf";
@@ -38,18 +38,11 @@ function CaretDownIcon({ className }: { className?: string }) {
   );
 }
 
-// "/work/f3global" -> "f3global"; "/work" (the index) or anything else -> null.
-// Keyed off the route itself against PROJECTS' own slugs, not a per-page
-// value, so a fifth/sixth/... case study needs no change here.
-function activeProjectSlug(pathname: string) {
-  if (!pathname.startsWith("/work/")) return null;
-  return pathname.slice("/work/".length).split("/")[0] || null;
-}
-
 export function Nav() {
   const pathname = usePathname();
   const { isHome, isWork, isAbout } = useActiveRoute();
-  const activeSlug = activeProjectSlug(pathname);
+  // Shared with Footer.tsx — see useActiveRoute.ts's own comment.
+  const activeSlug = useActiveProjectSlug();
 
   const [open, setOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
@@ -124,21 +117,51 @@ export function Nav() {
             HOME
           </Link>
 
-          <button
-            ref={triggerRef}
-            type="button"
-            aria-expanded={open}
-            aria-controls="nav-work-menu"
-            onClick={() => setOpen((value) => !value)}
-            className={`${NAV_ITEM} ${navItemColor(workActive)}`}
+          {/* Two independent targets sharing one visual pill (Figma's own
+              nav button, 427:4065, only shows one control — this split is
+              this session's own call, not a Figma variant). The color/hover
+              fill lives on this wrapper, not on either child: CSS :hover
+              matches an ancestor whenever the pointer is over any
+              descendant, so hovering either the word or the arrow already
+              paints the shared pill background — no group-hover class
+              needed for them to read as one control.
+
+              WORK (the word) is a plain toggle button for now, not a real
+              `/work` link: that route 404s today (no Work index page
+              exists yet — CLAUDE.md build order step 8 is still open). Flip
+              this to `<Link href="/work">` with no onClick once that page
+              ships; until then, keeping its old toggle behavior means
+              nothing here regresses to a dead click. */}
+          <div
+            className={`flex items-center gap-sm rounded-nav py-btn-y pl-btn-x pr-btn-x text-mono font-mono transition-colors duration-200 ease-standard ${navItemColor(workActive)}`}
           >
-            WORK
-            <CaretDownIcon
-              className={`size-md transition-transform duration-200 ease-standard ${
-                open ? "rotate-180" : ""
-              }`}
-            />
-          </button>
+            <button type="button" onClick={() => setOpen((value) => !value)}>
+              WORK
+            </button>
+            {/* The arrow is the one real disclosure control: aria-expanded
+                and aria-controls live here, not on the word. `size-btn-x`
+                (24px, the same token the button padding elsewhere on this
+                pill already uses) gives the arrow a full 24x24 clickable
+                box around its 20px (size-md) glyph — a couple pixels more
+                than the old single-button pill's own right inset, not
+                pixel-identical, but this is a real touch-target floor, not
+                a decorative measurement worth a fragile negative-margin
+                trick to avoid. */}
+            <button
+              ref={triggerRef}
+              type="button"
+              aria-expanded={open}
+              aria-controls="nav-work-menu"
+              onClick={() => setOpen((value) => !value)}
+              className="flex size-btn-x shrink-0 items-center justify-center"
+            >
+              <CaretDownIcon
+                className={`size-md transition-transform duration-200 ease-standard ${
+                  open ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+          </div>
 
           <Link href="/about" className={`${NAV_ITEM} ${navItemColor(isAbout)}`}>
             ABOUT

@@ -12,13 +12,32 @@
 // pins with that exact same class-plus-inline-top shape, so the old
 // selector would now match two elements on this page for an unrelated
 // reason, not zero or one.
+//
+// Case-study-agnostic since the Chase session: `PAGE_PATH` and the expected
+// section count are argv, not literals, so the same script verifies any
+// case study's sidebar/panel — `node scripts/verify-case-panel.mjs
+// /work/chase 3` is what turned "the panel worked with zero component
+// changes for a 3-section case study" from a claim into a measurement. The
+// active-item color check no longer hardcodes a project's accent RGB
+// either: it reads `--color-accent-project` off the page itself (set by
+// work/[slug]/page.tsx from Project.accent) and compares against that, so
+// it verifies the *mechanism* (active item = the project's own accent) for
+// any project, not one hardcoded hex.
 
 import { chromium } from "playwright";
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
 import { setTimeout as sleep } from "node:timers/promises";
 
-const PAGE_PATH = "/work/f3global";
+const PAGE_PATH = process.argv[2] ?? "/work/f3global";
+const EXPECTED_SECTION_COUNT = Number(process.argv[3] ?? 4);
+
+function hexToRgb(hex) {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim());
+  if (!m) return null;
+  const [, r, g, b] = m;
+  return `rgb(${parseInt(r, 16)}, ${parseInt(g, 16)}, ${parseInt(b, 16)})`;
+}
 
 // --- Harness plumbing (shared shape with verify-project-section.mjs) -------
 
@@ -201,8 +220,8 @@ async function main() {
 
       const tops = await sectionTops(page);
       results.push({
-        name: "section tops discovered via data-section (4 for f3global)",
-        pass: tops.length === 4,
+        name: `section tops discovered via data-section (${EXPECTED_SECTION_COUNT} for ${PAGE_PATH})`,
+        pass: tops.length === EXPECTED_SECTION_COUNT,
         gating: true,
         detail: JSON.stringify(tops),
       });
@@ -257,16 +276,19 @@ async function main() {
         const items = Array.from(document.querySelectorAll("nav[aria-label='Case study sections'] a"));
         const active = items.find((el) => el.getAttribute("aria-current") === "location");
         const inactive = items.find((el) => el.getAttribute("aria-current") !== "location");
+        const main = document.querySelector("main");
         return {
           active: active ? getComputedStyle(active).color : null,
           inactive: inactive ? getComputedStyle(inactive).color : null,
           ariaCurrentCount: items.filter((el) => el.getAttribute("aria-current") === "location").length,
+          accentVar: main ? getComputedStyle(main).getPropertyValue("--color-accent-project") : null,
         };
       });
+      const expectedAccent = colors.accentVar ? hexToRgb(colors.accentVar) : null;
 
       results.push({
-        name: "active item renders in the project accent (rgb(72, 57, 205))",
-        pass: colors.active === "rgb(72, 57, 205)",
+        name: `active item renders in the project accent (${expectedAccent ?? "?"}, from --color-accent-project=${colors.accentVar})`,
+        pass: !!expectedAccent && colors.active === expectedAccent,
         gating: true,
         detail: colors.active,
       });

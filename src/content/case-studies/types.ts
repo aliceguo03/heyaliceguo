@@ -58,9 +58,26 @@ export type Block =
   | {
       kind: "tiles";
       heading?: Paragraph;
+      // Chase's "our approach section" (736:6320) groups a plain-prose lead
+      // paragraph and the tile grid in one 20px auto-layout, not the 50px
+      // gap CaseStudySection.tsx puts between sibling blocks — so the lead
+      // has to live inside this block, not as a preceding `prose` block.
+      // Plain Satoshi body, not `heading` (which renders the gradient
+      // Statement treatment) — Chase's paragraph carries no such styling.
+      lead?: Paragraph[];
       items: { title: string; body: string }[]; // 2x2, Figma 736:6135
     }
-  | { kind: "credits"; heading: Paragraph; paragraphs: Paragraph[] };
+  | {
+      kind: "credits";
+      heading: Paragraph;
+      paragraphs: Paragraph[];
+      // Chase's "The Team" (736:6401) adds a 2x2 photo grid below the
+      // paragraph, at the same 20px rhythm Credits.tsx already uses between
+      // its own children — optional because F3Global's credits block has
+      // none. See caseStudyGeometry.ts's CREDITS_PHOTO_ASPECT for the cell
+      // size these render at.
+      photos?: Figure[];
+    };
 
 // A section's title row renders `navLabel` twice — once here (mono header,
 // e.g. "our approach" + the muted section number) and once as the sidebar's
@@ -78,7 +95,18 @@ export type CaseStudy = {
   slug: string; // must match a Project.slug in content/projects.ts
   hero: {
     tagline: string; // hero card's muted subhead line
-    photos: Figure[]; // exactly 3, Figma "photo section" 730:6000
+    // 3 (F3Global, 730:6000: an over-wide strip centered under the card)
+    // or 1 (Chase, 730:6547: a single photo filling the card's own px-xl
+    // padding) — CaseStudyHero.tsx branches on `photos.length`, not a
+    // separate variant flag, since the count alone determines which layout
+    // applies.
+    photos: Figure[];
+    // Width of the header's "<slug> /" + tagline column (Figma "project
+    // title", 730:5996/730:6011). F3Global fills the full HERO_HEADER_W
+    // (829); Chase's is deliberately narrower (620), which is what makes
+    // its tagline break after "FOR" rather than run the full width.
+    // Omitted = fill, so F3Global needs no value here.
+    titleWidth?: number;
   };
   // Typed separately from `proseFigure` rather than folded into it: Figma's
   // overview section (736:6063) uses a 30px gap between its text group and

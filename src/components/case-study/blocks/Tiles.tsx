@@ -1,4 +1,5 @@
 import { Statement } from "./Statement";
+import { Prose } from "./Prose";
 import type { Block } from "@/content/case-studies/types";
 
 type TilesBlock = Extract<Block, { kind: "tiles" }>;
@@ -9,10 +10,16 @@ type TilesBlock = Extract<Block, { kind: "tiles" }>;
 // card's *outer* border simply grows to match its row-mate while its
 // content stays top-anchored with slack space below, rather than any
 // flex-grow trick pushing the body down. Cards hug their own content.
-export function Tiles({ heading, items }: Omit<TilesBlock, "kind">) {
+//
+// `lead` (Chase's "our approach section", 736:6320) is plain prose sitting
+// between `heading`/no-heading and the grid, at this same gap-md rhythm —
+// see types.ts's own comment on why it lives here rather than as a
+// preceding `prose` block.
+export function Tiles({ heading, lead, items }: Omit<TilesBlock, "kind">) {
   return (
     <div className="flex w-full flex-col gap-md">
       {heading && <Statement text={heading} />}
+      {lead && <Prose paragraphs={lead} />}
       <div className="grid w-full grid-cols-2 gap-md">
         {items.map((item, index) => (
           <div key={index} className="flex flex-col items-start gap-sm rounded-card border border-divider p-lg">

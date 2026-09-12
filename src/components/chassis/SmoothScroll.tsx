@@ -1,10 +1,12 @@
 "use client";
 
 import Lenis from "lenis";
+import { usePathname } from "next/navigation";
 import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useLayoutEffect,
   useRef,
   type ReactNode,
@@ -86,6 +88,8 @@ function readOffsetPx(varName: string) {
 // place rather than being re-implemented per button.
 export function SmoothScroll({ children }: { children: ReactNode }) {
   const lenisRef = useRef<Lenis | null>(null);
+  const pathname = usePathname();
+  const isFirstRoute = useRef(true);
 
   // useLayoutEffect, not useEffect: React fires every component's layout
   // effects (whole tree, bottom-up) before any component's passive effects
@@ -171,6 +175,31 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
       userData: PROGRAMMATIC_SCROLL_USER_DATA,
     });
   }, []);
+
+  // Root-layout persists across every client-side route change (Nav/
+  // SmoothScroll/Footer never unmount), so Lenis's own rAF loop survives the
+  // navigation too — still holding the *previous* page's targetScroll and
+  // animatedScroll. Next resets the raw scroll offset on its own, silently,
+  // but Lenis's loop then fights that reset back toward its stale target on
+  // the very next frame, clamped by the new (often shorter) page's scroll
+  // limit — landing mid-page rather than at 0 (confirmed: with Lenis
+  // disabled via reduced motion, the same navigation lands correctly at
+  // scrollY 0; with it enabled, it lands clamped partway down). Routing this
+  // through the same scrollTo("top") every other "top" landing already uses
+  // (WorkSectionActions' BACK TO TOP) fixes the position AND, on any route
+  // whose top element carries `#page-top` (currently just the Home
+  // wordmark), moves focus there — the same landing cue a keyboard/
+  // screen-reader user gets from every other top landing on the site. This
+  // subsumes Hero.tsx's former per-page fix for arriving at "/", which used
+  // the identical scrollTo("top") call gated on its own load-sequence flag;
+  // that special case is removed in favor of this one general fix.
+  useEffect(() => {
+    if (isFirstRoute.current) {
+      isFirstRoute.current = false;
+      return;
+    }
+    scrollTo("top");
+  }, [pathname, scrollTo]);
 
   return (
     <ScrollContext.Provider value={scrollTo}>

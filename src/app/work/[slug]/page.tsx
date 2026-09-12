@@ -53,7 +53,13 @@ export default async function CaseStudyPage({ params }: { params: Promise<Params
       style={
         {
           "--color-accent-project": project.accent,
-          "--gradient-project": project.gradient ? `url("${project.gradient}")` : undefined,
+          // caseStudyGradient (a full background-image value — url() or a
+          // gradient function) wins when present; otherwise fall back to
+          // wrapping the home card's own gradient image, F3Global's only
+          // case today. See Project.caseStudyGradient's own comment.
+          "--gradient-project":
+            project.caseStudyGradient ??
+            (project.gradient ? `url("${project.gradient}")` : undefined),
         } as React.CSSProperties
       }
     >

@@ -1,5 +1,6 @@
 import type { CaseStudy } from "./types";
 import { f3global } from "./f3global";
+import { chase } from "./chase";
 
 // One entry per project with a finished case study. A slug with no entry
 // here renders the CLAUDE.md stub (title only) instead — see
@@ -7,4 +8,5 @@ import { f3global } from "./f3global";
 // never has to know its position in content/projects.ts.
 export const CASE_STUDIES: Record<string, CaseStudy> = {
   f3global,
+  chase,
 };

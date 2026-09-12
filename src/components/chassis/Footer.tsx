@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PROJECTS } from "@/content/projects";
-import { useActiveRoute } from "@/lib/useActiveRoute";
+import { useActiveRoute, useActiveProjectSlug } from "@/lib/useActiveRoute";
 import { MailButton, LinkedinLink, useCopyEmail } from "@/components/ui/ContactLinks";
 
 const RESUME_HREF = "/resume.pdf";
@@ -54,7 +54,10 @@ function useSanDiegoTime() {
 }
 
 export function Footer() {
-  const { isHome, isWork, isAbout } = useActiveRoute();
+  const { isHome, isWorkIndex, isAbout } = useActiveRoute();
+  // Same route -> slug derivation Nav's WORK dropdown highlights off —
+  // see useActiveRoute.ts's own comment.
+  const activeSlug = useActiveProjectSlug();
   const { copied, announcement, handleCopyEmail } = useCopyEmail();
   const time = useSanDiegoTime();
 
@@ -99,7 +102,7 @@ export function Footer() {
                 </FooterLink>
               </li>
               <li>
-                <FooterLink href="/work" active={isWork}>
+                <FooterLink href="/work" active={isWorkIndex}>
                   Work
                 </FooterLink>
               </li>
@@ -115,14 +118,18 @@ export function Footer() {
             <ul className="flex flex-col gap-s">
               {featuredProjects.map((project) => (
                 <li key={project.slug}>
-                  <FooterLink href={project.href}>{project.footerLabel}</FooterLink>
+                  <FooterLink href={project.href} active={project.slug === activeSlug}>
+                    {project.footerLabel}
+                  </FooterLink>
                 </li>
               ))}
             </ul>
             <ul className="flex flex-col gap-s">
               {remainingProjects.map((project) => (
                 <li key={project.slug}>
-                  <FooterLink href={project.href}>{project.footerLabel}</FooterLink>
+                  <FooterLink href={project.href} active={project.slug === activeSlug}>
+                    {project.footerLabel}
+                  </FooterLink>
                 </li>
               ))}
             </ul>

@@ -9,6 +9,8 @@ import { HERO_HEADER_W, HERO_PHOTO_H, HERO_PHOTO_W } from "./caseStudyGeometry";
 // plus the section's own 100px horizontal / 50px bottom padding
 // (736:6032's px-100/pb-50, "hero section" band).
 export function CaseStudyHero({ project, hero }: { project: Project; hero: CaseStudy["hero"] }) {
+  const singlePhoto = hero.photos.length === 1;
+
   return (
     <section className="flex w-full flex-col px-3xl pb-xl pt-md">
       <div className="flex w-full flex-col items-start gap-xl overflow-hidden rounded-panel border border-divider bg-porcelain pb-xl pt-3xl shadow-case-card">
@@ -17,37 +19,57 @@ export function CaseStudyHero({ project, hero }: { project: Project; hero: CaseS
           style={{ width: HERO_HEADER_W }}
         >
           <p className="text-muted-gray">{project.number}.</p>
-          <div className="flex flex-col gap-sm">
+          {/* `titleWidth` (Chase: 620, 730:6011) narrows just this group —
+              F3Global omits it and fills the header's own content box, same
+              as before this prop existed. */}
+          <div className="flex w-full flex-col gap-sm" style={{ width: hero.titleWidth }}>
             <p className="text-deep-black">{project.name} /</p>
             <p className="text-muted-gray">{hero.tagline}</p>
           </div>
         </div>
 
-        <div className="relative w-full" style={{ height: HERO_PHOTO_H }}>
-          {/* The 3-photo strip is wider than the card and centered — Figma's
-              own left=-443 offset on a 1510-wide frame is, within
-              rounding, exactly (frame width - strip width) / 2, so
-              left-1/2 -translate-x-1/2 reproduces it at any width instead
-              of hardcoding that offset. */}
-          <div className="absolute left-1/2 top-0 flex h-full -translate-x-1/2 items-center gap-md">
-            {hero.photos.map((photo, index) => (
-              <div
-                key={photo.src}
-                className="relative h-full shrink-0 overflow-hidden rounded-card border border-divider"
-                style={{ width: HERO_PHOTO_W }}
-              >
-                <Image
-                  src={photo.src}
-                  alt={photo.alt}
-                  fill
-                  sizes={`${HERO_PHOTO_W}px`}
-                  className="object-cover"
-                  priority={index === 0}
-                />
-              </div>
-            ))}
+        {singlePhoto ? (
+          // Single-photo variant (Chase, 730:6547): one well filling the
+          // card's own px-xl padding, not the over-wide 3-photo strip below.
+          <div className="w-full px-xl" style={{ height: HERO_PHOTO_H }}>
+            <div className="relative h-full w-full overflow-hidden rounded-card border border-divider">
+              <Image
+                src={hero.photos[0].src}
+                alt={hero.photos[0].alt}
+                fill
+                sizes={`${HERO_PHOTO_W}px`}
+                className="object-cover"
+                priority
+              />
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="relative w-full" style={{ height: HERO_PHOTO_H }}>
+            {/* The 3-photo strip is wider than the card and centered — Figma's
+                own left=-443 offset on a 1510-wide frame is, within
+                rounding, exactly (frame width - strip width) / 2, so
+                left-1/2 -translate-x-1/2 reproduces it at any width instead
+                of hardcoding that offset. */}
+            <div className="absolute left-1/2 top-0 flex h-full -translate-x-1/2 items-center gap-md">
+              {hero.photos.map((photo, index) => (
+                <div
+                  key={photo.src}
+                  className="relative h-full shrink-0 overflow-hidden rounded-card border border-divider"
+                  style={{ width: HERO_PHOTO_W }}
+                >
+                  <Image
+                    src={photo.src}
+                    alt={photo.alt}
+                    fill
+                    sizes={`${HERO_PHOTO_W}px`}
+                    className="object-cover"
+                    priority={index === 0}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

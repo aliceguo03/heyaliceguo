@@ -11,9 +11,12 @@ import type { StatusKind } from "@/components/ui/StatusPill";
 // "HOMEWORK" vs "hoMEwork") — both are rendered verbatim, with no
 // text-transform applied by any consumer.
 //
-// `href` is "/work" on every entry, including the featured four: no
-// `/work/[slug]` route exists until build step 9. Case-study links become
-// `/work/${slug}` once that route lands.
+// `href` is `/work/${slug}` on every entry (the `/work/[slug]` route now
+// exists — build step 9 landed with F3Global and Chase). A slug with no
+// case-study entry in CASE_STUDIES still resolves: work/[slug]/page.tsx
+// renders the CLAUDE.md stub (title only) for it. Stored rather than
+// computed at each call site since it's read verbatim by both Nav's WORK
+// dropdown and Footer's project columns.
 export type Project = {
   slug: string;
   number: string; // '01'..'09', matches array order
@@ -39,7 +42,18 @@ export type Project = {
   // from `color`, the card's solid background fallback.
   accent?: string;
   color?: string; // fallback shown behind `gradient` before it loads
-  gradient?: string; // path in public/projects/gradients/
+  gradient?: string; // path in public/projects/gradients/ — the home card's own background image
+  // Case-study text-gradient fill (Statement.tsx, StatValue.tsx's
+  // --gradient-project), a full CSS `background-image` value — either
+  // `url(...)` or a gradient function. Distinct from `gradient` above:
+  // Figma's Accent/<Project> Gradient (the case-study text fill) and the
+  // home card's own gradient image are two different assets that only
+  // looked like one field because F3Global's case study happened to reuse
+  // its card image. Chase's case-study accent is a real CSS linear-gradient
+  // paint, which `gradient` (typed as an image path, always wrapped in
+  // url(...) by work/[slug]/page.tsx) can't hold. Omitted = fall back to
+  // `url("${gradient}")`, so F3Global is unaffected.
+  caseStudyGradient?: string;
   thumbnail?: string;
   video?: string;
 };
@@ -50,7 +64,7 @@ export const PROJECTS: Project[] = [
     number: "01",
     name: "F3GLOBAL",
     footerLabel: "F3Global",
-    href: "/work",
+    href: "/work/f3global",
     featured: true,
     status: { label: "LIVE SITE", kind: "live", href: "https://f3-global.org/" },
     role: "DESIGN LEAD",
@@ -69,14 +83,23 @@ export const PROJECTS: Project[] = [
     number: "02",
     name: "JPMORGAN CHASE",
     footerLabel: "Chase",
-    href: "/work",
+    href: "/work/chase",
     featured: true,
     status: { label: "NDA-PROTECTED", kind: "nda" },
     role: "UX DESIGN & RESEARCH INTERN",
     timeline: "10 WKS",
     type: "ENTERPRISE DATA PLATFORM",
+    tools: "FIGMA, USER RESEARCH, WORKSHOP FACILITATION, AI-ASSISTED WORKFLOW",
+    team: "3 UX INTERNS & CROSS-FUNCTIONAL PARTNERS",
+    accent: "#127b89",
     color: "var(--color-project-chase)",
     gradient: "/projects/gradients/gradient-chase.png",
+    // Accent/Chase Gradient (736:6375), re-read after this project's own
+    // second edit (colors only) — a real CSS gradient paint, not an image
+    // fill (see Project.caseStudyGradient's own comment). Distinct from
+    // gradient-chase.png above, which is a separate, unedited asset (the
+    // home/Work card background, 441:5989).
+    caseStudyGradient: "linear-gradient(180deg, #1e8694 0%, #0199ae 43.75%, #249fb5 88.942%)",
     thumbnail: "/projects/chase.jpg",
   },
   {
@@ -84,7 +107,7 @@ export const PROJECTS: Project[] = [
     number: "03",
     name: "GOOGLE GEMINICUT",
     footerLabel: "GeminiCut",
-    href: "/work",
+    href: "/work/geminicut",
     featured: true,
     status: {
       label: "PROTOTYPE",
@@ -104,7 +127,7 @@ export const PROJECTS: Project[] = [
     number: "04",
     name: "UC SAN DIEGO BFS BLINK",
     footerLabel: "Blink",
-    href: "/work",
+    href: "/work/blink",
     featured: true,
     status: { label: "SHIPPED", kind: "shipped" },
     role: "UX DESIGNER & AI SPECIALIST",
@@ -119,7 +142,7 @@ export const PROJECTS: Project[] = [
     number: "05",
     name: "ANATOLE QUARTET",
     footerLabel: "Anatole Quartet",
-    href: "/work",
+    href: "/work/anatole-quartet",
     featured: false,
   },
   {
@@ -127,7 +150,7 @@ export const PROJECTS: Project[] = [
     number: "06",
     name: "TSE",
     footerLabel: "TSE",
-    href: "/work",
+    href: "/work/tse",
     featured: false,
   },
   {
@@ -135,7 +158,7 @@ export const PROJECTS: Project[] = [
     number: "07",
     name: "HOMEWORK",
     footerLabel: "hoMEwork",
-    href: "/work",
+    href: "/work/homework",
     featured: false,
   },
   {
@@ -143,7 +166,7 @@ export const PROJECTS: Project[] = [
     number: "08",
     name: "KINDSIGHT",
     footerLabel: "KindSight",
-    href: "/work",
+    href: "/work/kindsight",
     featured: false,
   },
   {
@@ -151,7 +174,7 @@ export const PROJECTS: Project[] = [
     number: "09",
     name: "URBAN COLLABORATIVE PROJECT",
     footerLabel: "UCProject",
-    href: "/work",
+    href: "/work/ucproject",
     featured: false,
   },
 ];
