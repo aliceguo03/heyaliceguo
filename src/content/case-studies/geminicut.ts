@@ -67,7 +67,7 @@ export const geminicut: CaseStudy = {
       id: "our-approach",
       number: "01",
       navLabel: "OUR APPROACH",
-      navSubLabel: "Identifying current frictions in generative models through literature review and competitive analysis.",
+      navSubLabel: "Identifying current frictions in generative models through literature review.",
       blocks: [
         {
           kind: "proseFigure",
@@ -233,7 +233,7 @@ export const geminicut: CaseStudy = {
       id: "outcome-impact",
       number: "03",
       navLabel: "OUTCOME & IMPACT",
-      navSubLabel: "Interactive prototype showcasing all four modes and a short commercial of GeminiCut in action.",
+      navSubLabel: "Interactive prototype showing all modes and a short commercial of GeminiCut in action.",
       blocks: [
         {
           kind: "stats",
@@ -270,7 +270,7 @@ export const geminicut: CaseStudy = {
       id: "reflections",
       number: "04",
       navLabel: "REFLECTIONS",
-      navSubLabel: "Final thoughts about potential refinements given more time and gratitude to the team.",
+      navSubLabel: "Potential refinements given more time and gratitude to the team.",
       blocks: [
         {
           kind: "proseFigure",

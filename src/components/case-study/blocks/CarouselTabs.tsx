@@ -7,7 +7,8 @@ import { Statement } from "./Statement";
 import { Prose } from "./Prose";
 import { Figure } from "./Figure";
 import { SelectTab } from "@/components/ui/SelectTab";
-import { DUR, EASE, usePrefersReducedMotion } from "@/lib/motion";
+import { MIN_CAROUSEL_TABS_VIEWPORT_H } from "../caseStudyGeometry";
+import { DUR, EASE, usePrefersReducedMotion, useViewportTooShort } from "@/lib/motion";
 import type { Block } from "@/content/case-studies/types";
 
 type TabsCarouselItem = Extract<Block, { kind: "carousel"; mode: "tabs" }>["items"][number];
@@ -43,6 +44,11 @@ type TabsCarouselItem = Extract<Block, { kind: "carousel"; mode: "tabs" }>["item
 // meant to suppress.
 export function CarouselTabs({ items }: { items: TabsCarouselItem[] }) {
   const reducedMotion = usePrefersReducedMotion();
+  // Below MIN_CAROUSEL_TABS_VIEWPORT_H (caseStudyGeometry.ts — a real
+  // measured threshold, the 13" Air floor included), the tab row + heading +
+  // paragraph + video well don't fit below the nav without scrolling. The
+  // heading (Statement) drops; tab row, paragraph, and video well stay.
+  const tightViewport = useViewportTooShort(MIN_CAROUSEL_TABS_VIEWPORT_H);
   const baseId = useId();
   const stageRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -118,7 +124,7 @@ export function CarouselTabs({ items }: { items: TabsCarouselItem[] }) {
               animate={{ opacity: active ? 1 : 0 }}
               transition={{ duration: reducedMotion ? 0 : DUR.reveal, ease: EASE }}
             >
-              <Statement text={item.heading} />
+              {!tightViewport && <Statement text={item.heading} />}
               <Prose paragraphs={item.paragraphs} />
               <Figure figure={item.figure} visible={shouldPlayVideo} />
             </motion.div>

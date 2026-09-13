@@ -55,7 +55,14 @@ export function AmbientVideo({
     if (shouldPlay) {
       el.play().catch(() => {});
     } else {
+      // Reset immediately on deselect, not on the next reselection — a tab
+      // switched away from and back to should always start its video fresh,
+      // regardless of how many times it's been visited. `shouldPlay` already
+      // goes false the instant CarouselTabs.tsx deselects this item (or it
+      // scrolls off screen), so there's no separate "deselected" signal to
+      // plumb through — this effect firing IS that signal.
       el.pause();
+      el.currentTime = 0;
     }
   }, [shouldPlay]);
 

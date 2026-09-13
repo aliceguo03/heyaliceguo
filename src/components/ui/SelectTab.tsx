@@ -15,9 +15,18 @@ import type { KeyboardEvent, Ref } from "react";
 // `transition-colors duration-200 ease-standard`.
 //
 // Every value below maps to an existing token — no new tokens were needed.
+// Three states, each visually distinct, all confirmed against Figma's own
+// hover variant (879:3375, state=hover — re-read fresh, corrected this
+// session): resting-inactive (muted-gray border/text, transparent fill),
+// hover-inactive (deep-black border/text — #0D0D0D, --color-deep-black, NOT
+// --color-ink/#0A0A0A, a different token — fill stays transparent, no bg at
+// all), and selected (accent border/text with a #F2F2F2/subtle-gray fill —
+// that fill is unique to selected, never shared with hover). Hover only
+// applies to the inactive/default state — Figma shows no distinct hover
+// treatment for an already-selected tab.
 const STATE_CLASSES = {
   selected: "border-accent-project bg-subtle-gray text-accent-project",
-  default: "border-muted-gray bg-transparent text-muted-gray",
+  default: "border-muted-gray bg-transparent text-muted-gray hover:border-deep-black hover:text-deep-black",
 } as const;
 
 export function SelectTab({

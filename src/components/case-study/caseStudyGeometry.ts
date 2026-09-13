@@ -193,3 +193,36 @@ export const CAROUSEL_VIDEO_ZOOM = 1.02;
 // 20px/gap-md rhythm every other block in this template uses). --spacing-lg
 // already exists as a token, so this is a call-site note, not a new
 // constant — CarouselTabs.tsx uses the `gap-lg` utility directly.
+
+// Tabs carousel short-viewport fallback: real measured heights, not a guess
+// — same discipline as PANEL_COMPACT_H/CAROUSEL_STAGE_H above. Captured with
+// Playwright against the live page at 1440px viewport width, where the
+// content column clamps to CONTENT_MIN_W (807px) — the narrowest width this
+// project supports, so also the widest text-wrap (most lines) any of the
+// four tab items ever reach. All four items measured identically at that
+// width (each heading holds to a single line, each paragraph wraps to
+// exactly 4 lines), so there's no per-item worst case to pick between:
+//   47  (tab row, SelectTab's own px-md/py-sm + text-mono-caption box)
+// + 30  (gap-lg, tab row -> text/figure group)
+// + 32  (heading, Statement/text-body-large, 1 line)
+// + 20  (gap-md)
+// + 104 (paragraph, Prose/text-body, 4 lines at 26px line-height)
+// + 20  (gap-md)
+// + 616 (video well, CAROUSEL_VIDEO_H)
+// = 869
+export const CAROUSEL_TABS_STACK_H = 869;
+
+// Below this viewport height, that stack no longer fits below the nav
+// (STICKY_TOP) without scrolling — CarouselTabs.tsx drops the heading line
+// (Statement) and keeps the tab row, paragraph, and video well, the same
+// "measure, then degrade gracefully" shape as MIN_PANEL_VIEWPORT_H and
+// MIN_CAROUSEL_VIEWPORT_H above. Deliberately scoped to just these four
+// elements per the approved answer — this doesn't touch PANEL_W, the
+// sidebar, or its own compact-panel threshold, which are addressed
+// separately in content. Below the 1440x760 floor (760 < 975): the heading
+// drops, same as this design's normal rendering on a 13" Air, not an edge
+// case. At the 1710x1040 reference size (1040 > 975): unaffected, heading
+// stays — confirmed against MIN_PANEL_VIEWPORT_H (976) too, which is a
+// coincidentally close but entirely independent number for a different
+// element (the sidebar's own full-vs-compact switch).
+export const MIN_CAROUSEL_TABS_VIEWPORT_H = STICKY_TOP + CAROUSEL_TABS_STACK_H; // 975
