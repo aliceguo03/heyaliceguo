@@ -157,3 +157,39 @@ export const CAROUSEL_STAGE_H = 734;
 // measurement pass, since deciding "is the stage too tall" would otherwise
 // require the stage already rendered.
 export const MIN_CAROUSEL_VIEWPORT_H = STICKY_TOP + CAROUSEL_STAGE_H + PANEL_BOTTOM_GAP; // 870
+
+// --- GeminiCut video figures ----------------------------------------------
+//
+// Every other figure in the template is CONTENT_W x FIGURE_H (1077x556, a
+// 1.937:1 ratio) because every source image was cropped to it. GeminiCut's
+// two video figures are real screen recordings with their own native
+// aspect ratios, measured directly off the files (`mdls`/Spotlight, not
+// assumed) rather than cropped to fit — cropping either would cut into real
+// UI (the recordings' own header bar / prompt input), which CLAUDE.md's
+// "faithful implementation" rule treats as content, not chrome to trim.
+// Each gets its own named height rather than reusing FIGURE_H; see
+// content/case-studies/types.ts's VideoSource.height.
+
+// The four "design decisions" carousel recordings (gemini-regenerate/
+// -timeline/-style/-sound.mp4) are all 1888x1080. 1077 * (1080/1888) =
+// 616.08, rounded to the nearest px.
+export const CAROUSEL_VIDEO_H = 616;
+
+// "Gemini Cut Commercial.mp4" is 1920x1080 — true 16:9, and NOT the same
+// ratio as the carousel recordings above, so it does not share their
+// constant. 1077 * (1080/1920) = 605.8, rounded.
+export const SHOWCASE_VIDEO_H = 606;
+
+// The four carousel recordings carry a thin capture-window border along
+// their edges (screen-recording artifact, not real UI) — a slight zoom
+// crops it out, same treatment and reasoning as home/ProjectMedia.tsx's own
+// VIDEO_ZOOM for the same kind of artifact. The commercial shows no such
+// border and is left unzoomed (content/case-studies/gemini.ts omits `zoom`
+// for it).
+export const CAROUSEL_VIDEO_ZOOM = 1.02;
+
+// Design Decisions carousel, tabs mode (767:7270, CarouselTabs.tsx): the
+// outer flex-col sits at gap-lg (30px, re-read fresh — NOT ProseFigure's
+// 20px/gap-md rhythm every other block in this template uses). --spacing-lg
+// already exists as a token, so this is a call-site note, not a new
+// constant — CarouselTabs.tsx uses the `gap-lg` utility directly.

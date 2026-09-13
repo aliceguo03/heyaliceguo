@@ -2,14 +2,21 @@ import { BLOCK_REGISTRY } from "./blocks/registry";
 import { ScrollReveal } from "@/components/motion/ScrollReveal";
 import type { Block, Section } from "@/content/case-studies/types";
 
-// The carousel owns a pinned, `position: sticky` stage (CarouselStage.tsx)
-// — ScrollReveal's own header comment is explicit that a transformed
-// ancestor becomes the containing block for a sticky descendant, breaking
-// it. Every other block kind is ordinary static-flow content, safe to
-// wrap. This covers both of the carousel's own renderings (the pinned
-// mechanic and its short-viewport/reduced-motion stacked fallback) since
-// neither should be wrapped, not just the pinned one.
-const NO_REVEAL: ReadonlySet<Block["kind"]> = new Set(["carousel"]);
+// The *scrub* carousel owns a pinned, `position: sticky` stage
+// (CarouselStage.tsx) — ScrollReveal's own header comment is explicit that a
+// transformed ancestor becomes the containing block for a sticky descendant,
+// breaking it. This covers both of the scrub carousel's own renderings (the
+// pinned mechanic and its short-viewport/reduced-motion stacked fallback)
+// since neither should be wrapped, not just the pinned one.
+//
+// The *tabs* carousel (GeminiCut, CarouselTabs.tsx) has no sticky anything —
+// it's ordinary static-flow content, same as every other block kind — so it
+// deliberately does NOT skip ScrollReveal. A predicate rather than a
+// Set<kind> because the two carousel modes need different answers under the
+// same `kind`.
+function skipsReveal(block: Block): boolean {
+  return block.kind === "carousel" && block.mode !== "tabs";
+}
 
 // One case-study section (e.g. 736:6074 "our approach"): title row, then
 // gap-md down to the first block, then gap-xl between every block after
@@ -42,7 +49,7 @@ export function CaseStudySection({ section }: { section: Section }) {
           const { kind, ...props } = block;
           const BlockComponent = BLOCK_REGISTRY[kind];
           const rendered = <BlockComponent {...props} />;
-          return NO_REVEAL.has(kind) ? (
+          return skipsReveal(block) ? (
             <div key={index} className="w-full">
               {rendered}
             </div>

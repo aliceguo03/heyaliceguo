@@ -112,13 +112,33 @@ export const PROJECTS: Project[] = [
     status: {
       label: "PROTOTYPE",
       kind: "prototype",
-      href: "https://www.figma.com/proto/2mlTyyDTO8oHp5pCC5Jn4x/-tse-A3?node-id=828-3656&viewport=1261%2C559%2C0.12&t=hGIuLTjfOFtPLRiE-9&scaling=min-zoom&content-scaling=fixed&starting-point-node-id=828%3A3656&page-id=828%3A3653&show-proto-sidebar=1",
+      // Corrected — the value previously here pointed at a different Figma
+      // file entirely ("-tse-A3", TSE's own prototype). This is GeminiCut's
+      // own interactive prototype link.
+      href: "https://www.figma.com/proto/8K2eCn2HJYQWrviJCMoqBg/Google-GeminiCut?node-id=828-3656&p=f&viewport=2500%2C-599%2C0.23&t=hExa2Wjx80WifhbA-1&scaling=min-zoom&content-scaling=fixed&starting-point-node-id=828%3A3656&show-proto-sidebar=1&page-id=828%3A3653",
     },
     role: "UX DESIGNER & RESEARCHER",
     timeline: "2 MOS",
     type: "AI-NATIVE VIDEO EDITING TOOL",
+    // Case study metadata panel (794:2389, re-read fresh this session) —
+    // GeminiCut's own tools/skills and team rows, beyond role/timeline/type.
+    tools: "FIGMA, USER RESEARCH, AI-ASSISTED WORKFLOWS, FIGMA MAKE",
+    team: "5 UX DESIGNERS AND RESEARCHERS",
+    // Accent/Gemini (767:7271), re-read after this session's own contrast
+    // fix — you edited it in Figma from #2E6FD6 to #2A64C4 so the tab label
+    // (16px JetBrains Mono) clears AA-normal against both porcelain and the
+    // selected tab's subtle-gray fill (5.63:1 / 5.04:1 — see gemini.ts's own
+    // contrast note for the full readout).
+    accent: "#2a64c4",
     color: "var(--color-project-geminicut)",
     gradient: "/projects/gradients/gradient-geminicut.png",
+    // Accent/Gemini Gradient (879:3322), re-read after the same session's
+    // contrast fix — the 30% stop moved from #6EA6FA (2.46:1, failing even
+    // the 3:1 large-text floor) to #2B5798 (7.17:1). A real CSS gradient
+    // paint, not an image fill — see Project.caseStudyGradient's own
+    // comment for why that's a distinct field from `gradient` above.
+    caseStudyGradient:
+      "linear-gradient(90deg, #357CEA 0%, #2B5798 30.288%, #4B77BB 66.827%, #357CEA 100%)",
     thumbnail: "/projects/geminicut.jpg",
     video: "/projects/geminicut.mp4",
   },

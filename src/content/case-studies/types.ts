@@ -14,15 +14,44 @@ export type Segment = { text: string; href?: string };
 export type Paragraph = Segment[];
 
 export type Figure = {
-  src: string; // path in public/work/<slug>/
+  src: string; // path in public/work/<slug>/ — the still, or a video's poster frame
   alt: string;
+  video?: VideoSource;
+};
+
+// GeminiCut's two video figures (CLAUDE.md "GeminiCut case study" session
+// notes) are deliberately different mechanisms, not two settings of one
+// behavior — `behavior` is the only axis that actually branches logic in
+// AmbientVideo.tsx/FeatureVideo.tsx, which is why it's a closed union rather
+// than a handful of independent booleans (autoplay/loop/controls/muted would
+// let a caller build a combination neither real case needs).
+//
+// "ambient": muted, native `loop`, no controls — the carousel's four clips.
+// The caller (CarouselTabs.tsx) owns the play/pause gate; only the selected
+// tab's video ever plays.
+//
+// "feature": real controls, audio, no loop, never autoplays — Commercial
+// Showcase's 2-minute video. Shows a replay affordance on `ended` rather than
+// freezing on the last frame.
+export type VideoSource = {
+  src: string;
+  // The well's own height for this source, in px. Deliberately NOT FIGURE_H —
+  // see caseStudyGeometry.ts's CAROUSEL_VIDEO_H/SHOWCASE_VIDEO_H comments for
+  // why each video figure gets its own height rather than reusing 556.
+  height: number;
+  behavior: "ambient" | "feature";
+  // Recording-capture edge-artifact crop, scale()-only — ProjectMedia.tsx's
+  // VIDEO_ZOOM precedent (home page cards). Omitted = no zoom.
+  zoom?: number;
 };
 
 // Every block kind in the template (736:6031), one component each under
 // src/components/case-study/blocks/. `figure` and the figure inside
-// `proseFigure` are always 1077x556 (CaseStudy's CONTENT_W x FIGURE_H) —
-// there is no per-project size prop, so a case study cannot introduce a
-// nonstandard figure size.
+// `proseFigure`/`carousel` are always CONTENT_W x FIGURE_H (1077x556) UNLESS
+// the figure carries `video` — GeminiCut's two video figures each have a
+// source aspect ratio FIGURE_H doesn't match (caseStudyGeometry.ts's
+// CAROUSEL_VIDEO_H/SHOWCASE_VIDEO_H), so `VideoSource.height` is the one
+// sanctioned per-figure override, not a general size prop any block can set.
 export type Block =
   | { kind: "statement"; text: Paragraph }
   | { kind: "prose"; paragraphs: Paragraph[] }
@@ -46,13 +75,36 @@ export type Block =
       // (CLAUDE.md "Stacked project cards" applies the same principle here:
       // build the real fallback, not a placeholder). P2 adds motion beside
       // this, not instead of it.
+      //
+      // `mode` (added for GeminiCut's "design decisions" carousel, 767:7270)
+      // discriminates the *mechanism*, not the content shape: an item is
+      // still heading + paragraphs + one figure either way, so this stays
+      // one block kind rather than a second one. Default/omitted ("scrub")
+      // is F3Global's pinned, scroll-scrubbed stage (CarouselStage.tsx) with
+      // no visible tabs. "tabs" is click-driven selection (CarouselTabs.tsx)
+      // — a deliberate departure, not a bug to reconcile with scrub's
+      // pattern — and requires a `label` per item since tabs need a name to
+      // show; scrub has no tabs to label, so the union keeps `label`
+      // required on one side and absent on the other rather than leaving it
+      // an always-optional field either component could half-use.
+      mode?: "scrub";
       items: { heading: Paragraph; paragraphs: Paragraph[]; figure: Figure }[];
     }
   | {
+      kind: "carousel";
+      mode: "tabs";
+      items: { label: string; heading: Paragraph; paragraphs: Paragraph[]; figure: Figure }[];
+    }
+  | {
       kind: "stats";
-      // 4-6 items. Figma (736:6106) shows only the 4-item case (2x2, two
-      // 411px columns at 100px gap, left-packed in the 1077 column — not
-      // stretched full width). 5-6 render 3 columns instead.
+      // 2-6 items. Figma shows two cases: F3Global/Chase's 4-item 2x2
+      // (736:6106, two 411px columns at 100px gap, left-packed in the 1077
+      // column — not stretched full width) and GeminiCut's 2-item single row
+      // (794:2451, re-read fresh — same 411px column width and 100px gap,
+      // just one row instead of two). Both fit Stats.tsx's existing
+      // `columnCount` (<=4 -> 2 columns) with no threshold change; 5-6 render
+      // 3 columns, this session's own extrapolation, still unconfirmed in
+      // the file.
       items: { value: string; label: string }[];
     }
   | {
