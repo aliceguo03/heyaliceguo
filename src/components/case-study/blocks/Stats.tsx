@@ -13,21 +13,22 @@ function columnCount(itemCount: number) {
   return itemCount <= 4 ? 2 : 3;
 }
 
-export function Stats({ items }: Omit<StatsBlock, "kind">) {
+export function Stats({ items, columnWidth = STAT_W }: Omit<StatsBlock, "kind">) {
   const cols = columnCount(items.length);
 
   return (
     <div
       className="grid w-full gap-x-3xl gap-y-xl"
-      // minmax(0, STAT_W), not a flat STAT_W: each track holds exactly
-      // 411px (left-packed, per the approved answer) whenever the content
-      // column has room, but shrinks below it once the column itself
-      // shrinks under caseStudyGeometry.ts's 1440px floor — the same
-      // clamp() shrink the column's own width already gets, just
-      // expressed as a track ceiling instead of a clamp() string, since
-      // CSS grid's own sizing algorithm already does exactly this once a
-      // track is capped rather than fixed.
-      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, ${STAT_W}px))` }}
+      // minmax(0, columnWidth), not a flat columnWidth: each track holds
+      // exactly STAT_W (or a project's own columnWidth override, e.g.
+      // Blink's STAT_W_WIDE — left-packed, per the approved answer)
+      // whenever the content column has room, but shrinks below it once
+      // the column itself shrinks under caseStudyGeometry.ts's 1440px
+      // floor — the same clamp() shrink the column's own width already
+      // gets, just expressed as a track ceiling instead of a clamp()
+      // string, since CSS grid's own sizing algorithm already does
+      // exactly this once a track is capped rather than fixed.
+      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, ${columnWidth}px))` }}
     >
       {items.map((item, index) => (
         <div key={index} className="flex w-full flex-col items-center gap-md">

@@ -60,12 +60,19 @@ export type Block =
       kind: "proseFigure";
       heading?: Paragraph;
       paragraphs?: Paragraph[];
-      figure: Figure;
+      // Optional as of Blink (808:2766, 861:3228, 858:3217, 808:2796) — four
+      // of its content sections are heading + paragraph with no figure at
+      // all, unlike every proseFigure block in F3Global/Chase/GeminiCut.
+      // ProseFigure.tsx skips the figure slot entirely when this is absent
+      // (no figure element rendered, so no reserved 556px well and no
+      // gap-md for it) rather than rendering an empty box.
+      figure?: Figure;
       // Figma orders most proseFigure blocks heading -> prose -> figure, but
       // each section's own opening block (736:6075's "How might we…" hook,
       // 736:6126's "The fully responsive…" hook) orders hook -> figure ->
       // prose instead. One boolean captures that, rather than a second block
-      // kind for what is otherwise an identical shape.
+      // kind for what is otherwise an identical shape. A no-op when `figure`
+      // is absent (nothing to move first).
       figureFirst?: boolean;
     }
   | {
@@ -106,6 +113,13 @@ export type Block =
       // 3 columns, this session's own extrapolation, still unconfirmed in
       // the file.
       items: { value: string; label: string }[];
+      // Blink's stat columns (808:2790 etc.) are genuinely 425px, not the
+      // 411 (STAT_W) every other project's node measures — confirmed, not
+      // the stale pre-correction value Chase's node once had (see chase.ts's
+      // own header comment). Omitted = STAT_W, so F3Global/Chase/GeminiCut
+      // are unaffected. The one sanctioned per-block override, same role as
+      // VideoSource.height for figures — not a general size prop.
+      columnWidth?: number;
     }
   | {
       kind: "tiles";

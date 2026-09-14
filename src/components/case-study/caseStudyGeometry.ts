@@ -89,6 +89,13 @@ export const CREDITS_PHOTO_ASPECT = "516 / 266";
 // 1077px," Figma's own measure was taken instead per the approved answer).
 export const STAT_W = 411;
 
+// Blink's own stat column width (808:2790 etc.), re-read fresh and
+// confirmed as a real difference from STAT_W, not the stale pre-correction
+// value Chase's node once had (chase.ts's own header comment) — same
+// gap-3xl (100px), just a wider 425px track. See types.ts's `stats.
+// columnWidth` for how a content file opts into this instead of STAT_W.
+export const STAT_W_WIDE = 425;
+
 // --- The content column's 1440px floor -----------------------------------
 //
 // The row (InfoPanel + gap + content column) sums to exactly 1510px at the

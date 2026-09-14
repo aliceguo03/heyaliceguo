@@ -11,10 +11,16 @@ type ProseFigureBlock = Extract<Block, { kind: "proseFigure" }>;
 // heading/figure/paragraphs into hook -> figure -> prose (the two section
 // hooks, 736:6075 and 736:6126) instead of the default heading -> prose ->
 // figure every other instance uses — see types.ts's comment on the flag.
+//
+// `figure` is optional (Blink, 808:2766 etc. — four content sections are
+// heading + paragraph, nothing else). When absent, `figureEl` is `undefined`
+// rather than an empty `<Figure>`: a flex child that doesn't exist emits no
+// gap-md for itself either, so the reserved 556px well and its surrounding
+// gap both genuinely disappear rather than collapsing to a blank box.
 export function ProseFigure({ heading, paragraphs, figure, figureFirst }: Omit<ProseFigureBlock, "kind">) {
   const headingEl = heading && <Statement text={heading} />;
   const proseEl = paragraphs && <Prose paragraphs={paragraphs} />;
-  const figureEl = <Figure figure={figure} />;
+  const figureEl = figure && <Figure figure={figure} />;
 
   return (
     <div className="flex w-full flex-col gap-md">

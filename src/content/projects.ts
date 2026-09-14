@@ -153,8 +153,27 @@ export const PROJECTS: Project[] = [
     role: "UX DESIGNER & AI SPECIALIST",
     timeline: "2 YRS",
     type: "ACCESSIBILITY & SYSTEMS DESIGN",
+    // Case study metadata panel (808:2739/808:2742, re-read fresh this
+    // session) — the file's own tools string ends in a trailing period
+    // ("...Generative AI."); every other project's has none, so it's
+    // dropped here for consistency (content/case-studies/blink.ts's own
+    // header comment records the same correction).
+    tools: "FIGMA, SITEIMPROVE, WCAG 2.1 AA, PYTHON, CLAUDE CODE, GENERATIVE AI",
+    team: "SOLO OWNERSHIP WITHIN CROSS-FUNCTIONAL DEPARTMENT",
+    // Accent/Blink (808:2754) — 5.82:1 on porcelain, clears AA-normal.
+    accent: "#147169",
     color: "var(--color-project-blink)",
     gradient: "/projects/gradients/gradient-blink.png",
+    // Accent/Blink Gradient (808:2788), re-read after you fixed its
+    // contrast in Figma this session — a real CSS gradient paint, not an
+    // image fill (see caseStudyGradient's own comment). Original/edited
+    // readout on porcelain #FEFFFD: #0E878E 4.29 (unchanged) / #4DAFA1 2.63
+    // -> #48A396 3.01 / #57B6B0 2.40 -> #4DA29D 3.00 / #20BC92 2.41 ->
+    // #1CA782 3.03 — every stop now clears the 3:1 large-text floor this
+    // gradient needs (it paints section headings, hooks, and 100px stat
+    // numerals, all large text).
+    caseStudyGradient:
+      "linear-gradient(90deg, #0E878E 0%, #48A396 35.096%, #4DA29D 64.423%, #1CA782 100%)",
     thumbnail: "/projects/blink.jpg",
   },
   {
