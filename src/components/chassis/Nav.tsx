@@ -167,7 +167,12 @@ export function Nav() {
             ABOUT
           </Link>
 
-          <a href={RESUME_HREF} className={`${NAV_ITEM} ${navItemColor(false)}`}>
+          <a
+            href={RESUME_HREF}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${NAV_ITEM} ${navItemColor(false)}`}
+          >
             RESUMÉ
           </a>
 
