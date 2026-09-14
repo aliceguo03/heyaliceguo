@@ -3,7 +3,7 @@ import { AboutHero } from "@/components/about/AboutHero";
 import { AboutSection } from "@/components/about/AboutSection";
 
 export const metadata: Metadata = {
-  title: "About — Alice Guo",
+  title: "about",
   description: "Alice Guo — product designer and design engineer, San Diego.",
 };
 
