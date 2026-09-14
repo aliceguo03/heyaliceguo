@@ -157,6 +157,8 @@ export function LinkedinLink({ className }: { className: string }) {
   return (
     <a
       href={LINKEDIN_HREF}
+      target="_blank"
+      rel="noopener noreferrer"
       aria-label="Alice on LinkedIn"
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
