@@ -43,8 +43,12 @@ const VARIANT_CLASSES = {
   outline: "py-btn-y border border-dark-gray bg-porcelain text-dark-gray hover:bg-divider",
 } as const;
 
+// BACK TO TOP's own right padding is space-md (20px), not Figma's space-btn-y
+// (16px) — a deliberate visual call by design (Alice), made after re-reading
+// Figma confirmed 16px was in fact what the file said. Scoped to `backToTop`
+// only via OUTLINE_PADDING_X, so `secondary` (BACK TO HOME) is untouched.
 const OUTLINE_PADDING_X = {
-  backToTop: "pl-btn-x pr-btn-y",
+  backToTop: "pl-btn-x pr-md",
   secondary: "px-btn-x",
 } as const;
 
