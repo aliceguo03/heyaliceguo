@@ -24,28 +24,39 @@ const BUTTON_HEIGHT = "62px";
 // component scaled by color. Filled: symmetric px-lg/py-sm (380:1977).
 //
 // Outline covers two distinct Figma components sharing one style, not one
-// padding scheme: "back to top button" (400:3559, arrow="up") is bound to
-// the 24px "side" var (space-btn-x) on the left but the 16px "top-bottom"
-// var (space-btn-y) on the right — asymmetric, because that right padding
-// is scoped to the trailing arrow glyph's own whitespace, not a general
-// outline-button rule. "secondary button" (677:4690, e.g. BACK TO HOME,
-// no icon) is symmetric space-btn-x on both sides — confirmed by re-reading
-// that node fresh, not inherited from the icon-bearing one. Keyed off
-// `arrow` below rather than duplicated per caller.
+// padding scheme: "back to top button" (400:3559) is bound to the 24px
+// "side" var (space-btn-x) on the left but the 16px "top-bottom" var
+// (space-btn-y) on the right — asymmetric, because that right padding is
+// scoped to the trailing arrow glyph's own whitespace, not a general
+// outline-button rule. "secondary button" (677:4690, e.g. BACK TO HOME, no
+// icon) is symmetric space-btn-x on both sides — confirmed by re-reading
+// that node fresh, not inherited from the icon-bearing one.
+//
+// Picked by the caller's own `outlineKind` rather than inferred from
+// whether `arrow` is passed: bug-fix pass 1 found the two outline callers
+// were coupled through that proxy (and through this shared VARIANT_CLASSES
+// entry) — a future arrowed outline button elsewhere would have silently
+// inherited BACK TO TOP's own padding. `outlineKind` names each Figma
+// component directly instead.
 const VARIANT_CLASSES = {
   filled: "px-lg py-sm bg-ink text-pure-white hover:bg-ink/85",
   outline: "py-btn-y border border-dark-gray bg-porcelain text-dark-gray hover:bg-divider",
 } as const;
 
 const OUTLINE_PADDING_X = {
-  withArrow: "pl-btn-x pr-btn-y",
-  noArrow: "px-btn-x",
+  backToTop: "pl-btn-x pr-btn-y",
+  secondary: "px-btn-x",
 } as const;
 
 type BlackButtonProps = {
   children: ReactNode;
   variant?: "filled" | "outline";
   arrow?: "up" | "down";
+  // Only meaningful for variant="outline" — selects which of the two Figma
+  // outline components' padding scheme applies (see OUTLINE_PADDING_X
+  // above). Defaults to "secondary" (symmetric, no icon), the more common
+  // of the two; BACK TO TOP passes "backToTop" explicitly.
+  outlineKind?: "backToTop" | "secondary";
   // Only meaningful for the filled variant — see the magnetOn derivation
   // below. Undefined (the common case: ALL PROJECTS, ProjectCard's own CTA,
   // BACK TO TOP) means "nothing clips this button, so it's always eligible."
@@ -60,10 +71,11 @@ export function BlackButton({
   onClick,
   variant = "filled",
   arrow,
+  outlineKind = "secondary",
   magnetEnabled,
   children,
 }: BlackButtonProps) {
-  const outlinePaddingX = arrow ? OUTLINE_PADDING_X.withArrow : OUTLINE_PADDING_X.noArrow;
+  const outlinePaddingX = OUTLINE_PADDING_X[outlineKind];
   // `uppercase` here, not on the content passed in: every caller so far
   // hand-types its label already in caps, but CaseStudyActions.tsx's NEXT
   // PROJECT button interpolates a project's own `footerLabel` ("Chase",
