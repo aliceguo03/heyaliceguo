@@ -17,7 +17,7 @@ export function WorkSectionActions() {
   return (
     <div className="flex items-center justify-center gap-md">
       <ScrollReveal as="div">
-        <BlackButton variant="outline" arrow="up" onClick={() => scrollTo("top")}>
+        <BlackButton variant="outline" outlineKind="backToTop" arrow="up" onClick={() => scrollTo("top")}>
           BACK TO TOP
         </BlackButton>
       </ScrollReveal>

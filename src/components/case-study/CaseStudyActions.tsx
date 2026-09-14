@@ -17,7 +17,7 @@ import type { Project } from "@/content/projects";
 export function CaseStudyActions({ next }: { next: Project }) {
   return (
     <div className="flex w-full items-center justify-center gap-md pb-lg">
-      <BlackButton variant="outline" href="/">
+      <BlackButton variant="outline" outlineKind="secondary" href="/">
         BACK TO HOME
       </BlackButton>
       <BlackButton variant="filled" href={`/work/${next.slug}`}>

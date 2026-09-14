@@ -11,15 +11,21 @@ const RESUME_HREF = "/resume.pdf";
 function FooterLink({
   href,
   active = false,
+  target,
+  rel,
   children,
 }: {
   href: string;
   active?: boolean;
+  target?: string;
+  rel?: string;
   children: string;
 }) {
   return (
     <Link
       href={href}
+      target={target}
+      rel={rel}
       className={`text-body font-sans text-pure-white transition-colors duration-200 ease-standard hover:text-light-gray ${
         active ? "font-black" : ""
       }`}
@@ -112,7 +118,9 @@ export function Footer() {
                 </FooterLink>
               </li>
               <li>
-                <FooterLink href={RESUME_HREF}>Resumé</FooterLink>
+                <FooterLink href={RESUME_HREF} target="_blank" rel="noopener noreferrer">
+                  Resumé
+                </FooterLink>
               </li>
             </ul>
             <ul className="flex flex-col gap-s">

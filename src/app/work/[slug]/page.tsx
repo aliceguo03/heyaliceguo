@@ -22,7 +22,7 @@ export async function generateMetadata({
   const project = PROJECTS.find((p) => p.slug === slug);
   if (!project) return {};
   return {
-    title: `${project.name} — Alice Guo`,
+    title: project.slug,
     description: `Alice Guo — product designer and design engineer, San Diego.`,
   };
 }

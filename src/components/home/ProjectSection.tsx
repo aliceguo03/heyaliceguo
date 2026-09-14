@@ -126,14 +126,50 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
   // itself (never clipped, so this one is exactly what it looks like):
   // `stripY` clamps at -TRAVEL once the section scrolls past and stays
   // there, which would otherwise leave project 4 marked "visible" forever.
-  const [sectionOnScreen, setSectionOnScreen] = useState(true);
+  //
+  // Defaults false, not true: project 0's `s` is exactly 0 at stripY=0 (the
+  // page-load rest state, before any scroll), so visibilityMasks() already
+  // marks it "partial visible" from the very first render regardless of
+  // this flag. An optimistic `true` default here used to combine with that
+  // to make project 0's video (and CTA magnet) look on-screen and eligible
+  // before this effect's IntersectionObserver ever got to fire its first,
+  // asynchronous callback — child effects (ProjectMedia's play/pause) run
+  // before this parent effect on the same mount, so the race was real, not
+  // hypothetical. `false` costs one corrected frame on every load instead
+  // (section starts "not confirmed on screen" until the observer says
+  // otherwise), which is invisible for both consumers: no video plays a
+  // frame early, and no cursor is ever already sitting on a CTA at t=0 to
+  // notice a one-frame magnet-eligibility delay.
+  const [sectionOnScreen, setSectionOnScreen] = useState(false);
   useEffect(() => {
     const el = sectionRef.current;
     if (!el || reducedMotion || tooShort) return;
 
-    const observer = new IntersectionObserver(([entry]) => setSectionOnScreen(entry.isIntersecting), {
-      threshold: 0,
-    });
+    // `entry.intersectionRatio > 0`, not `entry.isIntersecting` — the same
+    // quirk ProjectMedia.tsx's own observer already guards against: an
+    // element whose top edge exactly abuts the viewport's bottom edge
+    // reports `isIntersecting: true` at `ratio: 0`. That abutment isn't a
+    // corner case here — it's this page's *normal* rest layout: the hero
+    // is built to `min-height: 100svh` (CLAUDE.md's viewport-fill rule), so
+    // on first load, on almost any real viewport, this section's top edge
+    // sits exactly at the viewport's bottom edge. Verified via a temporary
+    // console.log, not assumed: `isIntersecting` really does read `true`
+    // (ratio 0) in that state, which is what let the video play right
+    // through the whole "section not actually on screen" window instead of
+    // just for one corrected frame.
+    // threshold: [0, 0.01], not a single `0` — verified (not assumed) that
+    // a single-value-0 observer on this element stops delivering any
+    // notification after its initial callback, even once later scrolled to
+    // 100% overlap; adding one more, non-zero threshold value made the same
+    // element's observer refire correctly on every crossing. This is still
+    // exactly "was there any overlap at all" for the callback below (still
+    // gated on `intersectionRatio > 0`) — the extra value is what makes
+    // Chromium actually keep recomputing, not a change in what counts as
+    // "on screen."
+    const observer = new IntersectionObserver(
+      ([entry]) => setSectionOnScreen(entry.intersectionRatio > 0),
+      { threshold: [0, 0.01] },
+    );
     observer.observe(el);
     return () => observer.disconnect();
   }, [reducedMotion, tooShort]);

@@ -46,7 +46,10 @@ const satoshi = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Alice Guo",
+  title: {
+    default: "alice guo product design portfolio",
+    template: "%s | alice guo product design portfolio",
+  },
   description: "Alice Guo — product designer and design engineer, San Diego.",
 };
 
