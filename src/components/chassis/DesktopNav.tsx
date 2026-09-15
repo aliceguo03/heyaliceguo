@@ -225,6 +225,17 @@ export function DesktopNav({ projects }: { projects: Project[] }) {
                         : "group flex items-center gap-lg text-mono-header font-mono text-light-gray transition-colors duration-200 ease-standard hover:text-pure-white"
                     }
                   >
+                    {/* Session R1.1 Part C: checked, not assumed. This
+                        dropdown's own reference frame (432:4563, "state=nav
+                        expanded") draws the long form — F3GLOBAL, JPMORGAN
+                        CHASE, GOOGLE GEMINICUT, UC SAN DIEGO BFS BLINK — so
+                        project.name is correct here. MobileNav's switch to
+                        footerLabel was a real fix for a real divergence (its
+                        own reference frame, 938:4820, draws the short form,
+                        because the long form was wrapping onto two lines in
+                        that narrower panel) — it doesn't generalize to this
+                        607-695px pill, which has never had a wrapping
+                        problem. Don't "fix" this to match MobileNav. */}
                     {project.name}
                     <span
                       aria-hidden="true"
