@@ -1,22 +1,26 @@
 import type { StatusKind } from "@/components/ui/StatusPill";
 
-// Single source for all nine projects. Feeds three consumers: the homepage
-// (FEATURED_PROJECTS, four cards), the WORK nav dropdown (all nine, `name`),
-// and the footer link columns (all nine, `footerLabel`). Only the four
-// featured projects have case-study data — role/timeline/type/color/media —
-// since the other five have no case-study page yet.
+// Single source for all nine projects. `PROJECTS` never shrinks — restoring
+// a paused project means adding its case-study content file and nothing
+// else here. Every UI surface (WORK nav dropdown, footer link column,
+// generateStaticParams, NEXT PROJECT wrap) actually renders `LIVE_PROJECTS`
+// — the subset with a finished case study — which lives in
+// `content/liveProjects.ts`, not here: that file imports CASE_STUDIES
+// (~50KB of case-study prose), and this module is imported by Nav.tsx and
+// Footer.tsx, client components in the root layout. Re-exporting the
+// derived list from here was measured to leak that ~50KB into the shared
+// client bundle on every page; keeping the two files separate keeps this
+// module (and everything that imports it) case-study-content-free.
 //
 // `name` and `footerLabel` are deliberately different strings per project,
 // not a casing transform of one another (e.g. "JPMORGAN CHASE" vs "Chase",
 // "HOMEWORK" vs "hoMEwork") — both are rendered verbatim, with no
 // text-transform applied by any consumer.
 //
-// `href` is `/work/${slug}` on every entry (the `/work/[slug]` route now
-// exists — build step 9 landed with F3Global and Chase). A slug with no
-// case-study entry in CASE_STUDIES still resolves: work/[slug]/page.tsx
-// renders the CLAUDE.md stub (title only) for it. Stored rather than
-// computed at each call site since it's read verbatim by both Nav's WORK
-// dropdown and Footer's project columns.
+// `href` is `/work/${slug}` on every entry. A slug with no entry in
+// CASE_STUDIES is filtered out of LIVE_PROJECTS and 404s at
+// work/[slug]/page.tsx rather than rendering a stub — see that file's own
+// comment.
 export type Project = {
   slug: string;
   number: string; // '01'..'09', matches array order

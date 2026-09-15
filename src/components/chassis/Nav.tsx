@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type FocusEvent } from "react";
-import { PROJECTS } from "@/content/projects";
+import type { Project } from "@/content/projects";
 import { useActiveRoute, useActiveProjectSlug } from "@/lib/useActiveRoute";
 import { MailButton, LinkedinLink, useCopyEmail } from "@/components/ui/ContactLinks";
 
@@ -38,7 +38,11 @@ function CaretDownIcon({ className }: { className?: string }) {
   );
 }
 
-export function Nav() {
+// `projects` is LIVE_PROJECTS (content/liveProjects.ts), computed
+// server-side in layout.tsx and passed down as a plain prop — see that
+// file's own comment on why this component doesn't import PROJECTS
+// directly.
+export function Nav({ projects }: { projects: Project[] }) {
   const pathname = usePathname();
   const { isHome, isWork, isAbout } = useActiveRoute();
   // Shared with Footer.tsx — see useActiveRoute.ts's own comment.
@@ -191,7 +195,7 @@ export function Nav() {
 
         {open && (
           <ul id="nav-work-menu" className="flex flex-col gap-sm pl-lg">
-            {PROJECTS.map((project) => {
+            {projects.map((project) => {
               // The current project reads permanently in --color-pure-white
               // (#F0F0F0) — the same color every item already brightens to
               // on hover, i.e. "ink's dark-mode counterpart" for text: the
