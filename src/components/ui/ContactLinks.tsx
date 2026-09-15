@@ -112,10 +112,16 @@ export function MailButton({
   copied,
   onClick,
   className,
+  iconClassName = "size-icon",
 }: {
   copied: boolean;
   onClick: () => void;
   className: string;
+  // Session R1: the mobile nav takeover and mobile footer grow these
+  // glyphs to size-icon-touch (Figma 935:4778, 943:5253) while every other
+  // instance stays size-icon — so this needs to be overridable, not just
+  // relabeled, since the two sizes coexist on the same page.
+  iconClassName?: string;
 }) {
   const [hovered, setHovered] = useState(false);
   const cursorLabel = useCursorLabel();
@@ -137,12 +143,18 @@ export function MailButton({
       aria-label={`Copy email address ${EMAIL} to clipboard`}
       className={className}
     >
-      <EnvelopeIcon className="size-icon" />
+      <EnvelopeIcon className={iconClassName} />
     </button>
   );
 }
 
-export function LinkedinLink({ className }: { className: string }) {
+export function LinkedinLink({
+  className,
+  iconClassName = "size-icon",
+}: {
+  className: string;
+  iconClassName?: string;
+}) {
   const [hovered, setHovered] = useState(false);
   const cursorLabel = useCursorLabel();
 
@@ -164,7 +176,7 @@ export function LinkedinLink({ className }: { className: string }) {
       onPointerLeave={() => setHovered(false)}
       className={className}
     >
-      <LinkedinIcon className="size-icon" />
+      <LinkedinIcon className={iconClassName} />
     </a>
   );
 }

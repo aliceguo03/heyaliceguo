@@ -136,6 +136,12 @@
   /* Icon glyphs — mail, LinkedIn, hero + footer */
   --spacing-icon: 26px;
 
+  /* Contact icons only, mobile nav takeover + mobile footer (Figma
+     935:4778, 943:5253) — those two frames grow the mail/LinkedIn glyphs
+     26 -> 36, but leave the hero's bio-tag icons at 26 on the very same
+     frames, so this can't just override --spacing-icon. Session R1. */
+  --spacing-icon-touch: 36px;
+
   /* Page-edge gutter, read through the alias below. Session R1 — see the
      @media block near the bottom of this file for the three-step ramp
      (20 / 30 / 50) this resolves to. Not itself set here; @theme can only
