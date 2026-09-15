@@ -17,3 +17,12 @@ export const NAV_FRAME_GAP = 12;
 // The sticky offset every nav-adjacent pin uses: clears the nav, then this
 // gap on top of it.
 export const STICKY_TOP = NAV_CLEARANCE + NAV_FRAME_GAP;
+
+// Session R1.1 Part C. The mobile takeover panel (MobileNav.tsx) sits 10px
+// under the hamburger, not NAV_FRAME_GAP's 12 — 988:7255/935:4742: panel
+// top y=104, trigger y=30 + h=64 = 94. A separate constant on purpose:
+// NAV_FRAME_GAP is shared with About's frame pin and the case-study info
+// panel, both of which really do measure Figma's padding/small (12), so a
+// 12->10 edit there would move two things that were never wrong.
+export const MOBILE_PANEL_GAP = 10;
+export const MOBILE_PANEL_TOP = NAV_CLEARANCE + MOBILE_PANEL_GAP; // 104

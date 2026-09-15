@@ -8,17 +8,31 @@ import type { Project } from "@/content/projects";
 import { useActiveRoute, useActiveProjectSlug } from "@/lib/useActiveRoute";
 import { MailButton, LinkedinLink, useCopyEmail } from "@/components/ui/ContactLinks";
 import { EASE, DUR, usePrefersReducedMotion } from "@/lib/motion";
-import { STICKY_TOP } from "./navGeometry";
+import { MOBILE_PANEL_TOP } from "./navGeometry";
 
 const RESUME_HREF = "/resume.pdf";
 
 // Rest-state bar geometry for the hamburger glyph (Figma 935:4580's "nav
-// icon": a 21x8 box, two lines, --color-dark-gray). Stroke weight isn't in
-// Figma's metadata (a Line node reports 0 height) — 2px is this session's
-// own estimate, flagged rather than treated as measured.
+// icon": a 21x8 box, two lines, --color-dark-gray). Session R1.1 Part C:
+// weight and cap were both re-measured from one read, get_design_context's
+// exported glyph for the closed state (935:4743's own rendered nav icon,
+// not the zero-height Line node metadata reports) —
+// `stroke-width="2" stroke-linecap="round"` — so 2px was already right and
+// round caps were missing. BAR_GAP is the centerline-to-centerline distance
+// (8, not the 6 this read replaces) — it is NOT the SVG's own layout
+// height. Figma's icon frame itself measures 8px tall with the two lines
+// sitting right at its top and bottom edges (y=0 and y=8); a 2px round-
+// capped stroke centered on each line bleeds 1px past each edge, same as
+// it does in Figma, rather than needing the box itself to grow. Keeping
+// the SVG's laid-out box at BAR_GAP (not BAR_GAP + BAR_HEIGHT) matters
+// beyond fidelity to the source frame: this button has no explicit height
+// of its own — it sums to Figma's 64px nav frame only because its padding
+// tokens (p-sm*2 + py-btn-y*2 + icon height = 24+32+8 = 64) happen to add
+// up that way, so growing the icon's own box would have silently regrown
+// the button and eaten back the MOBILE_PANEL_GAP fix above it.
 const BAR_WIDTH = 21;
 const BAR_HEIGHT = 2;
-const BAR_GAP = 6; // top bar's y=0, bottom bar's y=BAR_HEIGHT+BAR_GAP=8 — matches the 8px box
+const BAR_GAP = 8;
 
 // Two bars rotating to an X — CLAUDE.md's mobile-nav carve-out asks for
 // exactly this, and there's no Figma frame for the open state to match
@@ -26,27 +40,52 @@ const BAR_GAP = 6; // top bar's y=0, bottom bar's y=BAR_HEIGHT+BAR_GAP=8 — mat
 // for the selected-work mechanic's layering). Hand-authored rects, not the
 // remote asset get_design_context returned for the closed glyph — same
 // precedent as DesktopNav's CaretDownIcon: a two-line glyph isn't real
-// vector data worth committing a 7-day-expiring URL for.
+// vector data worth committing a 7-day-expiring URL for. rx={BAR_HEIGHT/2}
+// gives each rect fully rounded short edges — a pill, visually identical
+// to the exported glyph's round-linecap stroke — without the transform-
+// origin complications an SVG <line>'s own coordinate geometry would add
+// to the rotation below. Each rect's native y stays 0 (top-left corner);
+// `y` below is a translate moving the rect's own CENTER (not its top
+// edge) to the target position, so REST_TOP/REST_BOTTOM/OPEN_Y are all
+// expressed as "where the bar's center should sit," offset by half the
+// bar's own height to convert from that native top-left origin.
+const REST_TOP_Y = -BAR_HEIGHT / 2; // bar center at y=0
+const REST_BOTTOM_Y = BAR_GAP - BAR_HEIGHT / 2; // bar center at y=BAR_GAP
+const OPEN_Y = BAR_GAP / 2 - BAR_HEIGHT / 2; // both bars cross at the box's own center
+
 function HamburgerIcon({ open, reducedMotion }: { open: boolean; reducedMotion: boolean }) {
   const transition = { duration: reducedMotion ? 0 : DUR.hover, ease: EASE };
   return (
-    <svg width={BAR_WIDTH} height={BAR_GAP + BAR_HEIGHT} viewBox={`0 0 ${BAR_WIDTH} ${BAR_GAP + BAR_HEIGHT}`} aria-hidden="true">
+    // overflow-visible: a 21px bar rotated 45deg needs +-8.13px of vertical
+    // room about its center to clear the box — an SVG element's UA-default
+    // overflow:hidden was clipping roughly the top/bottom third of each
+    // stroke in the open state, and (see above) the rest state's own
+    // stroke bleed needs the same treatment rather than a taller box.
+    <svg
+      width={BAR_WIDTH}
+      height={BAR_GAP}
+      viewBox={`0 0 ${BAR_WIDTH} ${BAR_GAP}`}
+      className="overflow-visible"
+      aria-hidden="true"
+    >
       <motion.rect
         x="0"
         width={BAR_WIDTH}
         height={BAR_HEIGHT}
+        rx={BAR_HEIGHT / 2}
         fill="var(--color-dark-gray)"
         style={{ transformOrigin: "center" }}
-        animate={open ? { y: BAR_GAP / 2, rotate: 45 } : { y: 0, rotate: 0 }}
+        animate={open ? { y: OPEN_Y, rotate: 45 } : { y: REST_TOP_Y, rotate: 0 }}
         transition={transition}
       />
       <motion.rect
         x="0"
         width={BAR_WIDTH}
         height={BAR_HEIGHT}
+        rx={BAR_HEIGHT / 2}
         fill="var(--color-dark-gray)"
         style={{ transformOrigin: "center" }}
-        animate={open ? { y: BAR_GAP / 2, rotate: -45 } : { y: BAR_GAP, rotate: 0 }}
+        animate={open ? { y: OPEN_Y, rotate: -45 } : { y: REST_BOTTOM_Y, rotate: 0 }}
         transition={transition}
       />
     </svg>
@@ -178,7 +217,7 @@ export function MobileNav({ projects }: { projects: Project[] }) {
             // (HOME / WORK+list / ABOUT / RESUMÉ / icons) are gap-md (20)
             // apart, not gap-lg.
             className="fixed left-page-x right-page-x flex flex-col gap-md rounded-card bg-ink px-lg py-md"
-            style={{ top: STICKY_TOP }}
+            style={{ top: MOBILE_PANEL_TOP }}
             initial={{ opacity: 0, y: reducedMotion ? 0 : -16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: reducedMotion ? 0 : -16, pointerEvents: "none" }}
