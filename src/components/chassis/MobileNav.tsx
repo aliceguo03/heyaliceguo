@@ -141,7 +141,11 @@ export function MobileNav({ projects }: { projects: Project[] }) {
 
   return (
     <nav aria-label="Main" className="sticky top-0 z-50 block h-nav-height tablet:hidden">
-      <div className="flex justify-end px-page-x pt-sm">
+      {/* Figma's mobile "navigation" frame (988:7298) sits the trigger
+          bottom-aligned in the 94px nav band (y=30, height=64: 30+64=94 —
+          pt-sm's 12 sat it 18px high). pt-lg (30) matches the frame's own
+          top offset exactly. */}
+      <div className="flex justify-end px-page-x pt-lg">
         <button
           ref={buttonRef}
           type="button"
@@ -163,7 +167,14 @@ export function MobileNav({ projects }: { projects: Project[] }) {
           <motion.div
             id="mobile-nav-panel"
             ref={panelRef}
-            className="fixed left-lg right-lg flex flex-col gap-lg rounded-card bg-ink p-lg"
+            // Re-measured against 938:4820 (session R1.1): the panel's own
+            // side inset tracks the page-x ramp, not a flat 30 — this panel
+            // only ever renders below --breakpoint-tablet, comfortably
+            // inside the ramp's 20px (<1024) step. Padding is 30 horizontal
+            // / 20 vertical, not a uniform 30; and the five top-level blocks
+            // (HOME / WORK+list / ABOUT / RESUMÉ / icons) are gap-md (20)
+            // apart, not gap-lg.
+            className="fixed left-page-x right-page-x flex flex-col gap-md rounded-card bg-ink px-lg py-md"
             style={{ top: STICKY_TOP }}
             initial={{ opacity: 0, y: reducedMotion ? 0 : -16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -180,13 +191,20 @@ export function MobileNav({ projects }: { projects: Project[] }) {
                   label to toggle (unlike DesktopNav's WORK, which is a real
                   button). */}
               <span className={`${TOP_ITEM} ${linkColor(isWork)}`}>WORK</span>
-              <ul className="flex flex-col gap-sm">
+              {/* gap-s (8), not gap-sm (12) — 938:4820's rows sit 29px apart
+                  with a 21px line height, an 8px gap. footerLabel, not
+                  name: the reference frame's own text ("f3global", "chase",
+                  "blink"...) is the short form, not the long descriptive
+                  name (e.g. "UC SAN DIEGO BFS BLINK") the card heading and
+                  desktop's own dropdown use — that long form is what was
+                  wrapping onto two lines. */}
+              <ul className="flex flex-col gap-s">
                 {projects.map((project) => {
                   const isActive = project.slug === activeSlug;
                   return (
                     <li key={project.slug} className="px-md">
                       <Link href={project.href} className={`${SUB_ITEM} ${linkColor(isActive)}`}>
-                        {project.name}
+                        {project.footerLabel}
                       </Link>
                     </li>
                   );

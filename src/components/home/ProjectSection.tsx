@@ -185,9 +185,19 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
   // geometry. Reuses ProjectCard (itself Frame > Tile > Content) rather
   // than a second hand-written layout — no card geometry, styling, or
   // content exists twice between this branch and the mechanic below.
+  //
+  // sectionRef still lands on this branch's own root, even though nothing
+  // here reads stripY. useScroll (above, unconditionally called — rules of
+  // hooks) throws "Target ref is defined but not hydrated" if its target
+  // mounts pointing at nothing: harmless on a hard load (SSR/hydration both
+  // guess the mechanic branch per useViewportBelow's getServerSnapshot, so
+  // the ref attaches once before this branch can ever render), but real on
+  // a client-side navigation that mounts straight into this branch — e.g.
+  // /about -> / below MIN_MECHANIC_VIEWPORT_W. Attaching the ref here is a
+  // no-op for this tree's own rendering and costs nothing.
   if (reducedMotion || tooSmall) {
     return (
-      <div className="px-page-x pt-xl pb-lg">
+      <div ref={sectionRef} className="px-page-x pt-xl pb-lg">
         <div className="mx-auto flex max-w-page flex-col gap-md">
           <ScrollReveal as="div">
             <SectionLabel id="selected-work">SELECTED WORK.</SectionLabel>

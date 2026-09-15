@@ -5,6 +5,12 @@ import { useRef, useState, type PointerEvent } from "react";
 import { animate, motion, useMotionValue, useTransform, type MotionValue } from "motion/react";
 import { DRAG, DUR, EASE, PHOTO_EXIT, cubicBezier, usePrefersReducedMotion } from "@/lib/motion";
 
+// Which geometry set is active is passed in as a prop (`mobile`, from
+// Hero.tsx's own useViewportBelow check) rather than read here directly —
+// see Hero.tsx's own comment on why: Hero already needs that boolean for
+// the photo cell wrapper's structure, so this reuses it instead of a
+// second, independent subscription to the same media query.
+
 // The exit path's per-segment easing. exitProgress itself (below) is driven
 // linearly in wall-clock time — it's the *input* to a keyframe remapping,
 // not the motion itself — so EASE has to be applied here, inside each
@@ -53,6 +59,25 @@ const SLOTS = [
   { x: 51.65, y: -6.35, rotate: 3.4, scale: 0.81 }, // back, hidden — coincident with the above
 ] as const;
 
+// Mobile ("hero home", 988:7297/988:7308) is a genuinely different fan, not
+// a proportional scale of the desktop one above — the ratios don't line up
+// (mid's scale is 0.929 here vs desktop's clean 0.9; back isn't mid², unlike
+// desktop's 0.9/0.81 progression), so these are re-derived the same way the
+// desktop comment above describes: centre_i = the design-context response's
+// own left/top/size percentages resolved against the 240x212 container,
+// offset = centre_i - centre_front, scale = size_i / PHOTO_BOX_MOBILE.
+// Rotations (1.77/3.4deg) do carry over exactly — a stylistic constant of
+// the fan look, not a function of container size.
+const STACK_SIZE_MOBILE = { width: 240, height: 212 };
+const PHOTO_BOX_MOBILE = 212;
+
+const SLOTS_MOBILE = [
+  { x: 0, y: 0, rotate: 0, scale: 1 }, // front
+  { x: 22.18, y: -4.71, rotate: 1.77, scale: 0.929 }, // mid
+  { x: 43.04, y: -3.04, rotate: 3.4, scale: 0.858 }, // back, visible
+  { x: 43.04, y: -3.04, rotate: 3.4, scale: 0.858 }, // back, hidden — coincident with the above
+] as const;
+
 const PHOTOS = [
   {
     src: "/photos/photo-01.jpg",
@@ -72,7 +97,11 @@ const PHOTOS = [
   },
 ] as const;
 
-type Slot = (typeof SLOTS)[number];
+// An explicit shape, not `(typeof SLOTS)[number]` — the mobile fan
+// (SLOTS_MOBILE, below) is a distinct set of literals, not interchangeable
+// with SLOTS' own literal union, and slotOf/PhotoLayer need to accept
+// either.
+type Slot = { x: number; y: number; rotate: number; scale: number };
 type Photo = (typeof PHOTOS)[number];
 
 // Which slot a given photo currently occupies, given which photo is front.
@@ -120,6 +149,7 @@ function PhotoLayer({
   photo,
   photoIndex,
   slot,
+  photoBox,
   isFrontSlot,
   isExitingThis,
   exitReleaseX,
@@ -132,6 +162,7 @@ function PhotoLayer({
   photo: Photo;
   photoIndex: number;
   slot: Slot;
+  photoBox: number;
   isFrontSlot: boolean;
   isExitingThis: boolean;
   exitReleaseX: number;
@@ -180,8 +211,8 @@ function PhotoLayer({
   const onExitPath = isExitingThis && !reducedMotion;
 
   const style = {
-    width: PHOTO_BOX,
-    height: PHOTO_BOX,
+    width: photoBox,
+    height: photoBox,
     borderRadius: `calc(var(--radius-card) / ${slot.scale})`,
     ...(onExitPath
       ? { x: exitX, y: exitY, rotate: exitRotate, scale: exitScale, opacity: exitOpacity, zIndex: exitZ }
@@ -213,7 +244,7 @@ function PhotoLayer({
         src={photo.src}
         alt={photo.alt}
         fill
-        sizes="256px"
+        sizes={`${photoBox}px`}
         className="object-cover"
         draggable={false}
         priority={photoIndex === 0}
@@ -223,8 +254,12 @@ function PhotoLayer({
   );
 }
 
-export function PhotoStack() {
+export function PhotoStack({ mobile = false }: { mobile?: boolean }) {
   const reducedMotion = usePrefersReducedMotion();
+
+  const stackSize = mobile ? STACK_SIZE_MOBILE : STACK_SIZE;
+  const photoBox = mobile ? PHOTO_BOX_MOBILE : PHOTO_BOX;
+  const slots = mobile ? SLOTS_MOBILE : SLOTS;
 
   const [front, setFront] = useState(0);
   // The one photo currently running the deal-left exit path, and the x it
@@ -322,7 +357,7 @@ export function PhotoStack() {
     setDragging(false);
 
     const delta = dragX.get();
-    const thresholdPx = DRAG.thresholdFraction * PHOTO_BOX;
+    const thresholdPx = DRAG.thresholdFraction * photoBox;
 
     if (delta <= -thresholdPx) {
       advance(delta);
@@ -363,11 +398,11 @@ export function PhotoStack() {
       onPointerUp={releaseDrag}
       onPointerCancel={releaseDrag}
       className="relative block cursor-pointer select-none"
-      style={{ ...STACK_SIZE, touchAction: "pan-y" }}
+      style={{ ...stackSize, touchAction: "pan-y" }}
     >
       {PHOTOS.map((photo, photoIndex) => {
         const slotIndex = slotOf(photoIndex, front);
-        const slot = SLOTS[slotIndex];
+        const slot = slots[slotIndex];
         const isFrontSlot = slotIndex === 0;
         const isExitingThis = exit !== null && exit.photo === photoIndex;
         // dragging OR springingBack: the style.x=dragX binding must stay in
@@ -382,6 +417,7 @@ export function PhotoStack() {
             photo={photo}
             photoIndex={photoIndex}
             slot={slot}
+            photoBox={photoBox}
             isFrontSlot={isFrontSlot}
             isExitingThis={isExitingThis}
             exitReleaseX={exitReleaseX}

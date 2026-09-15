@@ -278,6 +278,36 @@
   }
 }
 
+/* Hero geometry ramp. Session R1.1 — Figma "hero home" (988:7297), the
+   mobile home page's own hero, page "final". Below --breakpoint-tablet the
+   hero is a single centred column (wordmark, photo, then the roles+button
+   block) instead of the >=744 two-column row (Hero.tsx's own gap/direction
+   classes already switch on `tablet:`; only the pixel widths below can't be
+   expressed as a Tailwind utility, same reason the page-x ramp above can't
+   be). --hero-content-w governs both the outer column and the inner
+   photo+roles row (Hero.tsx uses the same var at both levels, mirroring how
+   both levels shared one HERO_WIDTH constant before this ramp existed);
+   "auto" below 744 lets each child size and center itself rather than
+   forcing a row width mobile has no fixed value for. --hero-roles-w is the
+   bio+button column's own width — 263 (mobile) vs 320 (desktop), both
+   Figma-measured, not a scaled copy of each other. --hero-button-height is
+   VIEW MY WORK's forced height (Button.tsx) — 53 at mobile, still 63 at
+   desktop; Button.tsx's own comment explains why desktop's isn't left to
+   derive from content. Thresholds must match --breakpoint-tablet above —
+   same @media-can't-read-a-custom-property constraint as the ramp above. */
+:root {
+  --hero-content-w: auto;
+  --hero-roles-w: 263px;
+  --hero-button-height: 53px;
+}
+@media (width >= 744px) {
+  :root {
+    --hero-content-w: 657px;
+    --hero-roles-w: 320px;
+    --hero-button-height: 63px;
+  }
+}
+
 /* Cursor label bubble (CursorLabel.tsx). Not in @theme — Tailwind v4 has no
    z-* theme namespace to put a token in, and z-[60] is a banned arbitrary
    value (CLAUDE.md hard rule 2) — so this is a plain CSS var, read via
