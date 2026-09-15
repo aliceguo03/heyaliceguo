@@ -560,10 +560,18 @@ async function main() {
       await context.close();
     }
 
-    // ---- Check 6: fallback (reduced motion, and short viewport) -----------
+    // ---- Check 6: fallback (reduced motion, and short/narrow viewport) ----
+    // Session R1.1 Part C added the two tablet/mobile-width configs and the
+    // per-card containment assertion below: before that fix, ProjectCard's
+    // white panel had no floor keeping it off its gradient frame's edge —
+    // the residual centering inset hit zero at ~1195px and stayed there
+    // down to 744, entirely unasserted by the original two (both >=1440)
+    // configs here.
     for (const config of [
       { name: "reduced motion", viewport: { width: 1710, height: 960 }, reducedMotion: "reduce" },
       { name: "short viewport (1440x760)", viewport: { width: 1440, height: 760 }, reducedMotion: null },
+      { name: "tablet width (744)", viewport: { width: 744, height: 1000 }, reducedMotion: null },
+      { name: "phone width (375)", viewport: { width: 375, height: 1000 }, reducedMotion: null },
     ]) {
       const context = await browser.newContext({
         viewport: config.viewport,
@@ -590,6 +598,28 @@ async function main() {
         pass: cardCount === 4,
         gating: true,
         detail: `count=${cardCount}`,
+      });
+
+      // Each card's white panel must sit strictly inside its own gradient
+      // frame — never touching, at any of these widths. --card-inset-x
+      // (globals.css) is what this guards; a 1px tolerance absorbs subpixel
+      // rounding, not a real gap collapse.
+      const insets = await page.evaluate(() => {
+        const panels = document.querySelectorAll('[class*="rounded-panel"]');
+        return Array.from(panels).map((panel) => {
+          const frame = panel.closest("article");
+          if (!frame) return null;
+          const p = panel.getBoundingClientRect();
+          const f = frame.getBoundingClientRect();
+          return { left: p.left - f.left, right: f.right - p.right };
+        });
+      });
+      const contained = insets.every((i) => i && i.left >= 1 && i.right >= 1);
+      results.push({
+        name: `${config.name}: every card panel is inset from its frame edge`,
+        pass: contained,
+        gating: true,
+        detail: JSON.stringify(insets),
       });
 
       await context.close();

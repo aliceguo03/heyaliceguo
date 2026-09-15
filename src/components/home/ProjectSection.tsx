@@ -182,9 +182,12 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
   // narrower than MIN_MECHANIC_VIEWPORT_W (lib/motion.ts) — a stopgap so a
   // phone or tablet doesn't run this desktop mechanic in a space far
   // narrower than it was built for, ahead of a later session's fluid
-  // geometry. Reuses ProjectCard (itself Frame > Tile > Content) rather
-  // than a second hand-written layout — no card geometry, styling, or
-  // content exists twice between this branch and the mechanic below.
+  // geometry. Renders ProjectCard, which inlines its own frame/panel/
+  // content markup rather than composing ProjectFrame/ProjectTile/
+  // ProjectTileContent (the mechanic below does compose those three) — a
+  // stale claim of full leaf-sharing lived here before Session R1.1 Part C;
+  // ProjectCard.tsx's own header explains why it's a separate, fluid-scale
+  // stopgap instead.
   //
   // sectionRef still lands on this branch's own root, even though nothing
   // here reads stripY. useScroll (above, unconditionally called — rules of
