@@ -5,7 +5,7 @@ import { CarouselStage } from "./CarouselStage";
 import { CarouselTabs } from "./CarouselTabs";
 import { useCarouselScrub } from "../useCarouselScrub";
 import { MIN_CAROUSEL_VIEWPORT_H } from "../caseStudyGeometry";
-import { usePrefersReducedMotion, useViewportTooShort } from "@/lib/motion";
+import { usePrefersReducedMotion, useViewportBelow, MIN_MECHANIC_VIEWPORT_W } from "@/lib/motion";
 import type { Block } from "@/content/case-studies/types";
 
 type CarouselBlock = Extract<Block, { kind: "carousel" }>;
@@ -42,16 +42,19 @@ export function Carousel(props: DistributiveOmit<CarouselBlock, "kind">) {
 // the "P2 adds motion beside this, not instead of it" comment already on
 // the `carousel` block kind in content/case-studies/types.ts.
 //
-// Reduced motion, or a viewport shorter than MIN_CAROUSEL_VIEWPORT_H (the
+// Reduced motion, a viewport shorter than MIN_CAROUSEL_VIEWPORT_H (the
 // pinned stage can't fit in full — this is short of the 1440x760 reference
 // floor, so it's this design's normal rendering on a 13" Air, not an edge
-// case): no pin, no scrub, no crossfade. The same P1 stack renders
-// instead, reusing ProseFigure rather than a second hand-written layout —
-// one fallback, not two, same as ProjectSection.tsx and AboutSection.tsx.
+// case), or a viewport narrower than MIN_MECHANIC_VIEWPORT_W (lib/motion.ts
+// — a stopgap so a phone or tablet doesn't run this desktop pin in a space
+// far narrower than it was built for): no pin, no scrub, no crossfade. The
+// same P1 stack renders instead, reusing ProseFigure rather than a second
+// hand-written layout — one fallback, not two, same as ProjectSection.tsx
+// and AboutSection.tsx.
 function ScrubCarousel({ items }: { items: ScrubItems }) {
   const reducedMotion = usePrefersReducedMotion();
-  const tooShort = useViewportTooShort(MIN_CAROUSEL_VIEWPORT_H);
-  const disabled = reducedMotion || tooShort;
+  const tooSmall = useViewportBelow(MIN_CAROUSEL_VIEWPORT_H, MIN_MECHANIC_VIEWPORT_W);
+  const disabled = reducedMotion || tooSmall;
 
   // Always called (rules of hooks) — a no-op internally whenever the
   // fallback below renders instead; see useCarouselScrub.ts's own comment.

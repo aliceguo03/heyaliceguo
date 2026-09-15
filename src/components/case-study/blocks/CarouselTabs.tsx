@@ -8,7 +8,7 @@ import { Prose } from "./Prose";
 import { Figure } from "./Figure";
 import { SelectTab } from "@/components/ui/SelectTab";
 import { MIN_CAROUSEL_TABS_VIEWPORT_H } from "../caseStudyGeometry";
-import { DUR, EASE, usePrefersReducedMotion, useViewportTooShort } from "@/lib/motion";
+import { DUR, EASE, usePrefersReducedMotion, useViewportBelow } from "@/lib/motion";
 import type { Block } from "@/content/case-studies/types";
 
 type TabsCarouselItem = Extract<Block, { kind: "carousel"; mode: "tabs" }>["items"][number];
@@ -48,7 +48,10 @@ export function CarouselTabs({ items }: { items: TabsCarouselItem[] }) {
   // measured threshold, the 13" Air floor included), the tab row + heading +
   // paragraph + video well don't fit below the nav without scrolling. The
   // heading (Statement) drops; tab row, paragraph, and video well stay.
-  const tightViewport = useViewportTooShort(MIN_CAROUSEL_TABS_VIEWPORT_H);
+  // Height-only, no width floor: this drops one line of content rather
+  // than disabling a mechanic, so Session R0's MIN_MECHANIC_VIEWPORT_W
+  // guard doesn't apply.
+  const tightViewport = useViewportBelow(MIN_CAROUSEL_TABS_VIEWPORT_H);
   const baseId = useId();
   const stageRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);

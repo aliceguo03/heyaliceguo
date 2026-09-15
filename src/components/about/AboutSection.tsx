@@ -5,7 +5,7 @@ import { AboutFallback } from "./AboutFallback";
 import { TextColumn } from "./TextColumn";
 import { PhotoColumn } from "./PhotoColumn";
 import { useAboutPin } from "./useAboutPin";
-import { usePrefersReducedMotion, useViewportTooShort } from "@/lib/motion";
+import { usePrefersReducedMotion, useViewportBelow, MIN_MECHANIC_VIEWPORT_W } from "@/lib/motion";
 import {
   MIN_ABOUT_VIEWPORT_H,
   frameHeightCss,
@@ -20,18 +20,21 @@ import {
 // 523:7013) — session 5B's pin. See CLAUDE.md's session-5b plan for the
 // full derivation.
 //
-// Reduced motion, or a viewport shorter than MIN_ABOUT_VIEWPORT_H (the
-// frame plus its pin can't fit PHOTO_MIN_H of photo — this is short of the
+// Reduced motion, a viewport shorter than MIN_ABOUT_VIEWPORT_H (the frame
+// plus its pin can't fit PHOTO_MIN_H of photo — this is short of the
 // 1440x760 reference viewport, so it's normal rendering on some real
-// laptops, not just an edge case): no pin, no clip, no transform, no
-// listeners — AboutFallback renders instead, reusing the same
-// TextBlock/PhotoCaption leaves rather than a second hand-written layout
-// for the parts that ARE shared. It is not a compressed version of the
-// pinned view — see AboutFallbackRow's own comment.
+// laptops, not just an edge case), or a viewport narrower than
+// MIN_MECHANIC_VIEWPORT_W (lib/motion.ts — a stopgap so a phone or tablet
+// doesn't run this desktop pin in a space far narrower than it was built
+// for): no pin, no clip, no transform, no listeners — AboutFallback
+// renders instead, reusing the same TextBlock/PhotoCaption leaves rather
+// than a second hand-written layout for the parts that ARE shared. It is
+// not a compressed version of the pinned view — see AboutFallbackRow's own
+// comment.
 export function AboutSection() {
   const reducedMotion = usePrefersReducedMotion();
-  const tooShort = useViewportTooShort(MIN_ABOUT_VIEWPORT_H);
-  const disabled = reducedMotion || tooShort;
+  const tooSmall = useViewportBelow(MIN_ABOUT_VIEWPORT_H, MIN_MECHANIC_VIEWPORT_W);
+  const disabled = reducedMotion || tooSmall;
 
   // Always called (rules of hooks) — a no-op internally whenever the
   // fallback below renders instead; see useAboutPin.ts's own comment.

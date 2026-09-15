@@ -58,7 +58,7 @@ export function useCarouselScrub(itemCount: number, disabled: boolean) {
   // Seeded with the Figma reference height so the very first paint's
   // spacer is already close to correct, corrected once the real
   // measurement lands — the same "assume the common case, correct after
-  // mount" shape usePrefersReducedMotion/useViewportTooShort use for their
+  // mount" shape usePrefersReducedMotion/useViewportBelow use for their
   // own getServerSnapshot.
   const [stageHeight, setStageHeight] = useState(CAROUSEL_STAGE_H);
 

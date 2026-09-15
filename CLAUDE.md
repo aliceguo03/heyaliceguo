@@ -321,7 +321,9 @@ viewport's worth of scrolling (see the buttons-gap paragraph below).
 **Centering.** The fixed card is centered with a flexbox wrapper (`absolute inset-0
 flex justify-center`) spanning the full pinned stage — not a pixel offset against a
 reference width. Card center equals viewport center at any width; verified in
-`scripts/verify-project-section.mjs` at 1710/1440/1200px.
+`scripts/verify-project-section.mjs` at 1710/1440px (1200px dropped from that check
+in Session R0 — below `MIN_MECHANIC_VIEWPORT_W`, the mechanic no longer renders
+there at all; see below).
 
 All geometry (`FRAME_H`, `GUTTER`, `TILE_W/H`, the card's insets, the banner's own
 height, and everything derived from them — `PITCH`, `TRAVEL`, `FRAME_PIN`, `STAGE_H`,
@@ -363,6 +365,17 @@ rendering on a 13" Air, not an edge case), `ProjectSection` renders four `Projec
 stacked in normal flow instead: no pin, no clip, no transform. This is the
 pre-mechanic markup, reached by reusing the same three leaves rather than a second
 hand-written layout.
+
+Session R0 added a second, independent trigger for the same fallback: the viewport
+being narrower than `MIN_MECHANIC_VIEWPORT_W` (1440px — this site's standing desktop
+floor everywhere else, `lib/motion.ts`). A 430×932 phone or a 1366×1024 iPad Pro in
+landscape cleared the height-only threshold above and ran the full pinned,
+scroll-hijacking desktop mechanic in a space far narrower than it was built for. This
+is a stopgap, not a design decision — a later session replaces it with real fluid
+geometry so the mechanic can run on phones; don't treat 1440 as permanent here. The
+same width floor was added to the About pin's and the GeminiCut scrub carousel's
+fallback gates (`MIN_ABOUT_VIEWPORT_H`, `MIN_CAROUSEL_VIEWPORT_H`) for the same
+reason — see their own components.
 
 **Focus.** All four content blocks stay in the DOM and tabbable — never `inert`, which
 would remove off-window projects from the accessibility tree entirely. Tabbing into a
