@@ -181,11 +181,15 @@ export function Footer({ projects }: { projects: Project[] }) {
           </div>
         </footer>
 
-        {/* 744-1023 (967:6291) — quote drops, clock relocates into row 1,
-            stacked on the right; shell padding matches <744, not the
-            uniform p-lg desktop uses (re-measured against the actual
-            744px frame rather than assumed). */}
-        <footer className="hidden flex-col gap-4xl px-md py-lg tablet:flex laptop:hidden">
+        {/* 499-1023 (967:6291 at 744, the widest and only frame this tier
+            has — Session R1.1 Part B extended its own render range down to
+            499, this tier's actual content-derived floor, well below any
+            Figma sample point; see globals.css's "Breakpoints" comment).
+            Quote drops, clock relocates into row 1, stacked on the right;
+            shell padding matches <499, not the uniform p-lg desktop uses
+            (re-measured against the actual 744px frame rather than
+            assumed). */}
+        <footer className="hidden flex-col gap-4xl px-md py-lg footer:flex laptop:hidden">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-lg">
               <p className="flex items-center gap-sm text-mono font-mono text-pure-white">
@@ -210,11 +214,13 @@ export function Footer({ projects }: { projects: Project[] }) {
           {linkColumns}
         </footer>
 
-        {/* <744 (943:5247) — three rows: circle-back spans the full width
-            (justify-between, not the gap-lg cluster above), links, then
-            the clock as its own row, unstacked (city left, time right).
-            Contact icons grow to size-icon-touch here only. */}
-        <footer className="flex flex-col gap-4xl px-md py-lg tablet:hidden">
+        {/* <499 (943:5247 at 430 — again the widest sample point, not the
+            boundary itself; Session R1.1 Part B) — three rows: circle-back
+            spans the full width (justify-between, not the gap-lg cluster
+            above), links, then the clock as its own row, unstacked (city
+            left, time right). Contact icons grow to size-icon-touch here
+            only. */}
+        <footer className="flex flex-col gap-4xl px-md py-lg footer:hidden">
           <div className="flex w-full items-center justify-between">
             <p className="flex items-center gap-sm text-mono font-mono text-pure-white">
               LET&rsquo;S CIRCLE BACK <span aria-hidden="true">→</span>

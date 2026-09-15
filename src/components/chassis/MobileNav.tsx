@@ -140,7 +140,10 @@ export function MobileNav({ projects }: { projects: Project[] }) {
   }
 
   return (
-    <nav aria-label="Main" className="sticky top-0 z-50 block h-nav-height tablet:hidden">
+    // nav:, not tablet: — see DesktopNav.tsx's matching nav:block and
+    // globals.css's "Breakpoints" comment: 644 is this pill's own
+    // content-derived floor, independent of the mobile type step's 744.
+    <nav aria-label="Main" className="sticky top-0 z-50 block h-nav-height nav:hidden">
       {/* Figma's mobile "navigation" frame (988:7298) sits the trigger
           bottom-aligned in the 94px nav band (y=30, height=64: 30+64=94 —
           pt-sm's 12 sat it 18px high). pt-lg (30) matches the frame's own

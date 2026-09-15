@@ -108,7 +108,11 @@ export function DesktopNav({ projects }: { projects: Project[] }) {
       ref={navRef}
       aria-label="Main"
       onBlur={handleBlur}
-      className="sticky top-0 z-50 hidden h-nav-height tablet:block"
+      // nav:, not tablet: — the pill's own content-derived floor (644,
+      // globals.css "Breakpoints") is a different, independent number from
+      // the mobile type step's 744, not a reuse of it. See MobileNav.tsx's
+      // matching nav:hidden.
+      className="sticky top-0 z-50 hidden h-nav-height nav:block"
     >
       <div
         className={`absolute left-1/2 top-0 flex -translate-x-1/2 flex-col gap-lg pt-sm ${

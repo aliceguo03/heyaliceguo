@@ -54,21 +54,57 @@
   --text-stat--letter-spacing: 0;
 
   /* --- Breakpoints -------------------------------------------------------- */
-  /* Session R1. The site had zero responsive breakpoints before this —
-     confirmed via Figma: iPad mini (744x1133) is the widest frame still
-     drawn on desktop type and the desktop nav pill, so 744 is a min-width
-     floor for both, not the 768 the R0 handoff guessed. 1440 is not new —
-     it's MIN_MECHANIC_VIEWPORT_W (lib/motion.ts) restated as a Tailwind
-     breakpoint so tablet: variants and the pinned-mechanic gate agree by
-     construction. These generate `tablet:`/`laptop:`/`desktop:` variants;
-     Tailwind's own sm/md/lg/xl/2xl are left undefined — unused site-wide
-     (grep confirmed) and these three read better at call sites. NOTE: CSS
-     custom properties cannot appear inside a bare @media condition, so the
-     hand-written @media blocks below (padding ramp, mobile type step) repeat
-     these pixel values literally — keep them in sync by hand. */
+  /* Session R1. The site had zero responsive breakpoints before this. 1440
+     is not new — it's MIN_MECHANIC_VIEWPORT_W (lib/motion.ts) restated as a
+     Tailwind breakpoint so tablet: variants and the pinned-mechanic gate
+     agree by construction. Tailwind's own sm/md/lg/xl/2xl are left undefined
+     — unused site-wide (grep confirmed) and named variants read better at
+     call sites. NOTE: CSS custom properties cannot appear inside a bare
+     @media condition, so the hand-written @media blocks below (padding
+     ramp, mobile type step) repeat these pixel values literally — keep them
+     in sync by hand. */
   --breakpoint-tablet: 744px;
   --breakpoint-laptop: 1024px;
   --breakpoint-desktop: 1440px;
+
+  /* Session R1.1 Part B. R1 treated 744 (the widest Figma frame it had
+     drawn — iPad mini) as the switch point for the desktop nav pill, the
+     mobile type step, AND the footer's tablet/mobile split, all three,
+     because one number happened to be sitting there — a Figma sample point
+     standing in for three genuinely independent content-driven decisions.
+     These two are what the nav and the footer actually need, re-derived by
+     forcing each component's own markup to render at every width down from
+     its old gate and finding where its OWN content — not some other
+     component's — first breaks:
+
+     --breakpoint-footer (499): the tablet-tier footer (Footer.tsx, the
+     744-1023 variant) holds with no wrapped text all the way down to 499px;
+     at 498, "LET'S CIRCLE BACK" and "SAN DIEGO, CA" both wrap. It reaches
+     this far below 744 because the mobile type step (below) already shrinks
+     --text-mono for whatever's rendered under it, regardless of which
+     breakpoint shows that markup — headroom R1 never exercised because the
+     tablet tier was never asked to render there.
+
+     --breakpoint-nav (644): the desktop nav pill (DesktopNav.tsx) holds a
+     20px gutter each side down to 644px — NOT 703px, which is what "pill
+     width (662.83, >=744) + 40" naively gives. The pill's real width isn't
+     one number: it's 662.83 at desktop type, but the SAME mobile type step
+     that helps the footer above already shrinks it to 603.55 below 744,
+     independent of which nav is showing. 644 spends that headroom instead
+     of also moving the type step's own boundary (left untouched, a separate
+     decision) — the pill simply renders smaller in the 644-743 band it
+     newly occupies, same markup, same padding, no compression.
+
+     Neither of these moved the type step's or the hero's own 744 boundary —
+     both stay exactly where R1 put them. That's a deliberate asymmetry, not
+     an oversight: between 644 and 743 the desktop nav pill now sits above a
+     still-mobile-stacked hero. Both numbers are asserted, not just eyeballed
+     — scripts/verify-breakpoints.mjs checks each holds right up to its own
+     floor and breaks just below it. Re-derive again, the same way, if
+     either component's content ever changes — don't assume these numbers
+     survive a copy edit. */
+  --breakpoint-nav: 644px;
+  --breakpoint-footer: 499px;
 
   /* --- Color: backgrounds ---------------------------------------------- */
   --color-porcelain: #fefffd;
