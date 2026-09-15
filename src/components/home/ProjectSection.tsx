@@ -187,7 +187,7 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
   // content exists twice between this branch and the mechanic below.
   if (reducedMotion || tooSmall) {
     return (
-      <div className="px-xl pt-xl pb-lg">
+      <div className="px-page-x pt-xl pb-lg">
         <div className="mx-auto flex max-w-page flex-col gap-md">
           <ScrollReveal as="div">
             <SectionLabel id="selected-work">SELECTED WORK.</SectionLabel>
@@ -262,7 +262,7 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
             its top edge), which would desync every rest position from
             useProjectSnap's i*PITCH slots and from contentClipPath's `s`.
             This offset is what keeps that alignment exact. */}
-        <div className="absolute inset-x-0 px-xl" style={{ top: FRAME_PIN, height: FRAME_H, zIndex: 10 }}>
+        <div className="absolute inset-x-0 px-page-x" style={{ top: FRAME_PIN, height: FRAME_H, zIndex: 10 }}>
           <div className="mx-auto h-full max-w-page overflow-hidden rounded-card">
             <div style={{ transform: "translate3d(0, var(--strip-y), 0)", marginTop: -BUFFER }}>
               {projects.map((project, i) => (
@@ -365,7 +365,7 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
             Outside that inner box, y < FRAME_PIN has no L1/L2/L3 content at
             any width, so leaving it uncovered here just falls through to
             the page's own porcelain background — same color, no seam. */}
-        <div className="absolute inset-x-0 top-0 px-xl" style={{ height: FRAME_PIN, zIndex: 40 }}>
+        <div className="absolute inset-x-0 top-0 px-page-x" style={{ height: FRAME_PIN, zIndex: 40 }}>
           <div className="relative mx-auto h-full max-w-page bg-porcelain">
             <div className="absolute inset-x-0" style={{ top: NAV_H }}>
               <ScrollReveal as="div">

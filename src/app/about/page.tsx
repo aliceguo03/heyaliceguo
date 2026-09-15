@@ -15,7 +15,7 @@ export default function About() {
           Footer.tsx uses. AboutSection owns the centered frame itself
           (session 5B: the pin needs its own ref on that centering wrapper
           to measure scroll position off it). */}
-      <div className="px-xl pb-lg">
+      <div className="px-page-x pb-lg">
         <AboutSection />
       </div>
     </main>

@@ -53,6 +53,23 @@
   --text-stat--line-height: 100px;
   --text-stat--letter-spacing: 0;
 
+  /* --- Breakpoints -------------------------------------------------------- */
+  /* Session R1. The site had zero responsive breakpoints before this —
+     confirmed via Figma: iPad mini (744x1133) is the widest frame still
+     drawn on desktop type and the desktop nav pill, so 744 is a min-width
+     floor for both, not the 768 the R0 handoff guessed. 1440 is not new —
+     it's MIN_MECHANIC_VIEWPORT_W (lib/motion.ts) restated as a Tailwind
+     breakpoint so tablet: variants and the pinned-mechanic gate agree by
+     construction. These generate `tablet:`/`laptop:`/`desktop:` variants;
+     Tailwind's own sm/md/lg/xl/2xl are left undefined — unused site-wide
+     (grep confirmed) and these three read better at call sites. NOTE: CSS
+     custom properties cannot appear inside a bare @media condition, so the
+     hand-written @media blocks below (padding ramp, mobile type step) repeat
+     these pixel values literally — keep them in sync by hand. */
+  --breakpoint-tablet: 744px;
+  --breakpoint-laptop: 1024px;
+  --breakpoint-desktop: 1440px;
+
   /* --- Color: backgrounds ---------------------------------------------- */
   --color-porcelain: #fefffd;
   --color-ink: #0a0a0a;
@@ -118,6 +135,13 @@
 
   /* Icon glyphs — mail, LinkedIn, hero + footer */
   --spacing-icon: 26px;
+
+  /* Page-edge gutter, read through the alias below. Session R1 — see the
+     @media block near the bottom of this file for the three-step ramp
+     (20 / 30 / 50) this resolves to. Not itself set here; @theme can only
+     declare the utility-generating name, the value lives in :root so it can
+     change per breakpoint. */
+  --spacing-page-x: var(--page-x);
 
   /* Nav's own height, referenced by anything that pins beneath it */
   --spacing-nav-height: 94px;
@@ -197,6 +221,29 @@
   syntax: "<number>";
   inherits: true;
   initial-value: 0;
+}
+
+/* Page-edge gutter ramp. Session R1. Figma-measured at 1440/1024/744
+   (50/30/20 — NOT the 50/40/20 an earlier handoff doc guessed; 40px isn't a
+   spacing token and the 1024 frame measures 30, not 40). One variable, three
+   existing spacing tokens, so every page reads --spacing-page-x (px-page-x)
+   instead of the hardcoded px-xl the site used everywhere before this.
+   Case-study pages are explicitly out of scope and keep their own px-3xl.
+   Thresholds must match --breakpoint-laptop/-desktop above — @media
+   conditions can't reference a custom property, so these repeat the literal
+   px values by hand. */
+:root {
+  --page-x: var(--spacing-md); /* 20px, below 1024 */
+}
+@media (width >= 1024px) {
+  :root {
+    --page-x: var(--spacing-lg); /* 30px, 1024–1439 */
+  }
+}
+@media (width >= 1440px) {
+  :root {
+    --page-x: var(--spacing-xl); /* 50px, >=1440 — unchanged from pre-R1 */
+  }
 }
 
 /* Cursor label bubble (CursorLabel.tsx). Not in @theme — Tailwind v4 has no
@@ -317,22 +364,23 @@ html.lenis body {
   }
 }
 
-/* Fade the ticker's edges instead of clipping. Stops at --spacing-xl to
-   match the track's own horizontal inset, so the fade begins exactly where
-   the padding does. */
+/* Fade the ticker's edges instead of clipping. Stops at --spacing-page-x
+   (session R1: was --spacing-xl, a bare 50px, before the page gutter
+   became a ramp) to match the track's own horizontal inset at every
+   breakpoint, so the fade begins exactly where the padding does. */
 .ticker-fade {
   mask-image: linear-gradient(
     to right,
     transparent,
-    black var(--spacing-xl),
-    black calc(100% - var(--spacing-xl)),
+    black var(--spacing-page-x),
+    black calc(100% - var(--spacing-page-x)),
     transparent
   );
   -webkit-mask-image: linear-gradient(
     to right,
     transparent,
-    black var(--spacing-xl),
-    black calc(100% - var(--spacing-xl)),
+    black var(--spacing-page-x),
+    black calc(100% - var(--spacing-page-x)),
     transparent
   );
 }
