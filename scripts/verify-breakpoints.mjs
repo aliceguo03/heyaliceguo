@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 // Real-browser verification for the two content-derived breakpoints added in
-// Session R1.1 Part B: --breakpoint-footer (499) and --breakpoint-nav (644),
-// globals.css's "Breakpoints" comment. Run on demand with
+// Session R1.1 Part B: --breakpoint-footer and --breakpoint-nav (644),
+// globals.css's "Breakpoints" comment. --breakpoint-footer moved from 499 to
+// 519 in Session R1.1 Part C when the tablet footer's shell padding was
+// corrected to match Figma (see that comment) and cost the row 20px of
+// content width. Run on demand with
 // `node scripts/verify-breakpoints.mjs` — not wired into `build` or `test`.
 // Harness plumbing copied verbatim from verify-project-section.mjs.
 //
@@ -20,7 +23,7 @@ import { spawn } from "node:child_process";
 import { createServer } from "node:net";
 import { setTimeout as sleep } from "node:timers/promises";
 
-const FOOTER_BREAKPOINT = 499;
+const FOOTER_BREAKPOINT = 519;
 const NAV_BREAKPOINT = 644;
 const MIN_GUTTER = 20; // the page-x ramp's own floor value (--spacing-md)
 
@@ -161,7 +164,7 @@ async function main() {
 
     // ---- Footer: breaks just below the breakpoint ------------------------
     // Intentional tightness (see file header) — if this ever starts
-    // passing "no wrap" at 498, the floor moved and FOOTER_BREAKPOINT needs
+    // passing "no wrap" at 518, the floor moved and FOOTER_BREAKPOINT needs
     // re-deriving, not this check loosening.
     {
       const width = FOOTER_BREAKPOINT - 1;
@@ -242,7 +245,7 @@ async function main() {
     }
 
     // ---- Footer: the actual --breakpoint-footer switch lands exactly at
-    // 499 ----------------------------------------------------------------
+    // 519 ----------------------------------------------------------------
     for (const [width, expectTablet] of [
       [FOOTER_BREAKPOINT, true],
       [FOOTER_BREAKPOINT - 1, false],

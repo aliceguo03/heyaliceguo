@@ -77,13 +77,21 @@
      its old gate and finding where its OWN content — not some other
      component's — first breaks:
 
-     --breakpoint-footer (499): the tablet-tier footer (Footer.tsx, the
-     744-1023 variant) holds with no wrapped text all the way down to 499px;
-     at 498, "LET'S CIRCLE BACK" and "SAN DIEGO, CA" both wrap. It reaches
+     --breakpoint-footer (519): the tablet-tier footer (Footer.tsx, the
+     744-1023 variant) holds with no wrapped text all the way down to 519px;
+     at 518, "LET'S CIRCLE BACK" and "SAN DIEGO, CA" both wrap. It reaches
      this far below 744 because the mobile type step (below) already shrinks
      --text-mono for whatever's rendered under it, regardless of which
      breakpoint shows that markup — headroom R1 never exercised because the
      tablet tier was never asked to render there.
+
+     Session R1.1 Part C moved this from 499 to 519: the tablet footer's own
+     shell padding was corrected from 20px to Figma's measured 30px
+     (967:6291/988:7508 — 704 = 30 + 644 + 30, a genuine miss, not a
+     re-derivation of this boundary), which costs the row 20px of content
+     width at every viewport and pushes the real floor up by exactly that
+     much. Re-verified the same way (binary search, both directions) rather
+     than assumed.
 
      --breakpoint-nav (644): the desktop nav pill (DesktopNav.tsx) holds a
      20px gutter each side down to 644px — NOT 703px, which is what "pill
@@ -104,7 +112,7 @@
      either component's content ever changes — don't assume these numbers
      survive a copy edit. */
   --breakpoint-nav: 644px;
-  --breakpoint-footer: 499px;
+  --breakpoint-footer: 519px;
 
   /* --- Color: backgrounds ---------------------------------------------- */
   --color-porcelain: #fefffd;

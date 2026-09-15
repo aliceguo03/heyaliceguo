@@ -50,8 +50,13 @@ function FooterLinkColumns({
   activeSlug: string | null;
 }) {
   return (
+    // Row gap is 12 below the footer tier and 8 at/above it — re-measured
+    // against 988:7351 (12, rows pitch 32 with a 20px line height) versus
+    // 988:7508/967:6199 (8, pitch 35 with a 27px line height). The 50px
+    // gap between the two columns (gap-xl) is unaffected and holds at
+    // every tier.
     <nav aria-label="Footer" className="flex gap-xl">
-      <ul className="flex flex-col gap-s">
+      <ul className="flex flex-col gap-sm footer:gap-s">
         <li>
           <FooterLink href="/" active={isHome}>
             Home
@@ -68,7 +73,7 @@ function FooterLinkColumns({
           </FooterLink>
         </li>
       </ul>
-      <ul className="flex flex-col gap-s">
+      <ul className="flex flex-col gap-sm footer:gap-s">
         {projects.map((project) => (
           <li key={project.slug}>
             <FooterLink href={project.href} active={project.slug === activeSlug}>
@@ -181,15 +186,20 @@ export function Footer({ projects }: { projects: Project[] }) {
           </div>
         </footer>
 
-        {/* 499-1023 (967:6291 at 744, the widest and only frame this tier
+        {/* 519-1023 (967:6291 at 744, the widest and only frame this tier
             has — Session R1.1 Part B extended its own render range down to
-            499, this tier's actual content-derived floor, well below any
-            Figma sample point; see globals.css's "Breakpoints" comment).
-            Quote drops, clock relocates into row 1, stacked on the right;
-            shell padding matches <499, not the uniform p-lg desktop uses
-            (re-measured against the actual 744px frame rather than
-            assumed). */}
-        <footer className="hidden flex-col gap-4xl px-md py-lg footer:flex laptop:hidden">
+            this tier's content-derived floor, well below any Figma sample
+            point; see globals.css's "Breakpoints" comment). Quote drops,
+            clock relocates into row 1, stacked on the right.
+            Session R1.1 Part C correction: shell padding is the uniform
+            p-lg (30), same as desktop — commit c80ac08's recorded "px-md
+            py-lg (20/30), matching <744" was a misread of the page gutter
+            one level out (744 - 704 = 40, i.e. 20/side) rather than the
+            footer's own padding. 988:7508's children sit at x=30 in a
+            704-wide footer: 30 + 644 + 30 = 704. This cost the row 20px of
+            content width at every viewport, which is why the floor moved
+            from 499 to 519 (globals.css's "Breakpoints" comment). */}
+        <footer className="hidden flex-col gap-4xl p-lg footer:flex laptop:hidden">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-lg">
               <p className="flex items-center gap-sm text-mono font-mono text-pure-white">
@@ -214,12 +224,20 @@ export function Footer({ projects }: { projects: Project[] }) {
           {linkColumns}
         </footer>
 
-        {/* <499 (943:5247 at 430 — again the widest sample point, not the
+        {/* <519 (943:5247 at 430 — again the widest sample point, not the
             boundary itself; Session R1.1 Part B) — three rows: circle-back
             spans the full width (justify-between, not the gap-lg cluster
             above), links, then the clock as its own row, unstacked (city
             left, time right). Contact icons grow to size-icon-touch here
-            only. */}
+            only.
+
+            Session R1.1 Part C: the outer gap-4xl (212) is the "circle
+            back" -> "bottom frame" gap only. Figma nests the link columns
+            and the clock row inside that "bottom frame" wrapper with their
+            own, much smaller internal gap (50, gap-xl) — links.height 148
+            to time-and-place's y=198 on 943:5247/988:7351 — so they're
+            wrapped in their own gap-xl group here rather than sharing the
+            outer 212. */}
         <footer className="flex flex-col gap-4xl px-md py-lg footer:hidden">
           <div className="flex w-full items-center justify-between">
             <p className="flex items-center gap-sm text-mono font-mono text-pure-white">
@@ -240,11 +258,13 @@ export function Footer({ projects }: { projects: Project[] }) {
             </div>
           </div>
 
-          {linkColumns}
+          <div className="flex flex-col gap-xl">
+            {linkColumns}
 
-          <div className="flex w-full items-center justify-between">
-            <p className="text-mono font-mono text-pure-white">SAN DIEGO, CA</p>
-            <p className="text-mono font-mono text-accent-blue">{time ?? ""}</p>
+            <div className="flex w-full items-center justify-between">
+              <p className="text-mono font-mono text-pure-white">SAN DIEGO, CA</p>
+              <p className="text-mono font-mono text-accent-blue">{time ?? ""}</p>
+            </div>
           </div>
         </footer>
       </div>
