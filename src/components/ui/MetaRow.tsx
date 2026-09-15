@@ -9,9 +9,14 @@ export function MetaRow({ label, value }: { label: string; value: string }) {
         {label}
         <span aria-hidden="true"> /</span>
       </dt>
-      <dd className="m-0 whitespace-nowrap text-mono-caption font-mono text-deep-black">
-        {value}
-      </dd>
+      {/* Session R1: no whitespace-nowrap here (kept on dt above) — at the
+          fallback card's narrowest phone widths (ProjectCard.tsx, reduced
+          motion), a long value like "WEBSITE & ADMIN PORTAL" has nowhere
+          near enough room on one line and was overflowing the card's right
+          edge instead of wrapping. Doesn't affect wider widths: there's
+          always room for one line there, so this only ever activates when
+          actually forced to. */}
+      <dd className="m-0 text-mono-caption font-mono text-deep-black">{value}</dd>
     </div>
   );
 }
