@@ -64,7 +64,7 @@ function useSanDiegoTime() {
 // file's own comment on why this component doesn't import PROJECTS
 // directly.
 export function Footer({ projects }: { projects: Project[] }) {
-  const { isHome, isWorkIndex, isAbout } = useActiveRoute();
+  const { isHome, isAbout } = useActiveRoute();
   // Same route -> slug derivation Nav's WORK dropdown highlights off —
   // see useActiveRoute.ts's own comment.
   const activeSlug = useActiveProjectSlug();
@@ -106,11 +106,6 @@ export function Footer({ projects }: { projects: Project[] }) {
               <li>
                 <FooterLink href="/" active={isHome}>
                   Home
-                </FooterLink>
-              </li>
-              <li>
-                <FooterLink href="/work" active={isWorkIndex}>
-                  Work
                 </FooterLink>
               </li>
               <li>
