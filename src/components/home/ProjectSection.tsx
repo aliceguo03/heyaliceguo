@@ -10,7 +10,7 @@ import { useProjectSnap } from "./useProjectSnap";
 import { ScrollReveal } from "@/components/motion/ScrollReveal";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { useScrollAction } from "@/components/chassis/SmoothScroll";
-import { usePrefersReducedMotion, useViewportTooShort } from "@/lib/motion";
+import { usePrefersReducedMotion, useViewportBelow, MIN_MECHANIC_VIEWPORT_W } from "@/lib/motion";
 import type { Project } from "@/content/projects";
 import {
   BUFFER,
@@ -74,14 +74,14 @@ import {
 // value instead, at the same frequency the strip already updates at.
 export function ProjectSection({ projects }: { projects: Project[] }) {
   const reducedMotion = usePrefersReducedMotion();
-  const tooShort = useViewportTooShort(MIN_VIEWPORT_H);
+  const tooSmall = useViewportBelow(MIN_VIEWPORT_H, MIN_MECHANIC_VIEWPORT_W);
   const sectionRef = useRef<HTMLDivElement>(null);
   const scrollTo = useScrollAction();
 
   // Always called (rules of hooks) — a no-op internally, attaching zero
   // listeners, whenever the static fallback below renders instead (see the
   // hook's own top guard).
-  useProjectSnap(sectionRef, reducedMotion || tooShort);
+  useProjectSnap(sectionRef, reducedMotion || tooSmall);
 
   // Always called (rules of hooks) — inert whenever the fallback below
   // renders instead, since nothing reads `stripY` in that tree.
@@ -143,7 +143,7 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
   const [sectionOnScreen, setSectionOnScreen] = useState(false);
   useEffect(() => {
     const el = sectionRef.current;
-    if (!el || reducedMotion || tooShort) return;
+    if (!el || reducedMotion || tooSmall) return;
 
     // `entry.intersectionRatio > 0`, not `entry.isIntersecting` — the same
     // quirk ProjectMedia.tsx's own observer already guards against: an
@@ -172,17 +172,20 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [reducedMotion, tooShort]);
+  }, [reducedMotion, tooSmall]);
 
   // Reduced motion: no pin, no clip, no transform — four cards stacked in
-  // normal flow, same as before any of this mechanic existed. Too-short
-  // viewport: the card plus its pin offset don't fit (projectGeometry.ts,
-  // MIN_VIEWPORT_H), so this is also this design's normal rendering on a
-  // 13" Air, not just an edge case. Reuses ProjectCard (itself Frame > Tile
-  // > Content) rather than a second hand-written layout — no card
-  // geometry, styling, or content exists twice between this branch and the
-  // mechanic below.
-  if (reducedMotion || tooShort) {
+  // normal flow, same as before any of this mechanic existed. Too-small
+  // viewport: either the card plus its pin offset don't fit
+  // (projectGeometry.ts, MIN_VIEWPORT_H — this is also this design's normal
+  // rendering on a 13" Air, not just an edge case), or the viewport is
+  // narrower than MIN_MECHANIC_VIEWPORT_W (lib/motion.ts) — a stopgap so a
+  // phone or tablet doesn't run this desktop mechanic in a space far
+  // narrower than it was built for, ahead of a later session's fluid
+  // geometry. Reuses ProjectCard (itself Frame > Tile > Content) rather
+  // than a second hand-written layout — no card geometry, styling, or
+  // content exists twice between this branch and the mechanic below.
+  if (reducedMotion || tooSmall) {
     return (
       <div className="px-xl pt-xl pb-lg">
         <div className="mx-auto flex max-w-page flex-col gap-md">

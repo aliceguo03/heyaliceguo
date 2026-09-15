@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { PROJECTS } from "@/content/projects";
+import type { Project } from "@/content/projects";
 import { useActiveRoute, useActiveProjectSlug } from "@/lib/useActiveRoute";
 import { MailButton, LinkedinLink, useCopyEmail } from "@/components/ui/ContactLinks";
 
@@ -59,16 +59,17 @@ function useSanDiegoTime() {
   return time;
 }
 
-export function Footer() {
-  const { isHome, isWorkIndex, isAbout } = useActiveRoute();
+// `projects` is LIVE_PROJECTS (content/liveProjects.ts), computed
+// server-side in layout.tsx and passed down as a plain prop — see that
+// file's own comment on why this component doesn't import PROJECTS
+// directly.
+export function Footer({ projects }: { projects: Project[] }) {
+  const { isHome, isAbout } = useActiveRoute();
   // Same route -> slug derivation Nav's WORK dropdown highlights off —
   // see useActiveRoute.ts's own comment.
   const activeSlug = useActiveProjectSlug();
   const { copied, announcement, handleCopyEmail } = useCopyEmail();
   const time = useSanDiegoTime();
-
-  const featuredProjects = PROJECTS.filter((project) => project.featured);
-  const remainingProjects = PROJECTS.filter((project) => !project.featured);
 
   return (
     // Full-bleed padded wrapper + capped, centred footer — mirrors the
@@ -108,11 +109,6 @@ export function Footer() {
                 </FooterLink>
               </li>
               <li>
-                <FooterLink href="/work" active={isWorkIndex}>
-                  Work
-                </FooterLink>
-              </li>
-              <li>
                 <FooterLink href="/about" active={isAbout}>
                   About
                 </FooterLink>
@@ -124,16 +120,7 @@ export function Footer() {
               </li>
             </ul>
             <ul className="flex flex-col gap-s">
-              {featuredProjects.map((project) => (
-                <li key={project.slug}>
-                  <FooterLink href={project.href} active={project.slug === activeSlug}>
-                    {project.footerLabel}
-                  </FooterLink>
-                </li>
-              ))}
-            </ul>
-            <ul className="flex flex-col gap-s">
-              {remainingProjects.map((project) => (
+              {projects.map((project) => (
                 <li key={project.slug}>
                   <FooterLink href={project.href} active={project.slug === activeSlug}>
                     {project.footerLabel}

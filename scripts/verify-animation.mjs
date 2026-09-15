@@ -27,7 +27,9 @@ const VIEWPORTS = [
 const TARGETS = [
   { name: "SELECTED WORK. label", find: { css: "#selected-work" } },
   { name: "BACK TO TOP", find: { role: "button", accessibleName: "BACK TO TOP" } },
-  { name: "ALL PROJECTS", find: { role: "link", accessibleName: "ALL PROJECTS" } },
+  // ALL PROJECTS (WorkSectionActions.tsx) removed Session R0 — it linked to
+  // the now-permanently-cancelled /work index. No replacement target added;
+  // BACK TO TOP is the row's only button now.
 ];
 
 // --- Harness plumbing ------------------------------------------------------
@@ -406,88 +408,77 @@ async function loadSequenceChecks(browser, base, results) {
     await context.close();
   }
 
-  // ---- Check 6: client-side nav to /work and back does not replay --------
-  // /work does not exist yet in this codebase (only "/" is a real route as
-  // of session 3 — see CLAUDE.md build order, step 8 not yet reached).
-  // Clicking a Link to a route that 404s makes Next.js fall back to a hard
-  // navigation, which *would* reset the module-scope flag correctly (that's
-  // what a real reload should do) — but that means a green result here would
-  // prove nothing about client-side nav specifically, and a red one would be
-  // a false alarm about a route that isn't built rather than a defect in the
-  // load sequence. Detected and reported as blocked rather than guessed at.
+  // ---- Check 6: client-side nav to /about and back does not replay -------
+  // Originally blocked pending /work (no second real route existed yet in
+  // session 3 — see CLAUDE.md build order, step 8). Session R0 permanently
+  // cancelled the Work index — it will never exist — so that blocked state
+  // would never have resolved; rewritten to use /about, a real route that
+  // always exists, instead of probing for /work. Was ALL PROJECTS
+  // (WorkSectionActions.tsx) before that button was removed the same
+  // session (it linked to the cancelled /work index).
   {
-    const probe = await fetch(new URL("/work", base)).catch(() => null);
-    if (!probe || !probe.ok) {
-      results.push({
-        name: "Client-side nav to /work and back: no replay",
-        pass: true,
-        gating: false,
-        detail:
-          "BLOCKED, not verified: /work returns " +
-          (probe ? probe.status : "no response") +
-          " — that route doesn't exist yet in this codebase, so there is no second real page to navigate to and back from without a hard reload. The fire-once contract itself (module-scope flag, written only from an effect, per useLoadSequence.ts) is exercised by the hard-reload check above; this specific check needs a real second route and should be re-run once /work is built.",
+    const context = await browser.newContext({ viewport: { width: 1710, height: 960 } });
+    const page = await context.newPage();
+    const consoleIssues = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") consoleIssues.push(msg.text());
+    });
+    page.on("pageerror", (err) => consoleIssues.push(String(err)));
+
+    await page.goto(base, { waitUntil: "networkidle" });
+    await page.waitForFunction(
+      () => document.querySelector("#page-top")?.getAttribute("data-loaded") === "true",
+      { timeout: 4000 },
+    );
+
+    // Nav's ABOUT is a real client-side <Link> to /about — a Playwright
+    // page.goto() here would be a fresh navigation (fresh module
+    // evaluation, module flag reset), which is exactly the case this
+    // check must NOT exercise.
+    await page
+      .getByRole("navigation", { name: "Main" })
+      .getByRole("link", { name: "ABOUT" })
+      .click();
+    await page.waitForURL((url) => url.pathname === "/about");
+    await sleep(150);
+
+    // Scoped to the nav — "Home"/"hoMEwork" links also exist in the footer.
+    await page
+      .getByRole("navigation", { name: "Main" })
+      .getByRole("link", { name: "HOME", exact: true })
+      .click();
+    await page.waitForURL((url) => url.pathname === "/");
+    await sleep(150);
+
+    let sawInFlight = false;
+    for (let i = 0; i < 20; i++) {
+      const state = await page.evaluate(() => {
+        const el = document.querySelector("[data-load-letter]");
+        if (!el) return { opacity: "1", transform: "none" };
+        const s = getComputedStyle(el);
+        return { opacity: s.opacity, transform: s.transform };
       });
-    } else {
-      const context = await browser.newContext({ viewport: { width: 1710, height: 960 } });
-      const page = await context.newPage();
-      const consoleIssues = [];
-      page.on("console", (msg) => {
-        if (msg.type() === "error") consoleIssues.push(msg.text());
-      });
-      page.on("pageerror", (err) => consoleIssues.push(String(err)));
-
-      await page.goto(base, { waitUntil: "networkidle" });
-      await page.waitForFunction(
-        () => document.querySelector("#page-top")?.getAttribute("data-loaded") === "true",
-        { timeout: 4000 },
-      );
-
-      // "ALL PROJECTS" (WorkSectionActions.tsx) is a real client-side <Link>
-      // to /work — a Playwright page.goto() here would be a fresh navigation
-      // (fresh module evaluation, module flag reset), which is exactly the
-      // case this check must NOT exercise.
-      await page.getByRole("link", { name: "ALL PROJECTS" }).click();
-      await page.waitForURL(/\/work$/);
-      await sleep(150);
-
-      // Scoped to the nav — "Home"/"hoMEwork" links also exist in the footer.
-      await page
-        .getByRole("navigation", { name: "Main" })
-        .getByRole("link", { name: "HOME", exact: true })
-        .click();
-      await page.waitForURL((url) => url.pathname === "/");
-      await sleep(150);
-
-      let sawInFlight = false;
-      for (let i = 0; i < 20; i++) {
-        const state = await page.evaluate(() => {
-          const el = document.querySelector("[data-load-letter]");
-          if (!el) return { opacity: "1", transform: "none" };
-          const s = getComputedStyle(el);
-          return { opacity: s.opacity, transform: s.transform };
-        });
-        if (Number.parseFloat(state.opacity) < 0.99 || !isIdentity(state.transform)) sawInFlight = true;
-        await sleep(10);
-      }
-      const dataLoaded = await page.evaluate(() =>
-        document.querySelector("#page-top")?.getAttribute("data-loaded"),
-      );
-
-      results.push({
-        name: "Client-side nav to /work and back: wordmark renders at rest, no replay",
-        pass: !sawInFlight && dataLoaded === "true",
-        gating: true,
-        detail: `sawLetterInFlight=${sawInFlight} dataLoaded=${dataLoaded}`,
-      });
-      results.push({
-        name: "Client-side nav to /work and back: no console errors",
-        pass: consoleIssues.length === 0,
-        gating: true,
-        detail: consoleIssues.join(" | ") || "clean",
-      });
-
-      await context.close();
+      if (Number.parseFloat(state.opacity) < 0.99 || !isIdentity(state.transform)) sawInFlight = true;
+      await sleep(10);
     }
+    const dataLoaded = await page.evaluate(() =>
+      document.querySelector("#page-top")?.getAttribute("data-loaded"),
+    );
+
+    results.push({
+      name: "Client-side nav to /about and back: wordmark renders at rest, no replay",
+      pass: !sawInFlight && dataLoaded === "true",
+      gating: true,
+      detail: `sawLetterInFlight=${sawInFlight} dataLoaded=${dataLoaded}`,
+    });
+    results.push({
+      name: "Client-side nav to /about and back: no console errors",
+      pass: consoleIssues.length === 0,
+      gating: true,
+      detail: consoleIssues.join(" | ") || "clean",
+    });
+
+    await context.close();
   }
 }
 

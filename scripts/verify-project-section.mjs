@@ -221,8 +221,11 @@ async function main() {
     await waitForServer(base);
     const browser = await chromium.launch();
 
-    // ---- Check 1: centering at 1710 / 1440 / 1200 --------------------------
-    for (const width of [1710, 1440, 1200]) {
+    // ---- Check 1: centering at 1710 / 1440 -----------------------------
+    // 1200px dropped (Session R0): MIN_MECHANIC_VIEWPORT_W (lib/motion.ts)
+    // now gates the mechanic itself on width, not just height, so at
+    // 1200px the fixed card no longer renders at all — the fallback does.
+    for (const width of [1710, 1440]) {
       const context = await browser.newContext({ viewport: { width, height: 960 } });
       const page = await context.newPage();
       await page.goto(base, { waitUntil: "networkidle" });
@@ -241,12 +244,13 @@ async function main() {
       await context.close();
     }
 
-    // ---- Check 1b: banner label aligns with the frame strip at all three
+    // ---- Check 1b: banner label aligns with the frame strip at both
     // widths (regression guard for the horizontal-centering fix — the
     // banner used to resolve its own position via a parallel padding/cap
     // split that only agreed with the frame strip's at the 1710px
-    // reference width). ------------------------------------------------
-    for (const width of [1710, 1440, 1200]) {
+    // reference width). 1200px dropped along with Check 1 above, same
+    // reason. ------------------------------------------------
+    for (const width of [1710, 1440]) {
       const context = await browser.newContext({ viewport: { width, height: 960 } });
       const page = await context.newPage();
       await page.goto(base, { waitUntil: "networkidle" });

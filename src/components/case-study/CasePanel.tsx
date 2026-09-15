@@ -5,7 +5,7 @@ import { InfoPanel } from "./InfoPanel";
 import { PanelMeta } from "./PanelMeta";
 import { PanelNav } from "./PanelNav";
 import { MIN_PANEL_VIEWPORT_H } from "./caseStudyGeometry";
-import { DUR, EASE, usePrefersReducedMotion, useViewportTooShort } from "@/lib/motion";
+import { DUR, EASE, usePrefersReducedMotion, useViewportBelow } from "@/lib/motion";
 import type { Project } from "@/content/projects";
 import type { Section } from "@/content/case-studies/types";
 
@@ -15,15 +15,17 @@ import type { Section } from "@/content/case-studies/types";
 // sections (see InfoPanel.tsx's own comment for why that merge was
 // necessary before a single sticky panel was possible at all).
 //
-// `compact` comes from the same useViewportTooShort hook ProjectSection.tsx
+// `compact` comes from the same useViewportBelow hook ProjectSection.tsx
 // and AboutSection.tsx already use (useSyncExternalStore-based, so SSR and
 // the hydration render agree by construction — no layout-affecting
-// hydration mismatch). Below MIN_PANEL_VIEWPORT_H the full 840px shell no
-// longer fits under the sticky offset plus PANEL_BOTTOM_GAP, so this steps
-// down to the compact shell instead of releasing to static — the panel
-// stays sticky at every supported viewport height (CLAUDE.md's 1440x760
-// floor sits inside the compact range with room to spare; see
-// caseStudyGeometry.ts).
+// hydration mismatch) — height-only here, no width floor: this degrades a
+// shell rather than disabling a mechanic, so Session R0's
+// MIN_MECHANIC_VIEWPORT_W guard doesn't apply. Below MIN_PANEL_VIEWPORT_H
+// the full 840px shell no longer fits under the sticky offset plus
+// PANEL_BOTTOM_GAP, so this steps down to the compact shell instead of
+// releasing to static — the panel stays sticky at every supported viewport
+// height (CLAUDE.md's 1440x760 floor sits inside the compact range with
+// room to spare; see caseStudyGeometry.ts).
 //
 // The crossfade animates opacity only, never a transform: InfoPanel is
 // `position: sticky`, and a transformed ancestor would break sticky
@@ -43,7 +45,7 @@ export function CasePanel({
   onJump: (index: number) => void;
 }) {
   const reducedMotion = usePrefersReducedMotion();
-  const compact = useViewportTooShort(MIN_PANEL_VIEWPORT_H);
+  const compact = useViewportBelow(MIN_PANEL_VIEWPORT_H);
   const key = current === -1 ? "meta" : "nav";
 
   return (

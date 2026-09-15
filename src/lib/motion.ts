@@ -79,10 +79,10 @@ export function usePrefersReducedMotion() {
 
 // Same useSyncExternalStore shape as usePrefersReducedMotion, and for the
 // same reason: a component that renders a different tree depending on
-// viewport height (ProjectSection.tsx, falling back to normal-flow cards
+// viewport size (ProjectSection.tsx, falling back to normal-flow cards
 // below its fixed-tile mechanic's minimum) needs SSR and the hydration
 // render to agree, or it hydration-mismatches. getServerSnapshot assumes
-// the viewport is tall enough — the common case for this desktop-first
+// the viewport is big enough — the common case for this desktop-first
 // site — and corrects immediately after hydration, same as reduced motion
 // assumes "on" until proven otherwise.
 function subscribeResize(callback: () => void) {
@@ -90,16 +90,29 @@ function subscribeResize(callback: () => void) {
   return () => window.removeEventListener("resize", callback)
 }
 
-export function useViewportTooShort(minHeightPx: number) {
+// The width floor every pinned/scroll-driven mechanic's fallback gates on,
+// alongside its own height floor (Session R0: a 430x932 phone or a
+// 1366x1024 iPad Pro landscape cleared every height-only threshold and ran
+// the full desktop mechanic in a space far narrower than it was built for).
+// 1440 is this site's standing desktop floor everywhere else (CLAUDE.md
+// rule 11), not a new number. Deliberately a stopgap for the homepage: a
+// later session replaces ProjectSection's guard with real fluid geometry
+// so the mechanic can run on phones; don't treat 1440 as permanent there.
+export const MIN_MECHANIC_VIEWPORT_W = 1440
+
+// minWidthPx defaults to 0 (never trips) so CasePanel.tsx and
+// CarouselTabs.tsx — which degrade a shell rather than disabling a
+// mechanic — can keep calling this height-only, unchanged.
+export function useViewportBelow(minHeightPx: number, minWidthPx = 0) {
   return useSyncExternalStore(
     subscribeResize,
-    () => window.innerHeight < minHeightPx,
+    () => window.innerHeight < minHeightPx || window.innerWidth < minWidthPx,
     () => false,
   )
 }
 
 // Third instance of the same useSyncExternalStore shape as
-// usePrefersReducedMotion and useViewportTooShort above — SSR and the
+// usePrefersReducedMotion and useViewportBelow above — SSR and the
 // hydration render must agree, or components branching on this
 // hydration-mismatch. Shared by every desktop-only interaction (magnetic
 // buttons, the custom cursor bubble); the photo stack deliberately does NOT
