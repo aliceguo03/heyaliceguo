@@ -32,7 +32,7 @@ function RoleTrack({
 
 export function Ticker({ items }: { items: readonly string[] }) {
   return (
-    <div className="ticker-fade w-full overflow-hidden px-xl">
+    <div className="ticker-fade w-full overflow-hidden px-page-x">
       <div className="ticker-track flex w-max items-center gap-lg">
         <RoleTrack items={items} />
         <RoleTrack items={items} hidden />

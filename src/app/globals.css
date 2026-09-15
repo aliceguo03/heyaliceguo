@@ -53,6 +53,23 @@
   --text-stat--line-height: 100px;
   --text-stat--letter-spacing: 0;
 
+  /* --- Breakpoints -------------------------------------------------------- */
+  /* Session R1. The site had zero responsive breakpoints before this —
+     confirmed via Figma: iPad mini (744x1133) is the widest frame still
+     drawn on desktop type and the desktop nav pill, so 744 is a min-width
+     floor for both, not the 768 the R0 handoff guessed. 1440 is not new —
+     it's MIN_MECHANIC_VIEWPORT_W (lib/motion.ts) restated as a Tailwind
+     breakpoint so tablet: variants and the pinned-mechanic gate agree by
+     construction. These generate `tablet:`/`laptop:`/`desktop:` variants;
+     Tailwind's own sm/md/lg/xl/2xl are left undefined — unused site-wide
+     (grep confirmed) and these three read better at call sites. NOTE: CSS
+     custom properties cannot appear inside a bare @media condition, so the
+     hand-written @media blocks below (padding ramp, mobile type step) repeat
+     these pixel values literally — keep them in sync by hand. */
+  --breakpoint-tablet: 744px;
+  --breakpoint-laptop: 1024px;
+  --breakpoint-desktop: 1440px;
+
   /* --- Color: backgrounds ---------------------------------------------- */
   --color-porcelain: #fefffd;
   --color-ink: #0a0a0a;
@@ -118,6 +135,19 @@
 
   /* Icon glyphs — mail, LinkedIn, hero + footer */
   --spacing-icon: 26px;
+
+  /* Contact icons only, mobile nav takeover + mobile footer (Figma
+     935:4778, 943:5253) — those two frames grow the mail/LinkedIn glyphs
+     26 -> 36, but leave the hero's bio-tag icons at 26 on the very same
+     frames, so this can't just override --spacing-icon. Session R1. */
+  --spacing-icon-touch: 36px;
+
+  /* Page-edge gutter, read through the alias below. Session R1 — see the
+     @media block near the bottom of this file for the three-step ramp
+     (20 / 30 / 50) this resolves to. Not itself set here; @theme can only
+     declare the utility-generating name, the value lives in :root so it can
+     change per breakpoint. */
+  --spacing-page-x: var(--page-x);
 
   /* Nav's own height, referenced by anything that pins beneath it */
   --spacing-nav-height: 94px;
@@ -197,6 +227,55 @@
   syntax: "<number>";
   inherits: true;
   initial-value: 0;
+}
+
+/* Page-edge gutter ramp. Session R1. Figma-measured at 1440/1024/744
+   (50/30/20 — NOT the 50/40/20 an earlier handoff doc guessed; 40px isn't a
+   spacing token and the 1024 frame measures 30, not 40). One variable, three
+   existing spacing tokens, so every page reads --spacing-page-x (px-page-x)
+   instead of the hardcoded px-xl the site used everywhere before this.
+   Case-study pages are explicitly out of scope and keep their own px-3xl.
+   Thresholds must match --breakpoint-laptop/-desktop above — @media
+   conditions can't reference a custom property, so these repeat the literal
+   px values by hand. */
+:root {
+  --page-x: var(--spacing-md); /* 20px, below 1024 */
+}
+@media (width >= 1024px) {
+  :root {
+    --page-x: var(--spacing-lg); /* 30px, 1024–1439 */
+  }
+}
+@media (width >= 1440px) {
+  :root {
+    --page-x: var(--spacing-xl); /* 50px, >=1440 — unchanged from pre-R1 */
+  }
+}
+
+/* Mobile type step. Session R1. One rung down the existing scale per
+   element (Figma-measured, not a blanket ratio) — display 104->60
+   (938:4796), mono-header 24->20 and mono 20->16 (JetBrains/Regular and
+   /Caption, both already named Figma styles), body 20/26->16/20
+   (Satoshi/Mobile Body). Tailwind v4 utilities read these custom properties
+   at paint time (font-size: var(--text-mono), not an inlined literal —
+   confirmed in the compiled CSS), so redefining them here is enough — every
+   component gets the step for free, no per-component tablet: class needed.
+   --text-mono-caption, --text-body-large and --text-stat are untouched: the
+   first is already the smallest rung, the other two belong to About/
+   case-study sessions. Threshold must match --breakpoint-tablet above (see
+   note there — @media conditions can't reference a custom property). */
+@media (width < 744px) {
+  :root {
+    --text-display: 60px;
+    --text-mono-header: 20px;
+    --text-mono-header--line-height: 26px;
+    --text-mono-header--letter-spacing: 0.06em;
+    --text-mono: 16px;
+    --text-mono--line-height: 21px;
+    --text-mono--letter-spacing: 0.03em;
+    --text-body: 16px;
+    --text-body--line-height: 20px;
+  }
 }
 
 /* Cursor label bubble (CursorLabel.tsx). Not in @theme — Tailwind v4 has no
@@ -317,22 +396,23 @@ html.lenis body {
   }
 }
 
-/* Fade the ticker's edges instead of clipping. Stops at --spacing-xl to
-   match the track's own horizontal inset, so the fade begins exactly where
-   the padding does. */
+/* Fade the ticker's edges instead of clipping. Stops at --spacing-page-x
+   (session R1: was --spacing-xl, a bare 50px, before the page gutter
+   became a ramp) to match the track's own horizontal inset at every
+   breakpoint, so the fade begins exactly where the padding does. */
 .ticker-fade {
   mask-image: linear-gradient(
     to right,
     transparent,
-    black var(--spacing-xl),
-    black calc(100% - var(--spacing-xl)),
+    black var(--spacing-page-x),
+    black calc(100% - var(--spacing-page-x)),
     transparent
   );
   -webkit-mask-image: linear-gradient(
     to right,
     transparent,
-    black var(--spacing-xl),
-    black calc(100% - var(--spacing-xl)),
+    black var(--spacing-page-x),
+    black calc(100% - var(--spacing-page-x)),
     transparent
   );
 }

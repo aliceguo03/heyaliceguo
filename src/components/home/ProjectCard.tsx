@@ -13,8 +13,22 @@ import { ProjectMedia } from "./ProjectMedia";
 // max-w-page (globals.css) rather than a local const, so it isn't
 // duplicated in two places.
 const FRAME_MIN_HEIGHT = 940;
+// Session R1: CARD_WIDTH is now a max-width, not a fixed width — R0's
+// viewport-width guard means this fallback renders at every width from
+// 744 up (not just a short-viewport desktop edge case), so the old fixed
+// 1135px was about to become a real overflow bug. A fluid-scale stopgap,
+// not a finished tablet design: the card's internal proportions were
+// tuned at 1135 and haven't been checked near 659-700px — see the
+// from-scratch 659px card (Figma 931:4275) a later session builds for
+// that range. 1440x760 is unchanged: at CARD_WIDTH itself the fluid width
+// resolves to exactly 1135, same as before this session.
 const CARD_WIDTH = 1135;
-const MEDIA_HEIGHT = 593;
+// MEDIA_HEIGHT is now a ratio, not a fixed px — CARD_WIDTH minus the
+// panel's own left+right px-xl (50+50) is the media well's width at rest
+// (1135-100=1035); at that width the ratio below resolves to exactly the
+// old fixed 593, so 1440x760 is pixel-identical. Below 1135 both the well
+// and its height shrink together instead of the well going nearly square.
+const MEDIA_ASPECT_RATIO = "1035 / 593";
 
 // Card-specific fields are optional on Project because five of nine projects
 // have no case-study data yet (see content/projects.ts). ProjectCard is only
@@ -44,8 +58,8 @@ export function ProjectCard({ project }: { project: Project }) {
       )}
 
       <div
-        className="relative flex flex-col gap-lg rounded-panel bg-true-white px-xl py-lg"
-        style={{ width: CARD_WIDTH, boxShadow: "var(--shadow-card)" }}
+        className="relative flex w-full flex-col gap-lg rounded-panel bg-true-white px-xl py-lg"
+        style={{ maxWidth: CARD_WIDTH, boxShadow: "var(--shadow-card)" }}
       >
         <div className="flex w-full items-center justify-between">
           <h3 className="flex items-center gap-s text-mono-header font-mono">
@@ -57,14 +71,19 @@ export function ProjectCard({ project }: { project: Project }) {
 
         <div
           className="relative w-full overflow-hidden rounded-card border border-divider"
-          style={{ height: MEDIA_HEIGHT }}
+          style={{ aspectRatio: MEDIA_ASPECT_RATIO }}
         >
           {thumbnail && (
             <ProjectMedia thumbnail={thumbnail} video={video} alt={`${name} project screenshot`} />
           )}
         </div>
 
-        <div className="flex w-full items-end justify-between">
+        {/* flex-wrap: below CARD_WIDTH the panel's own fixed px-xl (50px)
+            padding is untouched (card-internal, out of this session's page-
+            gutter ramp), so content width shrinks with the viewport — at
+            phone widths (~235px here) the meta list and CTA button can no
+            longer sit side by side without overflowing. */}
+        <div className="flex w-full flex-wrap items-end justify-between gap-md">
           <dl className="flex flex-col gap-xs">
             {role && <MetaRow label="ROLE" value={role} />}
             {timeline && <MetaRow label="TIMELINE" value={timeline} />}
