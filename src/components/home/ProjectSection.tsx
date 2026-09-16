@@ -255,7 +255,9 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
       <div ref={sectionRef} className="px-page-x pt-xl pb-lg">
         <div className="mx-auto flex max-w-page flex-col gap-md">
           <ScrollReveal as="div">
-            <SectionLabel id="selected-work">SELECTED WORK.</SectionLabel>
+            <SectionLabel id="selected-work" size={geo.tier === "phone" ? "phone" : "default"}>
+              SELECTED WORK.
+            </SectionLabel>
           </ScrollReveal>
           <div className={`flex flex-col ${geo.tier === "desktop" ? "gap-lg" : "gap-md"}`}>
             {projects.map((project) => (
@@ -463,7 +465,9 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
           <div className="relative mx-auto h-full max-w-page bg-porcelain">
             <div className="absolute inset-x-0" style={{ top: NAV_H }}>
               <ScrollReveal as="div">
-                <SectionLabel id="selected-work">SELECTED WORK.</SectionLabel>
+                <SectionLabel id="selected-work" size={geo.tier === "phone" ? "phone" : "default"}>
+                  SELECTED WORK.
+                </SectionLabel>
               </ScrollReveal>
             </div>
           </div>

@@ -51,8 +51,14 @@ const WIDTHS = [1710, 1440, 1024, 744, 430, 390];
 // TILE_W are) — mirroring them here is the same category of thing as this
 // script's own SNAP_IDLE_MS-adjacent sleep durations already are, not a
 // re-implementation of the geometry formula itself.
+//
+// R4a follow-up (mobile visual fixes): phone's framePin dropped 156->121
+// (projectGeometry.ts's bannerHeight/bannerGap — a phantom 24px padding
+// that was never real, plus BANNER_GAP halved from 12 to 6 on phone only).
+// Mirrored here by hand for the same reason the source values are: this
+// script has no build step to import the real module through.
 const TIER_CONST = {
-  phone: { framePin: 156, frameHMin: 401, frameHMax: 788 },
+  phone: { framePin: 121, frameHMin: 401, frameHMax: 788 },
   tablet: { framePin: 162, frameHMin: 592, frameHMax: 788 },
   desktop: { framePin: 162, frameHMin: 780, frameHMax: 780 },
 };
@@ -700,7 +706,12 @@ async function main() {
       { name: "reduced motion (phone)", viewport: { width: 393, height: 800 }, reducedMotion: "reduce", tier: "phone" },
       { name: "short viewport, desktop tier (1440x760)", viewport: { width: 1440, height: 760 }, reducedMotion: null, tier: "desktop" },
       { name: "short viewport, tablet tier (1024x700)", viewport: { width: 1024, height: 700 }, reducedMotion: null, tier: "tablet" },
-      { name: "short viewport, phone tier (393x520)", viewport: { width: 393, height: 520 }, reducedMotion: null, tier: "phone" },
+      // 490, not the original 520: R4a follow-up's FRAME_PIN drop
+      // (156->121, TIER_CONST's own comment above) also drops phone's
+      // MIN_VIEWPORT_H (FRAME_PIN + TILE_H + minInset) from 537 to 502 —
+      // 520 no longer falls back at all, it's comfortably inside the
+      // mechanic's own range now, so this config has to move with it.
+      { name: "short viewport, phone tier (393x490)", viewport: { width: 393, height: 490 }, reducedMotion: null, tier: "phone" },
       { name: "below MIN_MECHANIC_FLOOR_W (375)", viewport: { width: 375, height: 1000 }, reducedMotion: null, tier: "phone" },
       { name: "below MIN_MECHANIC_FLOOR_W (320)", viewport: { width: 320, height: 1000 }, reducedMotion: null, tier: "phone" },
     ]) {
