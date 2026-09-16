@@ -54,11 +54,13 @@ const WIDTHS = [1710, 1440, 1024, 744, 430, 390];
 //
 // R4a follow-up (mobile visual fixes): phone's framePin dropped 156->121
 // (projectGeometry.ts's bannerHeight/bannerGap — a phantom 24px padding
-// that was never real, plus BANNER_GAP halved from 12 to 6 on phone only).
+// that was never real, plus BANNER_GAP halved from 12 to 6 on phone only),
+// then partially reverted to 127 (94+21+12) after a second on-device look
+// found the halved gap overcorrected — bannerHeight's own fix stands.
 // Mirrored here by hand for the same reason the source values are: this
 // script has no build step to import the real module through.
 const TIER_CONST = {
-  phone: { framePin: 121, frameHMin: 401, frameHMax: 788 },
+  phone: { framePin: 127, frameHMin: 401, frameHMax: 788 },
   tablet: { framePin: 162, frameHMin: 592, frameHMax: 788 },
   desktop: { framePin: 162, frameHMin: 780, frameHMax: 780 },
 };

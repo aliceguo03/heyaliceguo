@@ -96,30 +96,33 @@ function bannerHeight(width: number): number {
 
 // The real gap between the banner block's own bottom (the label's real
 // rendered bottom, now that bannerHeight above no longer pads it) and the
-// gradient frame's top edge. >=744 unchanged at BANNER_GAP (12,
-// --spacing-sm). R4a follow-up: halved on phone per Alice's own physical-
-// device judgment call, not a Figma re-check or a spacing token (6 isn't
-// on the 4/8/12/20/30/50/100/212 scale) — same non-token-literal
-// precedent as PHONE_MECHANIC_MIN_INSET elsewhere in this file. The
-// reclaimed 6px isn't just removed from the layout: because FRAME_H is
-// itself svh-clamped (FRAME_H = clamp(..., svh - FRAME_PIN - 30, ...)),
-// shrinking FRAME_PIN by this amount grows FRAME_H by the same amount
-// whenever the clamp isn't already pinned at FRAME_H_MAX — the frame's own
-// bottom edge stays anchored to the same svh-30 line, and the frame simply
-// extends upward into the space the gap used to hold, rather than leaving
-// it empty.
+// gradient frame's top edge. Equal to BANNER_GAP at every tier, phone
+// included — a first pass at this follow-up session halved it on phone
+// (12->6) per Alice's own physical-device judgment; a second look on
+// device found that overcorrected, so phone is back to the same 12 every
+// other tier uses. Kept as its own function rather than collapsed back
+// into a bare BANNER_GAP reference: bannerHeight above still legitimately
+// differs by tier, and a future session nudging this gap again shouldn't
+// have to reintroduce the branch from scratch. The reclaimed/given-back
+// space isn't just added to or removed from the layout in isolation:
+// because FRAME_H is itself svh-clamped (FRAME_H = clamp(..., svh -
+// FRAME_PIN - 30, ...)), changing FRAME_PIN changes FRAME_H by the same
+// amount in the opposite direction whenever the clamp isn't already
+// pinned at FRAME_H_MAX — the frame's own bottom edge stays anchored to
+// the same svh-30 line, and the frame simply gives back the space this
+// gap reclaims (or takes more, if the gap grows), rather than either one
+// changing in isolation.
 function bannerGap(width: number): number {
-  return width < 744 ? 6 : BANNER_GAP;
+  return width < 744 ? 12 : BANNER_GAP;
 }
 
 // Where the pinned stage's content starts: the banner sits flush above this
 // line, the gradient strip's first frame starts here. NAV_H + bannerHeight
-// + bannerGap — 162px at >=744 (94+56+12, unchanged). Below 744: 121px
-// (94+21+6) as of this follow-up session — down from R4a's original 156
-// (94+50+12), which itself was already a correction of a flat pre-R4a 162
-// that never accounted for the mobile banner-height step at all. Two
-// independent, stacked corrections to the same term, each documented
-// separately above rather than folded into one opaque number.
+// + bannerGap — 162px at >=744 (94+56+12, unchanged). Below 744: 127px
+// (94+21+12) as of this micro-adjustment — bannerGap's own halving (156->121)
+// partially reverted (121->127) after a second on-device look, while
+// bannerHeight's phantom-padding fix (50->21) stands unchanged. Down from
+// R4a's original 156 (94+50+12) either way.
 function framePin(width: number): number {
   return NAV_H + bannerHeight(width) + bannerGap(width);
 }
