@@ -60,28 +60,68 @@ export const CONTENT_W = 763; // card content width (card width minus px-xl*2)
 // --- Banner + pin offset -------------------------------------------------
 
 export const NAV_H = 94; // mirrors --spacing-nav-height
-export const BANNER_GAP = 12; // banner block -> frame 01, mirrors space-sm
+export const BANNER_GAP = 12; // banner block -> frame 01, mirrors space-sm. >=744 only — see bannerGap() below.
 
-// The "SELECTED WORK." banner block's own height: 2 * space-sm (12, the
-// label's own vertical padding) + the mono-header line box. That line box
-// steps 32 -> 26 below --breakpoint-tablet (744), same mobile type-scale
-// ramp every other mono-header instance on the site already follows
-// (globals.css, the `@media (width < 744px)` block) — so the banner is
-// 56px at >=744 (unchanged from every session before this one) and 50px
-// below it, not a flat 56 everywhere. The flat-162 FRAME_PIN this file
-// used to export was wrong by 6px on phones for exactly this reason before
-// R4a; --spacing-stack-pin (globals.css) already composed this correctly
-// from tokens, it just had no JS consumer to catch the drift.
+// The "SELECTED WORK." banner block's own height. At >=744 this is
+// 2 * space-sm (12, an assumed top/bottom pad around the label) + the
+// mono-header line box (32) = 56px — unchanged since before R4a.
+//
+// R4a follow-up (mobile visual fixes): the phone-tier (<744) value used to
+// mirror that same "12 + line + 12" shape (12 + 26 + 12 = 50, the line box
+// itself already stepped down via the mobile type ramp, globals.css's
+// `@media (width < 744px)` block) — but the 12px top/bottom pads in that
+// formula were fictional. The label (SectionLabel, positioned at
+// `top: NAV_H` in ProjectSection.tsx's L4 banner, no padding of its own)
+// has always rendered with ZERO real padding on either side — verified by
+// measuring the live DOM (label top === NAV_H exactly, label bottom ===
+// NAV_H + line-height exactly), not assumed from the old comment's claim.
+// That phantom 24px was pure dead space in the FRAME_PIN budget: real
+// visually, nothing sat between nav's own bottom edge and the label, so
+// bannerHeight below 744 is now just the label's real line-height, with
+// the real post-label gap left entirely to bannerGap() below (which fix,
+// unlike this one, DOES change a real rendered gap).
+//
+// That real line-height is 21, not 26 — this same follow-up session also
+// steps the phone-tier label's own font down to text-mono-caption
+// (SectionLabel's `size="phone"`, matching the card title directly beneath
+// it), so the value here has to track that font's line-height
+// (--text-mono-caption--line-height, globals.css), not text-mono-header's.
+// Re-measured after applying the font change, not left at the pre-change
+// figure — the first draft of this fix used 26 (text-mono-header's line
+// height, correct before the font-size fix but stale once it landed) and
+// a live-DOM re-measurement caught the resulting 5px phantom gap.
 function bannerHeight(width: number): number {
-  return width < 744 ? 12 + 26 + 12 : 12 + 32 + 12;
+  return width < 744 ? 21 : 12 + 32 + 12;
+}
+
+// The real gap between the banner block's own bottom (the label's real
+// rendered bottom, now that bannerHeight above no longer pads it) and the
+// gradient frame's top edge. >=744 unchanged at BANNER_GAP (12,
+// --spacing-sm). R4a follow-up: halved on phone per Alice's own physical-
+// device judgment call, not a Figma re-check or a spacing token (6 isn't
+// on the 4/8/12/20/30/50/100/212 scale) — same non-token-literal
+// precedent as PHONE_MECHANIC_MIN_INSET elsewhere in this file. The
+// reclaimed 6px isn't just removed from the layout: because FRAME_H is
+// itself svh-clamped (FRAME_H = clamp(..., svh - FRAME_PIN - 30, ...)),
+// shrinking FRAME_PIN by this amount grows FRAME_H by the same amount
+// whenever the clamp isn't already pinned at FRAME_H_MAX — the frame's own
+// bottom edge stays anchored to the same svh-30 line, and the frame simply
+// extends upward into the space the gap used to hold, rather than leaving
+// it empty.
+function bannerGap(width: number): number {
+  return width < 744 ? 6 : BANNER_GAP;
 }
 
 // Where the pinned stage's content starts: the banner sits flush above this
 // line, the gradient strip's first frame starts here. NAV_H + bannerHeight
-// + BANNER_GAP — 162px at >=744 (94+56+12, unchanged), 156px below it
-// (94+50+12).
+// + bannerGap — 162px at >=744 (94+56+12, unchanged). Below 744: 121px
+// (94+21+6) as of this follow-up session — down from R4a's original 156
+// (94+50+12), which itself was already a correction of a flat pre-R4a 162
+// that never accounted for the mobile banner-height step at all. Two
+// independent, stacked corrections to the same term, each documented
+// separately above rather than folded into one opaque number.
 function framePin(width: number): number {
-  return NAV_H + bannerHeight(width) + BANNER_GAP;
+  return NAV_H + bannerHeight(width) + bannerGap(width);
 }
 
 // --- Frame width (mirrors the CSS page-gutter ramp, globals.css) --------
