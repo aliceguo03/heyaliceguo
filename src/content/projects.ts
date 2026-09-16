@@ -25,17 +25,39 @@ export type Project = {
   slug: string;
   number: string; // '01'..'09', matches array order
   name: string; // card heading + nav dropdown label, verbatim
+  // Session R3.1: the phone project card's own short form (931:4274,
+  // 988:7340–7346) — Figma genuinely shortens the title on two of four
+  // projects so the row holds on one line ("google geminicut" -> just
+  // "geminicut"; "uc san diego bfs blink" -> just "blink"), not a
+  // truncation rule applied uniformly. F3Global and Chase are unchanged at
+  // phone width, so they omit this and ProjectCardPhone falls back to
+  // `name`. Every other surface (nav dropdown, footer, tablet/desktop
+  // cards, case study) keeps reading `name` — this is phone-card-only.
+  shortName?: string;
   footerLabel: string; // footer column label, verbatim
   href: string;
   featured: boolean;
   status?: {
     label: string;
+    // Session R3: the phone project card's own short form (931:4274,
+    // 988:7340/988:7226) — Figma shows "LIVE"/"NDA" there where every
+    // other size (including the tablet card, 931:4275) keeps the full
+    // "LIVE SITE"/"NDA-PROTECTED". Optional: GeminiCut and Blink's labels
+    // don't shorten at phone width, so they omit this and StatusPill falls
+    // back to `label` for them.
+    shortLabel?: string;
     kind: StatusKind;
     href?: string;
   };
   role?: string;
   timeline?: string;
   type?: string;
+  // Session R3.1: the phone card's own short form of `type`, same reasoning
+  // as `shortName` above — Figma shortens GeminiCut's ("ai-native video
+  // editing tool" -> "ai video editing tool") and Blink's ("accessibility &
+  // systems design" -> "systems design") so the row fits on one line.
+  // F3Global and Chase are unchanged, so they omit this.
+  shortType?: string;
   // Case study metadata panel only (info/panel, 736:6049–758:6788): two more
   // rows Figma shows beyond role/timeline/type. Verbatim, all-caps, rendered
   // with no text-transform, same as every other field on this record.
@@ -70,7 +92,7 @@ export const PROJECTS: Project[] = [
     footerLabel: "F3Global",
     href: "/work/f3global",
     featured: true,
-    status: { label: "LIVE SITE", kind: "live", href: "https://f3-global.org/" },
+    status: { label: "LIVE SITE", shortLabel: "LIVE", kind: "live", href: "https://f3-global.org/" },
     role: "DESIGN LEAD",
     timeline: "8 MOS",
     type: "WEBSITE & ADMIN PORTAL",
@@ -89,7 +111,7 @@ export const PROJECTS: Project[] = [
     footerLabel: "Chase",
     href: "/work/chase",
     featured: true,
-    status: { label: "NDA-PROTECTED", kind: "nda" },
+    status: { label: "NDA-PROTECTED", shortLabel: "NDA", kind: "nda" },
     role: "UX DESIGN & RESEARCH INTERN",
     timeline: "10 WKS",
     type: "ENTERPRISE DATA PLATFORM",
@@ -110,6 +132,7 @@ export const PROJECTS: Project[] = [
     slug: "geminicut",
     number: "03",
     name: "GOOGLE GEMINICUT",
+    shortName: "GEMINICUT",
     footerLabel: "GeminiCut",
     href: "/work/geminicut",
     featured: true,
@@ -124,6 +147,7 @@ export const PROJECTS: Project[] = [
     role: "UX DESIGNER & RESEARCHER",
     timeline: "2 MOS",
     type: "AI-NATIVE VIDEO EDITING TOOL",
+    shortType: "AI VIDEO EDITING TOOL",
     // Case study metadata panel (794:2389, re-read fresh this session) —
     // GeminiCut's own tools/skills and team rows, beyond role/timeline/type.
     tools: "FIGMA, USER RESEARCH, AI-ASSISTED WORKFLOWS, FIGMA MAKE",
@@ -150,6 +174,7 @@ export const PROJECTS: Project[] = [
     slug: "blink",
     number: "04",
     name: "UC SAN DIEGO BFS BLINK",
+    shortName: "BLINK",
     footerLabel: "Blink",
     href: "/work/blink",
     featured: true,
@@ -157,6 +182,7 @@ export const PROJECTS: Project[] = [
     role: "UX DESIGNER & AI SPECIALIST",
     timeline: "2 YRS",
     type: "ACCESSIBILITY & SYSTEMS DESIGN",
+    shortType: "SYSTEMS DESIGN",
     // Case study metadata panel (808:2739/808:2742, re-read fresh this
     // session) — the file's own tools string ends in a trailing period
     // ("...Generative AI."); every other project's has none, so it's

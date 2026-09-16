@@ -18,7 +18,13 @@ const MotionLink = motion.create(Link);
 // the filled variant, just a different fill/border and an arrow. Reused
 // wherever a case-study CTA or a back-to-top action appears, so it lives in
 // ui/.
-const BUTTON_HEIGHT = "62px";
+//
+// Session R3: reads --blackbutton-height (globals.css) rather than a bare
+// literal — that property is "auto" below 744, letting the height derive
+// from padding + the mobile-stepped line-height instead of a second forced
+// number; see its own comment in globals.css for why that's correct for
+// both variants without doubling the border math here.
+const BUTTON_HEIGHT = "var(--blackbutton-height)";
 
 // Each variant has its own Figma padding scheme — they aren't the same
 // component scaled by color. Filled: symmetric px-lg/py-sm (380:1977) at
@@ -80,6 +86,10 @@ type BlackButtonProps = {
   // clipped by the fixed-card mechanic and only magnet-eligible while its
   // own frame is fully onscreen (CLAUDE.md "Magnet" — the visibility gate).
   magnetEnabled?: boolean;
+  // Session R3: the phone project card's CTA (931:4274) spans the full
+  // card width rather than sitting inline beside the meta rows — every
+  // other caller stays their natural content width, so this defaults off.
+  fullWidth?: boolean;
 } & ({ href: string; onClick?: never } | { href?: never; onClick: () => void });
 
 export function BlackButton({
@@ -89,6 +99,7 @@ export function BlackButton({
   arrow,
   outlineKind = "secondary",
   magnetEnabled,
+  fullWidth = false,
   children,
 }: BlackButtonProps) {
   const outlinePaddingX = OUTLINE_PADDING_X[outlineKind];
@@ -99,7 +110,7 @@ export function BlackButton({
   // link columns, per content/projects.ts's own comment). This component's
   // established style is all-caps mono regardless of source casing, so the
   // transform belongs on the button chrome, not on a per-caller string.
-  const classes = `inline-flex items-center justify-center gap-sm rounded-btn text-mono font-mono uppercase transition-colors duration-200 ease-standard ${VARIANT_CLASSES[variant]} ${variant === "outline" ? outlinePaddingX : ""}`;
+  const classes = `inline-flex items-center justify-center gap-sm rounded-btn text-mono font-mono uppercase transition-colors duration-200 ease-standard ${VARIANT_CLASSES[variant]} ${variant === "outline" ? outlinePaddingX : ""} ${fullWidth ? "w-full" : ""}`;
 
   // BACK TO TOP (outline) is excluded regardless of the prop — the outline
   // variant is never one of the six primary black-fill buttons the magnet

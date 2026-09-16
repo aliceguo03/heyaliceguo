@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, type FocusEvent } from "react";
 import { motion, useMotionValueEvent, useScroll, useTransform, type MotionStyle } from "motion/react";
 import { ProjectCard } from "./ProjectCard";
+import { ProjectCardTablet } from "./ProjectCardTablet";
+import { ProjectCardPhone } from "./ProjectCardPhone";
 import { ProjectFrame } from "./ProjectFrame";
 import { ProjectTile } from "./ProjectTile";
 import { ProjectTileContent } from "./ProjectTileContent";
@@ -10,7 +12,12 @@ import { useProjectSnap } from "./useProjectSnap";
 import { ScrollReveal } from "@/components/motion/ScrollReveal";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { useScrollAction } from "@/components/chassis/SmoothScroll";
-import { usePrefersReducedMotion, useViewportBelow, MIN_MECHANIC_VIEWPORT_W } from "@/lib/motion";
+import {
+  usePrefersReducedMotion,
+  useViewportBelow,
+  BREAKPOINT_TABLET,
+  MIN_MECHANIC_VIEWPORT_W,
+} from "@/lib/motion";
 import type { Project } from "@/content/projects";
 import {
   BUFFER,
@@ -75,6 +82,15 @@ import {
 export function ProjectSection({ projects }: { projects: Project[] }) {
   const reducedMotion = usePrefersReducedMotion();
   const tooSmall = useViewportBelow(MIN_VIEWPORT_H, MIN_MECHANIC_VIEWPORT_W);
+  // Session R3: which fallback card renders, independent of *whether* the
+  // fallback renders (tooSmall/reducedMotion above). Width-only checks
+  // (minHeightPx: 0 never trips), same convention Hero.tsx already uses
+  // for its own mobile/desktop split. At exactly 1440 `belowDesktop` is
+  // false — matching MIN_MECHANIC_VIEWPORT_W's own strict "<" boundary, so
+  // a 1440×760 short-viewport fallback still gets ProjectCard, not the new
+  // tablet card.
+  const mobile = useViewportBelow(0, BREAKPOINT_TABLET);
+  const belowDesktop = useViewportBelow(0, MIN_MECHANIC_VIEWPORT_W);
   const sectionRef = useRef<HTMLDivElement>(null);
   const scrollTo = useScrollAction();
 
@@ -182,12 +198,19 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
   // narrower than MIN_MECHANIC_VIEWPORT_W (lib/motion.ts) — a stopgap so a
   // phone or tablet doesn't run this desktop mechanic in a space far
   // narrower than it was built for, ahead of a later session's fluid
-  // geometry. Renders ProjectCard, which inlines its own frame/panel/
-  // content markup rather than composing ProjectFrame/ProjectTile/
-  // ProjectTileContent (the mechanic below does compose those three) — a
-  // stale claim of full leaf-sharing lived here before Session R1.1 Part C;
-  // ProjectCard.tsx's own header explains why it's a separate, fluid-scale
-  // stopgap instead.
+  // geometry.
+  //
+  // Session R3: which card this fallback renders now steps by width, per
+  // its own dedicated Figma mocks (988:7226/988:7296 phone, 988:7459/
+  // 988:7539 tablet — see the R3 plan doc for the diagnostic confirming
+  // these are the flat static fallback, not a frame of the mechanic
+  // below). All three — ProjectCardPhone, ProjectCardTablet, ProjectCard —
+  // inline their own frame/panel/content markup rather than composing
+  // ProjectFrame/ProjectTile/ProjectTileContent (the mechanic below does
+  // compose those three); ProjectCard.tsx's own header explains why it's a
+  // separate, fixed-vs-fluid stopgap family instead. The section's own
+  // vertical rhythm between cards steps too — gap-md (20, per every mock)
+  // below 1440, gap-lg (30) at 1440+, unchanged from before this session.
   //
   // sectionRef still lands on this branch's own root, even though nothing
   // here reads stripY. useScroll (above, unconditionally called — rules of
@@ -199,15 +222,16 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
   // /about -> / below MIN_MECHANIC_VIEWPORT_W. Attaching the ref here is a
   // no-op for this tree's own rendering and costs nothing.
   if (reducedMotion || tooSmall) {
+    const CardComponent = mobile ? ProjectCardPhone : belowDesktop ? ProjectCardTablet : ProjectCard;
     return (
       <div ref={sectionRef} className="px-page-x pt-xl pb-lg">
         <div className="mx-auto flex max-w-page flex-col gap-md">
           <ScrollReveal as="div">
             <SectionLabel id="selected-work">SELECTED WORK.</SectionLabel>
           </ScrollReveal>
-          <div className="flex flex-col gap-lg">
+          <div className={`flex flex-col ${belowDesktop ? "gap-md" : "gap-lg"}`}>
             {projects.map((project) => (
-              <ProjectCard key={project.slug} project={project} />
+              <CardComponent key={project.slug} project={project} />
             ))}
           </div>
         </div>

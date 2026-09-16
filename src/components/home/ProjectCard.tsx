@@ -12,17 +12,21 @@ import { ProjectMedia } from "./ProjectMedia";
 // white card inward is static. Frame width comes from the parent's
 // max-w-page (globals.css) rather than a local const, so it isn't
 // duplicated in two places.
+//
+// Session R3: this is now specifically the >=MIN_MECHANIC_VIEWPORT_W (1440)
+// fallback — reduced motion at desktop widths, or the short-viewport 13"
+// Air case (ProjectSection.tsx). Below 1440, ProjectSection renders
+// ProjectCardTablet or ProjectCardPhone instead: two purpose-built, fixed-
+// width cards, not a further step of this one's own fluid scale. The
+// from-scratch 659px card this file used to flag as future work (Figma
+// 931:4275) now exists as ProjectCardTablet.tsx.
 const FRAME_MIN_HEIGHT = 940;
 // Session R1: CARD_MAX_W is now a max-width, not a fixed width — R0's
 // viewport-width guard means this fallback renders at every width from
 // 744 up (not just a short-viewport desktop edge case), so the old fixed
-// 1135px was about to become a real overflow bug. A fluid-scale stopgap,
-// not a finished tablet design: the card's internal proportions were
-// tuned at 1135 and haven't been checked near 659-700px — see the
-// from-scratch 659px card (Figma 931:4275) a later session builds for
-// that range. 1440x760 is unchanged: at CARD_MAX_W itself the fluid width
-// resolves to exactly 1135, same as before this session. Figma
-// "project showcase" (439:5605).
+// 1135px was about to become a real overflow bug. 1440x760 is unchanged:
+// at CARD_MAX_W itself the fluid width resolves to exactly 1135, same as
+// before this session. Figma "project showcase" (439:5605).
 //
 // Session R1.1 Part C: the frame previously had no horizontal padding at
 // all, so this max-width's own centering was the only thing keeping the

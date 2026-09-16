@@ -36,6 +36,15 @@
   --text-mono-caption--line-height: 21px;
   --text-mono-caption--letter-spacing: 0.03em;
 
+  /* Mono mobile — the phone project card only (Figma var JetBrains/Mobile,
+     931:4274), used by ProjectCardPhone.tsx's title, status pill, and meta
+     rows. Session R3. Line-height is Figma-measured off the meta row text
+     node itself (920:4071, height 18), not scaled from --text-mono-caption
+     by a blanket ratio. */
+  --text-mono-mobile: 14px;
+  --text-mono-mobile--line-height: 18px;
+  --text-mono-mobile--letter-spacing: 0.03em;
+
   /* Body — prose */
   --text-body: 20px;
   --text-body--line-height: 26px;
@@ -248,6 +257,15 @@
   --radius-btn: 10px;   /* primary buttons (Figma var corner-rounding/button) */
   --radius-panel: 30px; /* white project card (Figma var corner-rounding/large) */
 
+  /* Phone project card's media well only (Figma "video", 931:4274/920:4068)
+     — bound in the file to the "padding/custom-s" variable, reused there as
+     a corner radius rather than a padding. Session R3. The tablet card's
+     own media well (931:4275/920:3957) needs no equivalent token — it
+     measures 12px, an exact match for --radius-nav already above, just on
+     a component the name doesn't suggest; see ProjectCardTablet.tsx's own
+     comment for why that's not a copy-paste slip. */
+  --radius-media-s: 8px;
+
   /* --- Shadow ------------------------------------------------------------- */
   /* Front layer of the hero photo stack only. */
   --shadow-photo: 84px 140px 46px rgba(0, 0, 0, 0), 54px 90px 42px rgba(0, 0, 0, 0.01),
@@ -408,6 +426,26 @@
     --hero-content-w: 657px;
     --hero-roles-w: 320px;
     --hero-button-height: 63px;
+  }
+}
+
+/* BlackButton.tsx's own height ramp. Session R3. Below 744, this component
+   forces no explicit height at all — letting py-btn-y (16px, unchanged at
+   every width) plus the mobile-stepped --text-mono line-height (26 -> 21,
+   the mobile type step above) add up on their own: 16 + 21 + 16 = 53 for
+   the filled variant, + 2px of border for outline = 55. Both figures
+   independently confirmed against Figma's own dedicated mobile variant
+   (400:3559 "Property 1=mobile", 174x55px; 949:5325, 300x53px) — a real,
+   designed variant, not a scaled-down guess. One explicit number couldn't
+   cover both at once without hardcoding the border's 2px a second time, so
+   "auto" is the correct fix, not a shortcut. At >=744 this stays the
+   existing fixed 62px, byte-identical to before this session. */
+:root {
+  --blackbutton-height: auto;
+}
+@media (width >= 744px) {
+  :root {
+    --blackbutton-height: 62px;
   }
 }
 
