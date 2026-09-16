@@ -1,6 +1,5 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { FRAME_H } from "./projectGeometry";
 
 // The gradient-backed rounded frame behind a project's white tile (Figma
 // "project showcase", 441:5987), used as one element of the gradient strip
@@ -14,20 +13,29 @@ import { FRAME_H } from "./projectGeometry";
 // below it independently rounded on all corners, the porcelain gap between
 // two adjacent frames reads as a rounded-cornered seam, not a hard-edged
 // slot cut into two square blocks.
+//
+// Session R4a: `height` is now required, not defaulted to FRAME_H — that
+// default was written for "the static ProjectCard fallback" per this
+// comment's own earlier text, but ProjectCard.tsx has never actually
+// imported this component (it draws its own inline frame markup; grep
+// confirms the only consumer of ProjectFrame is ProjectSection.tsx's L1
+// strip, which already always passed an explicit height). FRAME_H is also
+// no longer a single static constant to default to — it's viewport- and
+// tier-dependent (projectGeometry.ts's geometryFor) — so a bare default
+// would silently mean "desktop," exactly the kind of implicit assumption
+// this session is removing.
 export function ProjectFrame({
   color,
   gradient,
-  height = FRAME_H,
+  height,
   children,
 }: {
   color?: string;
   gradient?: string;
-  // Defaults to FRAME_H (the visible-window size) for the static
-  // ProjectCard fallback. The L1 strip (ProjectSection.tsx) passes
-  // FRAME_STRIP_H instead — object-cover just reveals more of the same
-  // gradient image, no crop/position change needed (see projectGeometry.ts's
-  // BUFFER comment).
-  height?: number;
+  // The L1 strip (ProjectSection.tsx) passes FRAME_STRIP_H — object-cover
+  // just reveals more of the same gradient image, no crop/position change
+  // needed (see projectGeometry.ts's BUFFER comment).
+  height: number;
   children?: ReactNode;
 }) {
   return (

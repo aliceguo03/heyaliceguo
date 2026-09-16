@@ -4,24 +4,32 @@ import { useEffect, type RefObject } from "react";
 import type Lenis from "lenis";
 import { DUR, EASE, cubicBezier } from "@/lib/motion";
 import { PROGRAMMATIC_SCROLL_USER_DATA, useLenisRef } from "@/components/chassis/SmoothScroll";
-import {
-  PITCH,
-  PROJECT_COUNT,
-  SNAP_DEADZONE,
-  SNAP_IDLE_MS,
-  SNAP_RADIUS,
-  SNAP_VELOCITY_EPS,
-  TRAVEL,
-} from "./projectGeometry";
+import { PROJECT_COUNT, SNAP_DEADZONE, SNAP_IDLE_MS, SNAP_VELOCITY_EPS, type ProjectGeometry } from "./projectGeometry";
 
 const SNAP_EASING = cubicBezier(EASE);
 
 // Eases the pinned selected-work section to the nearest of its four rest
-// slots (sectionTop + i*PITCH, i in 0..3 — the same offsets the mechanic
-// itself derives, not a second source) once scrolling settles nearby. See
-// CLAUDE.md's "THE SNAP MECHANIC". Every guard below must pass before the
-// one lenis.scrollTo call at the bottom runs.
-export function useProjectSnap(sectionRef: RefObject<HTMLElement | null>, disabled: boolean) {
+// slots (sectionTop + i*geo.PITCH, i in 0..3 — the same offsets the
+// mechanic itself derives, not a second source) once scrolling settles
+// nearby. See CLAUDE.md's "THE SNAP MECHANIC". Every guard below must pass
+// before the one lenis.scrollTo call at the bottom runs.
+//
+// Session R4a: `geo` (projectGeometry.ts's ProjectGeometry) replaces the
+// module-scope PITCH/TRAVEL/SNAP_RADIUS this used to import directly — all
+// three are now viewport- and tier-dependent (geometryFor). `sectionTop` is
+// still read live from the DOM on every snap attempt (unchanged), so slots
+// already tracked a changed PITCH for free even before this session; this
+// hook's own job is making sure the PITCH/TRAVEL/SNAP_RADIUS it reasons
+// about are the *current* geometry's, not a stale one captured at mount —
+// `geo` sits in the effect's own dependency array below for exactly that,
+// so a tier change (a resize crossing 744/1440, or FRAME_H settling after
+// the svh probe's first real read) re-subscribes with fresh values rather
+// than snapping to slots computed for a geometry that's no longer live.
+export function useProjectSnap(
+  sectionRef: RefObject<HTMLElement | null>,
+  disabled: boolean,
+  geo: ProjectGeometry,
+) {
   const lenisRef = useLenisRef();
 
   useEffect(() => {
@@ -33,6 +41,9 @@ export function useProjectSnap(sectionRef: RefObject<HTMLElement | null>, disabl
 
     const lenis = lenisRef.current;
     if (!lenis) return;
+
+    const { PITCH, SNAP_RADIUS } = geo;
+    const travel = (PROJECT_COUNT - 1) * PITCH;
 
     let idleTimer: ReturnType<typeof setTimeout> | null = null;
     // Captured at the moment of each 'scroll' event, not re-read from
@@ -75,7 +86,7 @@ export function useProjectSnap(sectionRef: RefObject<HTMLElement | null>, disabl
       const offsetInSection = scrollY - sectionTop;
 
       // Guard: outside the pinned stage's own scroll range.
-      if (offsetInSection < 0 || offsetInSection > TRAVEL) return;
+      if (offsetInSection < 0 || offsetInSection > travel) return;
 
       const slotIndex = Math.min(
         PROJECT_COUNT - 1,
@@ -109,5 +120,5 @@ export function useProjectSnap(sectionRef: RefObject<HTMLElement | null>, disabl
       clearIdleTimer();
       unsubscribe();
     };
-  }, [disabled, sectionRef, lenisRef]);
+  }, [disabled, sectionRef, lenisRef, geo]);
 }

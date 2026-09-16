@@ -6,9 +6,15 @@ import { ProjectMedia } from "./ProjectMedia";
 import { CONTENT_W, MEDIA_H } from "./projectGeometry";
 
 // One project's content — title row, status pill, media well, meta rows,
-// CTA (Figma "card content", I441:5988;565:1455). Used both as the static
-// contents of the flow-mode tile (ProjectCard.tsx) and as one block of the
-// content strip in the fixed-tile mechanic (ProjectSection.tsx).
+// CTA (Figma "card content", I441:5988;565:1455). Desktop-tier only: one
+// block of the content strip in the fixed-tile mechanic (ProjectSection.tsx)
+// at >=1440px. NOT used by ProjectCard.tsx — that file draws its own
+// inline markup rather than composing this (confirmed by grep, not
+// assumed; this comment used to claim otherwise). The tablet and phone
+// tiers have their own sibling components, ProjectTileContentTablet.tsx
+// and ProjectTileContentPhone.tsx — genuinely different layouts (no
+// TIMELINE row, different type sizes, different CTA treatment), not a
+// scaled copy of this one.
 //
 // Card-specific fields are optional on Project because five of nine
 // projects have no case-study data yet (see content/projects.ts). This is
