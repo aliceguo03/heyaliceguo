@@ -527,3 +527,36 @@ Do not skip ahead. Animation comes last, in one pass, after layout is locked.
 - After each working component, stop so it can be reviewed and committed.
 - Match the design exactly. If a value in Figma looks wrong, say so — don't correct it
   silently.
+
+---
+
+## Deferred work
+
+Known gaps that are deliberately not being fixed yet, each with the session that
+deferred it and the condition that should bring it back. This list exists because
+inline code comments have proven to be where deferred items go stale — `ProjectCard`'s
+"composes all three leaves" note and the `MIN_VIEWPORT_H` 890-vs-882 drift both sat
+wrong across multiple sessions while a comment claimed otherwise. An item belongs here
+if a future session needs to know about it; a comment in the file it affects is a
+pointer to this list, not a substitute for it.
+
+### Desktop's pin frame is height-fixed while tablet/phone are height-fluid
+
+*Deferred 2026-09-16 (session R4a). Revisit after R4b confirms real-device feel.*
+
+R4a makes the selected-work pin mechanic's frame height track the viewport per tier —
+`FRAME_H = clamp(min, 100svh − FRAME_PIN − 30, max)` — but **only below 1440px**. At
+desktop widths `FRAME_H` stays a flat 780, because R4a's own acceptance criteria require
+1440 and 1710 to render byte-identically to before that session.
+
+The consequence: a desktop monitor gets a non-adaptive frame at every height. On a short
+desktop viewport the frame's bottom edge and its seam sit below the fold; on a tall one
+there is dead space under the frame that tablet and phone would have filled. Desktop
+users are the only ones on a fixed frame, and the asymmetry is invisible from the code
+unless you compare the tiers.
+
+Bring it back once R4b has confirmed the height-fluid mechanic feels right on real
+tablets and phones — at that point extending the same clamp to the desktop tier is a
+small change (raise its `FRAME_H_MAX` above its `FRAME_H_MIN`), but it necessarily
+retires the byte-identical-at-1440/1710 guarantee, so it needs its own before/after
+review rather than riding along in another session.
