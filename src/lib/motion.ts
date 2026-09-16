@@ -90,6 +90,15 @@ function subscribeResize(callback: () => void) {
   return () => window.removeEventListener("resize", callback)
 }
 
+// Mirrors --breakpoint-tablet (globals.css) for the few components that need
+// the tablet boundary as a JS number rather than a Tailwind `tablet:`
+// variant — currently just PhotoStack's own internal fan geometry (Hero.tsx
+// computes `mobile` once via useViewportBelow(0, BREAKPOINT_TABLET) and
+// passes it down, rather than each component re-deriving it). Keep in sync
+// by hand, same caveat globals.css already states for its own hand-written
+// @media blocks.
+export const BREAKPOINT_TABLET = 744
+
 // The width floor every pinned/scroll-driven mechanic's fallback gates on,
 // alongside its own height floor (Session R0: a 430x932 phone or a
 // 1366x1024 iPad Pro landscape cleared every height-only threshold and ran

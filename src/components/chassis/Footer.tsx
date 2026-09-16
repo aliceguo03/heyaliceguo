@@ -50,8 +50,13 @@ function FooterLinkColumns({
   activeSlug: string | null;
 }) {
   return (
+    // Row gap is 12 below the footer tier and 8 at/above it — re-measured
+    // against 988:7351 (12, rows pitch 32 with a 20px line height) versus
+    // 988:7508/967:6199 (8, pitch 35 with a 27px line height). The 50px
+    // gap between the two columns (gap-xl) is unaffected and holds at
+    // every tier.
     <nav aria-label="Footer" className="flex gap-xl">
-      <ul className="flex flex-col gap-s">
+      <ul className="flex flex-col gap-sm footer:gap-s">
         <li>
           <FooterLink href="/" active={isHome}>
             Home
@@ -68,7 +73,7 @@ function FooterLinkColumns({
           </FooterLink>
         </li>
       </ul>
-      <ul className="flex flex-col gap-s">
+      <ul className="flex flex-col gap-sm footer:gap-s">
         {projects.map((project) => (
           <li key={project.slug}>
             <FooterLink href={project.href} active={project.slug === activeSlug}>
@@ -110,12 +115,14 @@ function useSanDiegoTime() {
 // file's own comment on why this component doesn't import PROJECTS
 // directly.
 //
-// Session R1: three variants below --breakpoint-laptop/-tablet, toggled by
+// Session R1: three variants (gated on --breakpoint-footer-desktop/-footer,
+// Session R1.1 Part D — 1024/"--breakpoint-laptop" was never this footer's
+// own boundary, see --breakpoint-footer-desktop's comment), toggled by
 // CSS visibility (same reasoning as Nav.tsx's Desktop/Mobile split — no
 // hydration flash, and `display:none` clears the inactive ones from the
 // accessibility tree). Not two: the 744px iPad-mini frame's shell padding
 // (px-md py-lg) and clock placement turned out to differ from both the
-// >=1024 frame AND the <744 frame's own "circle back" row, which spreads
+// >=1124 frame AND the <519 frame's own "circle back" row, which spreads
 // its text and icons across the full row width (justify-between, no
 // gap-lg cluster) rather than sitting tight together — three genuinely
 // different arrangements, confirmed from three separate Figma frames
@@ -150,8 +157,13 @@ export function Footer({ projects }: { projects: Project[] }) {
     // globals.css) instead of growing unbounded past ~1725px viewports.
     <div className="px-page-x pb-lg">
       <div className="mx-auto max-w-page rounded-card bg-ink">
-        {/* >=1024 (967:6199) — unchanged from before this session. */}
-        <footer className="hidden flex-col gap-4xl p-lg laptop:flex">
+        {/* >=1124 (967:6199) — was gated at --breakpoint-laptop (1024) until
+            Session R1.1 Part D: 1024 was reused from the page-padding ramp,
+            never independently measured against this row's own content. The
+            quote wraps between 1024 and 1123 (globals.css's "Breakpoints"
+            comment has the arithmetic); --breakpoint-footer-desktop (1124) is
+            the real, measured floor. */}
+        <footer className="hidden flex-col gap-4xl p-lg footer-desktop:flex">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-lg">
               <p className="flex items-center gap-sm text-mono font-mono text-pure-white">
@@ -181,11 +193,25 @@ export function Footer({ projects }: { projects: Project[] }) {
           </div>
         </footer>
 
-        {/* 744-1023 (967:6291) — quote drops, clock relocates into row 1,
-            stacked on the right; shell padding matches <744, not the
-            uniform p-lg desktop uses (re-measured against the actual
-            744px frame rather than assumed). */}
-        <footer className="hidden flex-col gap-4xl px-md py-lg tablet:flex laptop:hidden">
+        {/* 519-1123 (967:6291 at 744, the widest and only frame this tier
+            has — Session R1.1 Part B extended its own render range down to
+            this tier's content-derived floor, well below any Figma sample
+            point; see globals.css's "Breakpoints" comment). Quote drops,
+            clock relocates into row 1, stacked on the right.
+            Session R1.1 Part C correction: shell padding is the uniform
+            p-lg (30), same as desktop — commit c80ac08's recorded "px-md
+            py-lg (20/30), matching <744" was a misread of the page gutter
+            one level out (744 - 704 = 40, i.e. 20/side) rather than the
+            footer's own padding. 988:7508's children sit at x=30 in a
+            704-wide footer: 30 + 644 + 30 = 704. This cost the row 20px of
+            content width at every viewport, which is why the floor moved
+            from 499 to 519 (globals.css's "Breakpoints" comment).
+            Session R1.1 Part D: upper bound raised from 1024 to 1124 — this
+            tier's own (quote-less) layout doesn't get any tighter between
+            those two widths, so it simply renders further before handing
+            off to the desktop tier, rather than a new layout being inserted
+            between them. See --breakpoint-footer-desktop's comment. */}
+        <footer className="hidden flex-col gap-4xl p-lg footer:flex footer-desktop:hidden">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-lg">
               <p className="flex items-center gap-sm text-mono font-mono text-pure-white">
@@ -210,11 +236,21 @@ export function Footer({ projects }: { projects: Project[] }) {
           {linkColumns}
         </footer>
 
-        {/* <744 (943:5247) — three rows: circle-back spans the full width
-            (justify-between, not the gap-lg cluster above), links, then
-            the clock as its own row, unstacked (city left, time right).
-            Contact icons grow to size-icon-touch here only. */}
-        <footer className="flex flex-col gap-4xl px-md py-lg tablet:hidden">
+        {/* <519 (943:5247 at 430 — again the widest sample point, not the
+            boundary itself; Session R1.1 Part B) — three rows: circle-back
+            spans the full width (justify-between, not the gap-lg cluster
+            above), links, then the clock as its own row, unstacked (city
+            left, time right). Contact icons grow to size-icon-touch here
+            only.
+
+            Session R1.1 Part C: the outer gap-4xl (212) is the "circle
+            back" -> "bottom frame" gap only. Figma nests the link columns
+            and the clock row inside that "bottom frame" wrapper with their
+            own, much smaller internal gap (50, gap-xl) — links.height 148
+            to time-and-place's y=198 on 943:5247/988:7351 — so they're
+            wrapped in their own gap-xl group here rather than sharing the
+            outer 212. */}
+        <footer className="flex flex-col gap-4xl px-md py-lg footer:hidden">
           <div className="flex w-full items-center justify-between">
             <p className="flex items-center gap-sm text-mono font-mono text-pure-white">
               LET&rsquo;S CIRCLE BACK <span aria-hidden="true">→</span>
@@ -234,11 +270,13 @@ export function Footer({ projects }: { projects: Project[] }) {
             </div>
           </div>
 
-          {linkColumns}
+          <div className="flex flex-col gap-xl">
+            {linkColumns}
 
-          <div className="flex w-full items-center justify-between">
-            <p className="text-mono font-mono text-pure-white">SAN DIEGO, CA</p>
-            <p className="text-mono font-mono text-accent-blue">{time ?? ""}</p>
+            <div className="flex w-full items-center justify-between">
+              <p className="text-mono font-mono text-pure-white">SAN DIEGO, CA</p>
+              <p className="text-mono font-mono text-accent-blue">{time ?? ""}</p>
+            </div>
           </div>
         </footer>
       </div>

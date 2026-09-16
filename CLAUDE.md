@@ -359,7 +359,7 @@ below.
 
 **Reduced motion and short viewports share one fallback, not two.** Under
 `prefers-reduced-motion`, or whenever the viewport is shorter than `MIN_VIEWPORT_H`
-(890px — the card must fit *in full*, not just past some smaller structural floor;
+(882px — the card must fit *in full*, not just past some smaller structural floor;
 this is short of the 1440×760 reference viewport, so it's this design's normal
 rendering on a 13" Air, not an edge case), `ProjectSection` renders four `ProjectCard`s
 stacked in normal flow instead: no pin, no clip, no transform. This is the

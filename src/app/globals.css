@@ -54,21 +54,94 @@
   --text-stat--letter-spacing: 0;
 
   /* --- Breakpoints -------------------------------------------------------- */
-  /* Session R1. The site had zero responsive breakpoints before this —
-     confirmed via Figma: iPad mini (744x1133) is the widest frame still
-     drawn on desktop type and the desktop nav pill, so 744 is a min-width
-     floor for both, not the 768 the R0 handoff guessed. 1440 is not new —
-     it's MIN_MECHANIC_VIEWPORT_W (lib/motion.ts) restated as a Tailwind
-     breakpoint so tablet: variants and the pinned-mechanic gate agree by
-     construction. These generate `tablet:`/`laptop:`/`desktop:` variants;
-     Tailwind's own sm/md/lg/xl/2xl are left undefined — unused site-wide
-     (grep confirmed) and these three read better at call sites. NOTE: CSS
-     custom properties cannot appear inside a bare @media condition, so the
-     hand-written @media blocks below (padding ramp, mobile type step) repeat
-     these pixel values literally — keep them in sync by hand. */
+  /* Session R1. The site had zero responsive breakpoints before this. 1440
+     is not new — it's MIN_MECHANIC_VIEWPORT_W (lib/motion.ts) restated as a
+     Tailwind breakpoint so tablet: variants and the pinned-mechanic gate
+     agree by construction. Tailwind's own sm/md/lg/xl/2xl are left undefined
+     — unused site-wide (grep confirmed) and named variants read better at
+     call sites. NOTE: CSS custom properties cannot appear inside a bare
+     @media condition, so the hand-written @media blocks below (padding
+     ramp, mobile type step) repeat these pixel values literally — keep them
+     in sync by hand. */
   --breakpoint-tablet: 744px;
   --breakpoint-laptop: 1024px;
   --breakpoint-desktop: 1440px;
+
+  /* Session R1.1 Part B. R1 treated 744 (the widest Figma frame it had
+     drawn — iPad mini) as the switch point for the desktop nav pill, the
+     mobile type step, AND the footer's tablet/mobile split, all three,
+     because one number happened to be sitting there — a Figma sample point
+     standing in for three genuinely independent content-driven decisions.
+     These two are what the nav and the footer actually need, re-derived by
+     forcing each component's own markup to render at every width down from
+     its old gate and finding where its OWN content — not some other
+     component's — first breaks:
+
+     --breakpoint-footer (519): the tablet-tier footer (Footer.tsx, the
+     744-1023 variant) holds with no wrapped text all the way down to 519px;
+     at 518, "LET'S CIRCLE BACK" and "SAN DIEGO, CA" both wrap. It reaches
+     this far below 744 because the mobile type step (below) already shrinks
+     --text-mono for whatever's rendered under it, regardless of which
+     breakpoint shows that markup — headroom R1 never exercised because the
+     tablet tier was never asked to render there.
+
+     Session R1.1 Part C moved this from 499 to 519: the tablet footer's own
+     shell padding was corrected from 20px to Figma's measured 30px
+     (967:6291/988:7508 — 704 = 30 + 644 + 30, a genuine miss, not a
+     re-derivation of this boundary), which costs the row 20px of content
+     width at every viewport and pushes the real floor up by exactly that
+     much. Re-verified the same way (binary search, both directions) rather
+     than assumed.
+
+     --breakpoint-nav (644): the desktop nav pill (DesktopNav.tsx) holds a
+     20px gutter each side down to 644px — NOT 703px, which is what "pill
+     width (662.83, >=744) + 40" naively gives. The pill's real width isn't
+     one number: it's 662.83 at desktop type, but the SAME mobile type step
+     that helps the footer above already shrinks it to 603.55 below 744,
+     independent of which nav is showing. 644 spends that headroom instead
+     of also moving the type step's own boundary (left untouched, a separate
+     decision) — the pill simply renders smaller in the 644-743 band it
+     newly occupies, same markup, same padding, no compression.
+
+     Neither of these moved the type step's or the hero's own 744 boundary —
+     both stay exactly where R1 put them. That's a deliberate asymmetry, not
+     an oversight: between 644 and 743 the desktop nav pill now sits above a
+     still-mobile-stacked hero. Both numbers are asserted, not just eyeballed
+     — scripts/verify-breakpoints.mjs checks each holds right up to its own
+     floor and breaks just below it. Re-derive again, the same way, if
+     either component's content ever changes — don't assume these numbers
+     survive a copy edit. */
+  --breakpoint-nav: 644px;
+  --breakpoint-footer: 519px;
+
+  /* Session R1.1 Part D. --breakpoint-laptop (1024) was reused here from the
+     page-padding ramp, never independently measured against this footer's
+     quote — the same mistake R1 made with --breakpoint-tablet, that Part B
+     already fixed for --breakpoint-footer/-nav. The desktop tier's quote row
+     ("LET'S CIRCLE BACK" + icons on the left, the quote on the right,
+     justify-between) doesn't fit until 1124px: left cluster 343.61px + quote
+     660px + 120px chrome (page-x 30 + footer p-lg 30, each side) = 1123.61,
+     ceil 1124. Wraps at 1123 and below. Binary-searched with the same
+     predicate scripts/verify-breakpoints.mjs already uses for the other two
+     footer/nav boundaries. Below this, the tablet tier's own (quote-less)
+     layout already holds cleanly all the way from 519 — nothing about it
+     needs to change between 1024 and 1123, so this just moves where that
+     tier hands off to the desktop one, rather than adding a fourth layout. */
+  --breakpoint-footer-desktop: 1124px;
+
+  /* Session R1.1 Part C. --card-inset-x's own step, below --page-x's ramp
+     (see that comment further down). Alice's mockup shows the gap from the
+     fallback ProjectCard to its gradient frame dropping to 20px at the iPad
+     mini floor and 10px at the iPhone SE floor, matching --page-x's 20/10
+     steps at 1024/<1024 — but --page-x's own floor is 20px everywhere below
+     1024, no further step, so this needed its own breakpoint. Can't reuse
+     --breakpoint-footer/-nav/-tablet: the 20->10 step has to land strictly
+     between iPhone SE (375, wants 10) and iPhone 16 Pro (430, wants 20), and
+     all three of those are above 430. Derived from content instead: the SE
+     mockup (988:7252) draws its gradient frame at 355px; 355 + 2*20 = 395,
+     the width below which a 20px gutter would squeeze the frame under what
+     the file actually draws. Verified in scripts/verify-project-section.mjs. */
+  --breakpoint-card: 395px;
 
   /* --- Color: backgrounds ---------------------------------------------- */
   --color-porcelain: #fefffd;
@@ -252,6 +325,36 @@
   }
 }
 
+/* Card-to-frame inset. Session R1.1 Part C. Its own ramp, not --page-x: the
+   fallback ProjectCard's white panel and its gradient frame's own edge are
+   two independent gaps in Figma, and they are never the same number —
+   988:7252 (iPhone SE) measures 10px frame-to-viewport but only 7.5px
+   card-to-frame; 988:7499 (iPad mini) measures 20 / 22.5. Before this ramp
+   the "inset" was purely the leftover of centering a 1135px-max card in a
+   fluid frame (ProjectCard.tsx), which reached zero at ~1195px and stayed
+   there down to 744 — unguarded by any check. This ramp gives the card a
+   floor so it can't touch the frame at any width; the 1135px cap still
+   binds at 1440/1710, so those two widths are pixel-identical to before.
+   Thresholds: 1024 reuses --breakpoint-laptop (a --page-x step already);
+   395 is --breakpoint-card, its own — see that comment. */
+:root {
+  /* 10px isn't on the spacing scale (4/8/12/20/30/50/100/212 — closest
+     named tokens are spacing-xs at 4 and spacing-s at 8, neither of which
+     is what 988:7252 measures), so this step is a literal rather than a
+     token reference, same as this ramp's own thresholds below. */
+  --card-inset-x: 10px;
+}
+@media (width >= 395px) {
+  :root {
+    --card-inset-x: var(--spacing-md); /* 20px */
+  }
+}
+@media (width >= 1024px) {
+  :root {
+    --card-inset-x: var(--spacing-lg); /* 30px */
+  }
+}
+
 /* Mobile type step. Session R1. One rung down the existing scale per
    element (Figma-measured, not a blanket ratio) — display 104->60
    (938:4796), mono-header 24->20 and mono 20->16 (JetBrains/Regular and
@@ -275,6 +378,36 @@
     --text-mono--letter-spacing: 0.03em;
     --text-body: 16px;
     --text-body--line-height: 20px;
+  }
+}
+
+/* Hero geometry ramp. Session R1.1 — Figma "hero home" (988:7297), the
+   mobile home page's own hero, page "final". Below --breakpoint-tablet the
+   hero is a single centred column (wordmark, photo, then the roles+button
+   block) instead of the >=744 two-column row (Hero.tsx's own gap/direction
+   classes already switch on `tablet:`; only the pixel widths below can't be
+   expressed as a Tailwind utility, same reason the page-x ramp above can't
+   be). --hero-content-w governs both the outer column and the inner
+   photo+roles row (Hero.tsx uses the same var at both levels, mirroring how
+   both levels shared one HERO_WIDTH constant before this ramp existed);
+   "auto" below 744 lets each child size and center itself rather than
+   forcing a row width mobile has no fixed value for. --hero-roles-w is the
+   bio+button column's own width — 263 (mobile) vs 320 (desktop), both
+   Figma-measured, not a scaled copy of each other. --hero-button-height is
+   VIEW MY WORK's forced height (Button.tsx) — 53 at mobile, still 63 at
+   desktop; Button.tsx's own comment explains why desktop's isn't left to
+   derive from content. Thresholds must match --breakpoint-tablet above —
+   same @media-can't-read-a-custom-property constraint as the ramp above. */
+:root {
+  --hero-content-w: auto;
+  --hero-roles-w: 263px;
+  --hero-button-height: 53px;
+}
+@media (width >= 744px) {
+  :root {
+    --hero-content-w: 657px;
+    --hero-roles-w: 320px;
+    --hero-button-height: 63px;
   }
 }
 
