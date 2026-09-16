@@ -68,7 +68,19 @@ export function Hero() {
           )}
 
           <div
-            className="flex flex-col items-start gap-lg"
+            // Session R1.1 Part D: below tablet, this box collapses to
+            // exactly --hero-roles-w (263px) with no slack — BioList's <ul>
+            // is w-full, so items-start/-center is moot for it, but the CTA
+            // button (wrapped in LoadReveal, a bare div with no width class)
+            // shrinks to fit-content and was pinning to the left edge, a
+            // measured 43.97px off page-center at every mobile width.
+            // items-center fixes that. tablet:items-start preserves the
+            // existing, correct flush-left layout there — Figma's own
+            // desktop frame (441:5971) places its button at x=0 in a 320px
+            // box (244 != 320, genuinely flush left by design, not a
+            // centering coincidence), unlike mobile's 988:7309 (button
+            // centered via an exact x=40.5 in a 263px box).
+            className="flex flex-col items-center gap-lg tablet:items-start"
             style={{ width: "var(--hero-roles-w)" }}
           >
             <BioList play={play} startDelay={LOAD.bioStart} />
