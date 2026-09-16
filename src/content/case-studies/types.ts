@@ -35,10 +35,14 @@ export type Figure = {
 // freezing on the last frame.
 export type VideoSource = {
   src: string;
-  // The well's own height for this source, in px. Deliberately NOT FIGURE_H —
-  // see caseStudyGeometry.ts's CAROUSEL_VIDEO_H/SHOWCASE_VIDEO_H comments for
-  // why each video figure gets its own height rather than reusing 556.
-  height: number;
+  // The well's own aspect ratio for this source, as a CSS `aspect-ratio`
+  // value ("1888 / 1080"). Deliberately NOT FIGURE_ASPECT — see
+  // caseStudyGeometry.ts's CAROUSEL_VIDEO_ASPECT/SHOWCASE_VIDEO_ASPECT
+  // comments for why each video figure gets its own ratio rather than
+  // reusing 1077/556. Session R5: was a flat `height: number` in px; moved
+  // to a ratio so the well stays fluid below the 1710px reference width
+  // instead of over-cropping (see Figure.tsx).
+  aspect: string;
   behavior: "ambient" | "feature";
   // Recording-capture edge-artifact crop, scale()-only — ProjectMedia.tsx's
   // VIDEO_ZOOM precedent (home page cards). Omitted = no zoom.
@@ -47,11 +51,12 @@ export type VideoSource = {
 
 // Every block kind in the template (736:6031), one component each under
 // src/components/case-study/blocks/. `figure` and the figure inside
-// `proseFigure`/`carousel` are always CONTENT_W x FIGURE_H (1077x556) UNLESS
-// the figure carries `video` — GeminiCut's two video figures each have a
-// source aspect ratio FIGURE_H doesn't match (caseStudyGeometry.ts's
-// CAROUSEL_VIDEO_H/SHOWCASE_VIDEO_H), so `VideoSource.height` is the one
-// sanctioned per-figure override, not a general size prop any block can set.
+// `proseFigure`/`carousel` are always FIGURE_ASPECT (1077/556) UNLESS the
+// figure carries `video` — GeminiCut's two video figures each have a source
+// aspect ratio FIGURE_ASPECT doesn't match (caseStudyGeometry.ts's
+// CAROUSEL_VIDEO_ASPECT/SHOWCASE_VIDEO_ASPECT), so `VideoSource.aspect` is
+// the one sanctioned per-figure override, not a general size prop any block
+// can set.
 export type Block =
   | { kind: "statement"; text: Paragraph }
   | { kind: "prose"; paragraphs: Paragraph[] }
@@ -118,7 +123,7 @@ export type Block =
       // the stale pre-correction value Chase's node once had (see chase.ts's
       // own header comment). Omitted = STAT_W, so F3Global/Chase/GeminiCut
       // are unaffected. The one sanctioned per-block override, same role as
-      // VideoSource.height for figures — not a general size prop.
+      // VideoSource.aspect for figures — not a general size prop.
       columnWidth?: number;
     }
   | {

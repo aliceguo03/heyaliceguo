@@ -1,5 +1,5 @@
 import type { CaseStudy } from "./types";
-import { CAROUSEL_VIDEO_H, CAROUSEL_VIDEO_ZOOM, SHOWCASE_VIDEO_H } from "@/components/case-study/caseStudyGeometry";
+import { CAROUSEL_VIDEO_ASPECT, CAROUSEL_VIDEO_ZOOM, SHOWCASE_VIDEO_ASPECT } from "@/components/case-study/caseStudyGeometry";
 
 // Google GeminiCut case study, transcribed verbatim from Figma node
 // 794:2384 (page "final"), re-read fresh this session. Carousel states from
@@ -156,7 +156,7 @@ export const geminicut: CaseStudy = {
                 alt: "A video frame with a lasso selection drawn around one region, isolating it for a localized regeneration prompt.",
                 video: {
                   src: "/work/gemini/gemini-regenerate.mp4",
-                  height: CAROUSEL_VIDEO_H,
+                  aspect: CAROUSEL_VIDEO_ASPECT,
                   behavior: "ambient",
                   zoom: CAROUSEL_VIDEO_ZOOM,
                 },
@@ -177,7 +177,7 @@ export const geminicut: CaseStudy = {
                 alt: "A single-clip scrubber with two boundary handles marking an editable slice of the video, the rest of the timeline shown locked.",
                 video: {
                   src: "/work/gemini/gemini-timeline.mp4",
-                  height: CAROUSEL_VIDEO_H,
+                  aspect: CAROUSEL_VIDEO_ASPECT,
                   behavior: "ambient",
                   zoom: CAROUSEL_VIDEO_ZOOM,
                 },
@@ -198,7 +198,7 @@ export const geminicut: CaseStudy = {
                 alt: "A style panel with filter presets and adjustment sliders open beside the video, mid-way through a brightness adjustment.",
                 video: {
                   src: "/work/gemini/gemini-style.mp4",
-                  height: CAROUSEL_VIDEO_H,
+                  aspect: CAROUSEL_VIDEO_ASPECT,
                   behavior: "ambient",
                   zoom: CAROUSEL_VIDEO_ZOOM,
                 },
@@ -219,7 +219,7 @@ export const geminicut: CaseStudy = {
                 alt: "An audio waveform with a segment highlighted for a localized sound edit, the rest of the track shown undisturbed.",
                 video: {
                   src: "/work/gemini/gemini-sound.mp4",
-                  height: CAROUSEL_VIDEO_H,
+                  aspect: CAROUSEL_VIDEO_ASPECT,
                   behavior: "ambient",
                   zoom: CAROUSEL_VIDEO_ZOOM,
                 },
@@ -257,7 +257,7 @@ export const geminicut: CaseStudy = {
             alt: "A frame from the GeminiCut commercial: a montage of edit prompts — “change the lighting,” “add some music,” “change the camera angle” — layered over the phrase “it’s editing.”",
             video: {
               src: "/work/gemini/Gemini Cut Commercial.mp4",
-              height: SHOWCASE_VIDEO_H,
+              aspect: SHOWCASE_VIDEO_ASPECT,
               behavior: "feature",
               // No capture-window artifact on this source (unlike the four
               // carousel recordings) — left unzoomed per this session's plan.

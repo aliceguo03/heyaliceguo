@@ -60,10 +60,21 @@ export const READING_LINE = 0.4;
 // case-study section (736:6063, 736:6072).
 export const CONTENT_W = 1077;
 
-// figure / proseFigure figure — always this size, everywhere, no
+// figure / proseFigure figure — always this ratio, everywhere, no
 // per-project override (CLAUDE.md "figure and the figure inside
-// proseFigure are always 1077x556").
-export const FIGURE_H = 556;
+// proseFigure are always 1077x556"). Session R5 (responsive pass):
+// converted from a flat FIGURE_H=556 px height to an aspect ratio. Every
+// source still image in the template is pre-cropped to exactly this ratio
+// (the JPGs measure 2154x1112 = 1077x556 at 2x — confirmed with `sips`,
+// not assumed), so a fixed height was never faithful once the column
+// itself started clamping narrower than 1077px (contentColumnWidthCss
+// below, and the new sub-1440 tiers this session adds): object-cover was
+// silently cropping real image content out of every figure below the
+// 1710px reference width. aspect-ratio fixes that everywhere, including
+// at the existing 1440px floor — approved as a visible desktop change
+// (Figure.tsx's well goes 556px tall -> 417px tall at exactly 1440px
+// width, matching the ratio exactly rather than over-cropping).
+export const FIGURE_ASPECT = "1077 / 556";
 
 // Hero card's three-photo strip (730:6000). Each photo is ~785px wide by
 // 522 tall; the 1px differences between photos in Figma are rounding
@@ -145,9 +156,10 @@ export const contentColumnWidthCss = `clamp(${CONTENT_MIN_W}px, calc(100% - ${PA
 // Re-read fresh this session, after a text->figure gap fix in Figma. Every
 // internal gap in the node is now 20px/gap-md, identical to ProseFigure's
 // own rhythm: 32 (heading) + 20 + 78 (body, item 0's own height) + 20 + 556
-// (figure) + 20 + 8 (bars) = 734. The body height is specific to item 0's
-// own copy — items 1 and 2 wrap to different line counts, and the column
-// itself clamps narrower below 1710px — but CarouselStage.tsx's
+// (figure, FIGURE_ASPECT's height at the reference 1077px width) + 20 + 8
+// (bars) = 734. The body height is specific to item 0's own copy — items 1
+// and 2 wrap to different line counts, and the column itself clamps
+// narrower below 1710px — but CarouselStage.tsx's
 // grid-stacked slots size themselves to whichever item is tallest at the
 // current column width with zero measurement, so this constant is never
 // used as a literal height on the component. It exists only to derive the
@@ -167,25 +179,34 @@ export const MIN_CAROUSEL_VIEWPORT_H = STICKY_TOP + CAROUSEL_STAGE_H + PANEL_BOT
 
 // --- GeminiCut video figures ----------------------------------------------
 //
-// Every other figure in the template is CONTENT_W x FIGURE_H (1077x556, a
-// 1.937:1 ratio) because every source image was cropped to it. GeminiCut's
-// two video figures are real screen recordings with their own native
-// aspect ratios, measured directly off the files (`mdls`/Spotlight, not
-// assumed) rather than cropped to fit — cropping either would cut into real
-// UI (the recordings' own header bar / prompt input), which CLAUDE.md's
-// "faithful implementation" rule treats as content, not chrome to trim.
-// Each gets its own named height rather than reusing FIGURE_H; see
-// content/case-studies/types.ts's VideoSource.height.
+// Every other figure in the template is FIGURE_ASPECT (1077x556, a 1.937:1
+// ratio) because every source image was cropped to it. GeminiCut's two
+// video figures are real screen recordings with their own native aspect
+// ratios, measured directly off the files (`mdls`/Spotlight, not assumed)
+// rather than cropped to fit — cropping either would cut into real UI (the
+// recordings' own header bar / prompt input), which CLAUDE.md's "faithful
+// implementation" rule treats as content, not chrome to trim. Each gets its
+// own named aspect ratio rather than reusing FIGURE_ASPECT; see
+// content/case-studies/types.ts's VideoSource.aspect.
+//
+// Session R5: converted from a flat px height (CAROUSEL_VIDEO_H=616,
+// SHOWCASE_VIDEO_H=606) to a ratio, same reasoning and same fix as
+// FIGURE_ASPECT above — the posters are pre-cropped to these exact ratios
+// (2154x1232 = 1077x616 at 2x for the carousel; 2154x1211 measures 606 at
+// the 1077 column, within the same rounding this constant always carried).
 
 // The four "design decisions" carousel recordings (gemini-regenerate/
-// -timeline/-style/-sound.mp4) are all 1888x1080. 1077 * (1080/1888) =
-// 616.08, rounded to the nearest px.
-export const CAROUSEL_VIDEO_H = 616;
+// -timeline/-style/-sound.mp4). Three are 1888x1080; gemini-regenerate.mp4
+// is actually 1884x1080 (re-measured this session, correcting the prior
+// "all four are 1888x1080" note here — the 4px difference doesn't move the
+// rounded well height, 616 either way, so one shared ratio still covers
+// all four without a second constant).
+export const CAROUSEL_VIDEO_ASPECT = "1888 / 1080";
 
 // "Gemini Cut Commercial.mp4" is 1920x1080 — true 16:9, and NOT the same
 // ratio as the carousel recordings above, so it does not share their
-// constant. 1077 * (1080/1920) = 605.8, rounded.
-export const SHOWCASE_VIDEO_H = 606;
+// constant.
+export const SHOWCASE_VIDEO_ASPECT = "16 / 9";
 
 // The four carousel recordings carry a thin capture-window border along
 // their edges (screen-recording artifact, not real UI) — a slight zoom
@@ -215,7 +236,10 @@ export const CAROUSEL_VIDEO_ZOOM = 1.02;
 // + 20  (gap-md)
 // + 104 (paragraph, Prose/text-body, 4 lines at 26px line-height)
 // + 20  (gap-md)
-// + 616 (video well, CAROUSEL_VIDEO_H)
+// + 616 (video well, CAROUSEL_VIDEO_ASPECT's height at the 1077px reference
+//        width — this stack height is itself only ever seeded/compared at
+//        that width, so the ratio resolves to the same 616 the old flat
+//        constant held)
 // = 869
 export const CAROUSEL_TABS_STACK_H = 869;
 
