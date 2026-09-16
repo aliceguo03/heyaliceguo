@@ -567,6 +567,20 @@ async function main() {
     // the residual centering inset hit zero at ~1195px and stayed there
     // down to 744, entirely unasserted by the original two (both >=1440)
     // configs here.
+    //
+    // Session R4a pre-flight: the selector below used to be
+    // '[class*="rounded-panel"]', which only ever matches ProjectCard's and
+    // ProjectCardTablet's panels — ProjectCardPhone's own panel is
+    // rounded-card (931:4274 rounds frame and card alike, a deliberate R3
+    // choice, not a slip). Below 744px that selector matched zero elements:
+    // "four static cards present" silently failed and the containment
+    // check passed vacuously (every() on an empty array is true) — this
+    // check never once looked at the phone card. Confirmed against clean
+    // main before fixing: ProjectCardPhone really was touching its frame
+    // edge at every width from 375px down (see ProjectCardPhone.tsx's own
+    // comment). Fixed on both sides: all three fallback cards' panels now
+    // carry `data-card-panel`, selected here instead of a class string that
+    // only some of them share.
     for (const config of [
       { name: "reduced motion", viewport: { width: 1710, height: 960 }, reducedMotion: "reduce" },
       { name: "short viewport (1440x760)", viewport: { width: 1440, height: 760 }, reducedMotion: null },
@@ -591,7 +605,7 @@ async function main() {
       });
 
       const cardCount = await page.evaluate(
-        () => document.querySelectorAll('[class*="rounded-panel"]').length,
+        () => document.querySelectorAll('[data-card-panel]').length,
       );
       results.push({
         name: `${config.name}: four static cards present`,
@@ -605,7 +619,7 @@ async function main() {
       // (globals.css) is what this guards; a 1px tolerance absorbs subpixel
       // rounding, not a real gap collapse.
       const insets = await page.evaluate(() => {
-        const panels = document.querySelectorAll('[class*="rounded-panel"]');
+        const panels = document.querySelectorAll('[data-card-panel]');
         return Array.from(panels).map((panel) => {
           const frame = panel.closest("article");
           if (!frame) return null;

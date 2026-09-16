@@ -14,9 +14,14 @@ import { ProjectMedia } from "./ProjectMedia";
 //
 // Unlike ProjectCard.tsx's fluid 1135px cap, this card is a FIXED 659px at
 // every width in its range (CLAUDE.md rule 11 — "content does not scale
-// with the viewport," only the surrounding frame flexes). `maxWidth: 100%`
-// is a safety valve, not part of the design — see ProjectCardPhone.tsx's
-// own comment on the same pattern for why one exists.
+// with the viewport," only the surrounding frame flexes). maxWidth caps
+// against --card-inset-x (globals.css) rather than a bare "100%", same
+// R1.1 Part C precedent as ProjectCard.tsx and ProjectCardPhone.tsx — see
+// the latter's own comment for why a bare 100% is a safety valve, not a
+// floor. Latent here (659px never actually outgrows a 744-1439px frame
+// after --page-x/--card-inset-x are subtracted), unlike ProjectCardPhone's
+// live case, but fixed identically so it can't become live silently if
+// either ramp changes later.
 //
 // R3 diagnostic (see the session's own plan doc) confirmed this is the
 // flat static fallback, not a frame of the pinned scroll mechanic — no
@@ -53,8 +58,13 @@ export function ProjectCardTablet({ project }: { project: Project }) {
       )}
 
       <div
+        data-card-panel
         className="relative flex flex-col gap-md rounded-panel bg-true-white p-lg"
-        style={{ width: CARD_W, maxWidth: "100%", boxShadow: "var(--shadow-card)" }}
+        style={{
+          width: CARD_W,
+          maxWidth: `min(${CARD_W}px, calc(100% - 2 * var(--card-inset-x)))`,
+          boxShadow: "var(--shadow-card)",
+        }}
       >
         <div className="flex w-full items-center justify-between">
           {/* text-mono (20px), not ProjectCard.tsx's text-mono-header

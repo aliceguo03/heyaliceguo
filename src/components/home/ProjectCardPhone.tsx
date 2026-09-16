@@ -17,19 +17,18 @@ const FRAME_H = 788;
 const CARD_W = 340;
 const MEDIA_H = 171;
 
-// Session R3: maxWidth: 100% below is a safety valve, not part of the
-// design. At exactly 375px (iPhone SE) the sitewide --page-x gutter (20px,
-// globals.css) leaves only 335px of frame width for this card — 5px
-// narrower than its own fixed 340px. Figma's own SE mock (988:7226) draws
-// a 10px page gutter for this specific section, not 20 — a real,
-// independently-confirmed discrepancy: --card-inset-x's own comment in
-// globals.css measured the same 10px on the same node, in an earlier
-// session. Rather than fork --page-x for one section or let a fixed-width
-// card silently overflow the viewport, the card yields the few px sitewide
-// page-x already costs it at that exact width. Invisible in practice (a
-// <2% width change, and only at this one viewport), but flagged for Alice
-// — the two numbers should agree, and resolving that is bigger than this
-// session's scope.
+// Session R4a pre-flight: maxWidth used to be a bare "100%", which is only
+// a safety valve against overflow, not a floor against touching the frame
+// — the residual inset it left was pure centering leftover, and that hit
+// exactly 0 at every width from 375px down to this card's own floor (same
+// failure shape R1.1 Part C already fixed once for ProjectCard.tsx's
+// desktop fallback: a fixed-width card with no minimum gap of its own).
+// Now capped against --card-inset-x (globals.css) the same way Part C
+// capped ProjectCard — which, as a side effect, resolves the 10-vs-20px SE
+// discrepancy this comment used to flag as out of scope: --card-inset-x is
+// already 10px below 395px (independently measured off the same 988:7226
+// node), so reading it here instead of a flat 20 lands on Figma's own
+// number at iPhone SE width, not just close to it.
 export function ProjectCardPhone({ project }: { project: Project }) {
   const { slug, number, name, shortName, status, role, type, shortType, color, gradient, thumbnail, video } =
     project;
@@ -65,8 +64,13 @@ export function ProjectCardPhone({ project }: { project: Project }) {
           bottom padding is py-md (20), not py-sm (12) — px-md stays
           unchanged. */}
       <div
+        data-card-panel
         className="relative flex flex-col gap-sm rounded-card bg-true-white px-md py-md"
-        style={{ width: CARD_W, maxWidth: "100%", boxShadow: "var(--shadow-card)" }}
+        style={{
+          width: CARD_W,
+          maxWidth: `min(${CARD_W}px, calc(100% - 2 * var(--card-inset-x)))`,
+          boxShadow: "var(--shadow-card)",
+        }}
       >
         <div className="flex w-full items-center justify-between">
           <h3 className="flex items-center gap-s text-mono-caption font-mono">
