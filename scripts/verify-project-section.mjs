@@ -8,12 +8,15 @@
 //
 // Every check here is a measurement against a Playwright-read box or
 // computed style — never an eyeball call — per the plan this verifies:
-// centering at three widths, the banner's alignment with the frame strip
-// and its corner rounding, seam-to-gutter lockstep across the scroll range,
-// no stray white band inside the card mid-transition, the frame-04-to-buttons
-// gap, video play/pause under clip-path, the gentle scroll snap
-// (useProjectSnap.ts) and its guards, and the reduced-motion/short-viewport
-// fallback.
+// centering, the banner's alignment with the frame strip and its corner
+// rounding, seam-to-gutter lockstep across the scroll range, no stray white
+// band inside the card mid-transition, the frame-04-to-buttons gap, video
+// play/pause under clip-path, the gentle scroll snap (useProjectSnap.ts)
+// and its guards, and the reduced-motion/short-viewport fallback.
+//
+// Session R4a: the mechanic now runs at every tier the geometry supports,
+// not just >=1440px — WIDTHS below is the set most checks now loop over
+// (previously a fixed [1710, 1440]).
 
 import { chromium } from "playwright";
 import { spawn } from "node:child_process";
@@ -21,6 +24,12 @@ import { createServer } from "node:net";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const SHOT_DIR = process.env.VERIFY_SHOT_DIR || ".";
+
+// Representative widths across all three tiers: 1710/1440 (desktop,
+// unchanged since before R4a), 1024/744 (tablet), 430/390 (phone, 390 is
+// MIN_MECHANIC_FLOOR_W itself — the narrowest width the mechanic is
+// expected to run at all).
+const WIDTHS = [1710, 1440, 1024, 744, 430, 390];
 
 // --- Geometry mirror --------------------------------------------------------
 // Deliberately re-imported from the real module (via a tiny CJS-less
@@ -31,6 +40,33 @@ const SHOT_DIR = process.env.VERIFY_SHOT_DIR || ".";
 // This is deliberate: a verification script that hardcodes its own copy of
 // the geometry can't catch a real drift between projectGeometry.ts and the
 // rendered page.
+//
+// TIER_CONST below is a narrow, deliberate exception to that rule: FRAME_H
+// is no longer a single fixed number to read back — it's a clamp,
+// FRAME_H = clamp(min, 100svh - FRAME_PIN - 30, max), and confirming the
+// clamp itself is correct (not just "some plausible value came out")
+// requires knowing the min/max/FRAME_PIN it was built from independently
+// of the page under test. These four numbers are stable design constants
+// (Figma-adjacent, not per-render derived values the way PITCH/TRAVEL/
+// TILE_W are) — mirroring them here is the same category of thing as this
+// script's own SNAP_IDLE_MS-adjacent sleep durations already are, not a
+// re-implementation of the geometry formula itself.
+const TIER_CONST = {
+  phone: { framePin: 156, frameHMin: 401, frameHMax: 788 },
+  tablet: { framePin: 162, frameHMin: 592, frameHMax: 788 },
+  desktop: { framePin: 162, frameHMin: 780, frameHMax: 780 },
+};
+
+function tierFor(width) {
+  if (width < 744) return "phone";
+  if (width < 1440) return "tablet";
+  return "desktop";
+}
+
+function expectedFrameH(width, height) {
+  const { framePin, frameHMin, frameHMax } = TIER_CONST[tierFor(width)];
+  return Math.min(frameHMax, Math.max(frameHMin, height - framePin - 30));
+}
 
 // --- Harness plumbing (shared shape with verify-animation.mjs) -------------
 
@@ -221,16 +257,19 @@ async function main() {
     await waitForServer(base);
     const browser = await chromium.launch();
 
-    // ---- Check 1: centering at 1710 / 1440 -----------------------------
-    // 1200px dropped (Session R0): MIN_MECHANIC_VIEWPORT_W (lib/motion.ts)
-    // now gates the mechanic itself on width, not just height, so at
-    // 1200px the fixed card no longer renders at all — the fallback does.
-    for (const width of [1710, 1440]) {
-      const context = await browser.newContext({ viewport: { width, height: 960 } });
+    // ---- Checks 1/1b/1c: centering, banner alignment, FRAME_H clamp, mask
+    // rounding — one combined loop over WIDTHS (session R4a; previously
+    // three separate loops each fixed at [1710, 1440]). One context per
+    // width covers all four so this doesn't triple the page-load cost of
+    // widening from two widths to six. ------------------------------------
+    for (const width of WIDTHS) {
+      const height = 960;
+      const context = await browser.newContext({ viewport: { width, height } });
       const page = await context.newPage();
       await page.goto(base, { waitUntil: "networkidle" });
       await installProgressProbe(page);
 
+      // Card centered against the true viewport, not a reference width.
       const centerX = await readCardCenterX(page);
       const viewportCenter = width / 2;
       const drift = Math.abs(centerX - viewportCenter);
@@ -241,20 +280,10 @@ async function main() {
         detail: `card center=${centerX.toFixed(2)} viewport center=${viewportCenter} drift=${drift.toFixed(2)}px`,
       });
 
-      await context.close();
-    }
-
-    // ---- Check 1b: banner label aligns with the frame strip at both
-    // widths (regression guard for the horizontal-centering fix — the
-    // banner used to resolve its own position via a parallel padding/cap
-    // split that only agreed with the frame strip's at the 1710px
-    // reference width). 1200px dropped along with Check 1 above, same
-    // reason. ------------------------------------------------
-    for (const width of [1710, 1440]) {
-      const context = await browser.newContext({ viewport: { width, height: 960 } });
-      const page = await context.newPage();
-      await page.goto(base, { waitUntil: "networkidle" });
-
+      // Banner label aligns with the frame strip (regression guard for the
+      // horizontal-centering fix — the banner used to resolve its own
+      // position via a parallel padding/cap split that only agreed with
+      // the frame strip's at the 1710px reference width).
       const rects = await page.evaluate(() => {
         function rect(el) {
           const r = el.getBoundingClientRect();
@@ -273,24 +302,27 @@ async function main() {
         detail: `label=${JSON.stringify(rects.label)} frame0=${JSON.stringify(rects.frame0)}`,
       });
 
-      await context.close();
-    }
+      // FRAME_H clamp: the strip's rounded overflow-hidden viewport height
+      // ([data-project-frame="0"]'s grandparent) must equal
+      // clamp(FRAME_H_MIN, height - FRAME_PIN - 30, FRAME_H_MAX) for this
+      // width's tier — cross-checked against TIER_CONST (see its own
+      // comment), not just "some value came out."
+      const maskHeight = await page.evaluate(() => {
+        const el = document.querySelector('[data-project-frame="0"]').parentElement.parentElement;
+        return el.getBoundingClientRect().height;
+      });
+      const expectedH = expectedFrameH(width, height);
+      results.push({
+        name: `FRAME_H matches the clamp formula at ${width}x${height} (tier=${tierFor(width)})`,
+        pass: Math.abs(maskHeight - expectedH) <= 1,
+        gating: true,
+        detail: `measured=${maskHeight.toFixed(2)} expected=${expectedH}`,
+      });
 
-    // ---- Check 1c: the strip's own rounded overflow-hidden viewport is
-    // what rounds its visible boundary — not the banner (regression guard,
-    // updated: the banner-rounds-its-own-corner approach this used to test
-    // was replaced — rounding a straight edge can only ever cut a concave
-    // notch, never the convex bulge the design wants — with a rounded
-    // overflow-hidden box wrapping the whole strip, so whatever's at that
-    // box's own top/bottom edge clips to a convex curve at any scroll
-    // position, not just at rest). ---------------------------------------
-    {
-      const context = await browser.newContext({ viewport: { width: 1710, height: 960 } });
-      const page = await context.newPage();
-      await page.goto(base, { waitUntil: "networkidle" });
-
-      // The banner itself must NOT carry corner rounding any more — a
-      // plain rectangle, per the reasoning above.
+      // The banner itself must NOT carry corner rounding — rounding a
+      // straight edge can only ever cut a concave notch, never the convex
+      // bulge the design wants; that comes from the strip's own rounded
+      // overflow-hidden viewport instead (checked next).
       const bannerRadius = await page.evaluate(() => {
         const card = document.querySelector('[data-testid="project-card"]');
         const bannerOuter = card.closest(".sticky").querySelector(":scope > div:last-child");
@@ -298,15 +330,15 @@ async function main() {
         return getComputedStyle(bannerInner).borderBottomLeftRadius;
       });
       results.push({
-        name: "banner is a plain rectangle (no corner rounding of its own)",
+        name: `banner is a plain rectangle at ${width}px (no corner rounding of its own)`,
         pass: Number.parseFloat(bannerRadius) === 0,
         gating: true,
         detail: `borderBottomLeftRadius=${bannerRadius}`,
       });
 
-      // The mask: [data-project-frame="0"]'s grandparent is the
-      // overflow-hidden, rounded-card viewport that clips the translating
-      // strip (ProjectSection.tsx's L1 comment).
+      // The mask: overflow-hidden, all four corners rounded, at this
+      // width's own FRAME_H (confirms item 3 — the corner-rounding fix's
+      // geometry still holds once FRAME_H becomes fluid, not re-derived).
       const mask = await page.evaluate(() => {
         const el = document.querySelector('[data-project-frame="0"]').parentElement.parentElement;
         const cs = getComputedStyle(el);
@@ -318,34 +350,24 @@ async function main() {
           br: cs.borderBottomRightRadius,
         };
       });
-      const cardRadius = await page.evaluate(() =>
-        getComputedStyle(document.querySelector('[data-testid="project-card"]')).getPropertyValue(
-          "--radius-card",
-        ),
-      );
       const allRounded = [mask.tl, mask.tr, mask.bl, mask.br].every((r) => Number.parseFloat(r) > 0);
       results.push({
-        name: "strip viewport clips (overflow hidden) with all four corners rounded",
+        name: `strip viewport clips (overflow hidden) with all four corners rounded at ${width}px`,
         pass: mask.overflow === "hidden" && allRounded,
         gating: true,
-        detail: `overflow=${mask.overflow} tl=${mask.tl} tr=${mask.tr} bl=${mask.bl} br=${mask.br} radius-card token=${cardRadius}`,
+        detail: `overflow=${mask.overflow} tl=${mask.tl} tr=${mask.tr} bl=${mask.bl} br=${mask.br}`,
       });
 
       // Rounding is baked into the mask's own static shape, not derived
       // from scroll position — confirm the computed radius is identical at
-      // a rest slot and mid-transition (screenshots are the human-legible
-      // version of this same claim; this is its automated, exact form).
+      // a rest slot and mid-transition.
       const sectionTop = await page.evaluate(() => {
         const card = document.querySelector('[data-testid="project-card"]');
         const section = card.closest(".sticky").parentElement;
         return section.getBoundingClientRect().top + window.scrollY;
       });
-      const pitch = await page.evaluate(() => {
-        const f0 = document.querySelector('[data-project-frame="0"]').getBoundingClientRect();
-        const f1 = document.querySelector('[data-project-frame="1"]').getBoundingClientRect();
-        return f1.top - f0.top;
-      });
-      await page.evaluate((y) => window.scrollTo(0, y), sectionTop + pitch * 0.5);
+      const pitchHere = await readPitch(page);
+      await page.evaluate((y) => window.scrollTo(0, y), sectionTop + pitchHere * 0.5);
       await settleScroll(page);
       const maskMidScroll = await page.evaluate(() => {
         const el = document.querySelector('[data-project-frame="0"]').parentElement.parentElement;
@@ -356,16 +378,49 @@ async function main() {
       });
       const maskAtRest = [mask.tl, mask.tr, mask.bl, mask.br].join(",");
       results.push({
-        name: "strip viewport's corner radius is identical at rest and mid-transition (baked into shape, not scroll-derived)",
+        name: `strip viewport's corner radius is identical at rest and mid-transition at ${width}px`,
         pass: maskAtRest === maskMidScroll,
         gating: true,
         detail: `atRest=${maskAtRest} midScroll=${maskMidScroll}`,
+      });
+
+      // Content fit: no project's CTA sits below the tile's own bottom
+      // edge — the visual symptom of a wrapped meta row silently
+      // outgrowing this tier's fixed TILE_H (clip-path clips paint, not
+      // layout, so a wrapped row's overflow would crop the CTA off rather
+      // than reflow anything — see projectGeometry.ts's
+      // MIN_MECHANIC_FLOOR_W comment for the measurement this guards).
+      await page.evaluate((y) => window.scrollTo(0, y), sectionTop);
+      await settleScroll(page);
+      const ctaFit = await page.evaluate(() => {
+        const tile = document.querySelector('[data-testid="project-card"]');
+        const tileBottom = tile.getBoundingClientRect().bottom;
+        return Array.from(document.querySelectorAll("[data-project-index]")).map((layer) => {
+          const cta = layer.querySelector("a, button");
+          if (!cta) return null;
+          return tileBottom - cta.getBoundingClientRect().bottom;
+        });
+      });
+      const ctaContained = ctaFit.every((clearance) => clearance === null || clearance >= -0.5);
+      results.push({
+        name: `every project's CTA stays within the tile's own height at ${width}px (no wrapped-row overflow)`,
+        pass: ctaContained,
+        gating: true,
+        detail: JSON.stringify(ctaFit),
       });
 
       await context.close();
     }
 
     // ---- Checks 2 + 3 + 4: seam lockstep, no white gap, buttons gap -------
+    // Deliberately desktop-only (1710) for the full 9-sample walk — each
+    // sample is a real wheel-driven scroll settle, and looping the whole
+    // walk across WIDTHS would multiply this section's own runtime six-fold
+    // for a mechanism (--strip-y driving L1/L3/clip-path in lockstep) that
+    // doesn't change shape per tier, only its numeric inputs (already
+    // covered by the FRAME_H-clamp and mask-rounding checks above, which DO
+    // run at every width). A lighter 3-sample spot check at one phone
+    // width follows this block instead of a full re-walk.
     {
       const context = await browser.newContext({ viewport: { width: 1710, height: 960 } });
       const page = await context.newPage();
@@ -459,10 +514,57 @@ async function main() {
       await context.close();
     }
 
+    // Lighter seam-lockstep spot check at a phone width — 3 samples, not
+    // the full 9-sample walk above (see that block's own comment for why).
+    {
+      const width = 393;
+      const context = await browser.newContext({ viewport: { width, height: 852 } });
+      const page = await context.newPage();
+      await page.goto(base, { waitUntil: "networkidle" });
+      await installProgressProbe(page);
+
+      for (const fraction of [0.1, 0.4, 0.8]) {
+        const progress = await wheelToSectionFraction(page, fraction);
+        if (progress === null) {
+          results.push({
+            name: `seam lockstep @ progress ${fraction} (${width}px)`,
+            pass: false,
+            gating: true,
+            detail: "progress probe returned null",
+          });
+          continue;
+        }
+        await settleScroll(page);
+        for (let i = 0; i < 3; i++) {
+          const frameBottom = await readFrameBottom(page, i);
+          const seamTop = await readSeamTop(page, i);
+          if (frameBottom === null || seamTop === null) continue;
+          const delta = Math.abs(frameBottom - seamTop);
+          results.push({
+            name: `seam ${i} aligns with frame ${i} bottom @ progress ${progress.toFixed(2)} (${width}px)`,
+            pass: delta <= 0.5,
+            gating: true,
+            detail: `frameBottom=${frameBottom.toFixed(2)} seamTop=${seamTop.toFixed(2)} delta=${delta.toFixed(2)}px`,
+          });
+        }
+      }
+
+      await context.close();
+    }
+
     // Repeat the buttons-gap check at a taller viewport to prove it's no
-    // longer viewport-height-dependent.
-    for (const height of [960, 1080]) {
-      const context = await browser.newContext({ viewport: { width: 1710, height } });
+    // longer viewport-height-dependent — and, session R4a, at a phone-tier
+    // width/height too, to prove ACTIONS_GAP stays flat at 30px even where
+    // FRAME_H itself is now fluid (unlike the desktop-only checks above,
+    // this exercises the case where the frame's own height is genuinely
+    // different from its ceiling, not just a taller viewport around an
+    // unchanged flat frame).
+    for (const { width, height } of [
+      { width: 1710, height: 960 },
+      { width: 1710, height: 1080 },
+      { width: 393, height: 852 },
+    ]) {
+      const context = await browser.newContext({ viewport: { width, height } });
       const page = await context.newPage();
       await page.goto(base, { waitUntil: "networkidle" });
       await installProgressProbe(page);
@@ -485,7 +587,7 @@ async function main() {
         return backToTop.getBoundingClientRect().top - stage.getBoundingClientRect().bottom;
       });
       results.push({
-        name: `frame 04 -> BACK TO TOP gap constant across viewport heights (${height}px tall)`,
+        name: `frame 04 -> BACK TO TOP gap constant at ${width}x${height} (tier=${tierFor(width)})`,
         pass: gap !== null && Math.abs(gap - 30) <= 1,
         gating: true,
         detail: gap === null ? "could not locate frame 04 or BACK TO TOP" : `gap=${gap.toFixed(2)}px`,
@@ -581,11 +683,26 @@ async function main() {
     // comment). Fixed on both sides: all three fallback cards' panels now
     // carry `data-card-panel`, selected here instead of a class string that
     // only some of them share.
+    // Session R4a: below MIN_MECHANIC_VIEWPORT_W (1440), the mechanic now
+    // RUNS rather than unconditionally falling back — "tablet width (744)"
+    // and "phone width (375)" at a generous height 1000 used to be
+    // fallback cases and no longer are (744x1000/393x1000 both clear their
+    // tier's own MIN_VIEWPORT_H comfortably). Reworked per the R4a plan:
+    // one reduced-motion and one short-viewport config per tier (the two
+    // conditions `disabled` folds together, see ProjectSection.tsx), plus
+    // two width-floor configs (MIN_MECHANIC_FLOOR_W's own boundary is
+    // covered by the mechanic-runs checks above; these confirm well below
+    // it still falls back). Each config now also asserts the CORRECT card
+    // tier rendered (`data-card-tier`), not just "some four cards."
     for (const config of [
-      { name: "reduced motion", viewport: { width: 1710, height: 960 }, reducedMotion: "reduce" },
-      { name: "short viewport (1440x760)", viewport: { width: 1440, height: 760 }, reducedMotion: null },
-      { name: "tablet width (744)", viewport: { width: 744, height: 1000 }, reducedMotion: null },
-      { name: "phone width (375)", viewport: { width: 375, height: 1000 }, reducedMotion: null },
+      { name: "reduced motion (desktop)", viewport: { width: 1710, height: 960 }, reducedMotion: "reduce", tier: "desktop" },
+      { name: "reduced motion (tablet)", viewport: { width: 1024, height: 900 }, reducedMotion: "reduce", tier: "tablet" },
+      { name: "reduced motion (phone)", viewport: { width: 393, height: 800 }, reducedMotion: "reduce", tier: "phone" },
+      { name: "short viewport, desktop tier (1440x760)", viewport: { width: 1440, height: 760 }, reducedMotion: null, tier: "desktop" },
+      { name: "short viewport, tablet tier (1024x700)", viewport: { width: 1024, height: 700 }, reducedMotion: null, tier: "tablet" },
+      { name: "short viewport, phone tier (393x520)", viewport: { width: 393, height: 520 }, reducedMotion: null, tier: "phone" },
+      { name: "below MIN_MECHANIC_FLOOR_W (375)", viewport: { width: 375, height: 1000 }, reducedMotion: null, tier: "phone" },
+      { name: "below MIN_MECHANIC_FLOOR_W (320)", viewport: { width: 320, height: 1000 }, reducedMotion: null, tier: "phone" },
     ]) {
       const context = await browser.newContext({
         viewport: config.viewport,
@@ -604,14 +721,20 @@ async function main() {
         detail: mechanicPresent ? "found [data-testid=project-card] — mechanic rendered" : "not present",
       });
 
-      const cardCount = await page.evaluate(
-        () => document.querySelectorAll('[data-card-panel]').length,
+      const panelTiers = await page.evaluate(() =>
+        Array.from(document.querySelectorAll("[data-card-panel]")).map((el) => el.getAttribute("data-card-tier")),
       );
       results.push({
         name: `${config.name}: four static cards present`,
-        pass: cardCount === 4,
+        pass: panelTiers.length === 4,
         gating: true,
-        detail: `count=${cardCount}`,
+        detail: `count=${panelTiers.length}`,
+      });
+      results.push({
+        name: `${config.name}: the correct tier's card rendered (${config.tier})`,
+        pass: panelTiers.every((t) => t === config.tier),
+        gating: true,
+        detail: `tiers=${JSON.stringify(panelTiers)}`,
       });
 
       // Each card's white panel must sit strictly inside its own gradient
@@ -749,9 +872,43 @@ async function main() {
       await context.close();
     }
 
+    // Lighter-weight slot-settling check at tablet and phone widths, in
+    // addition to the full 1710 battery above — direct scrollTo + a small
+    // nudge (not a real wheel drag) is enough to confirm each tier's own
+    // PITCH-derived slots resolve correctly; the fuller guard battery
+    // above (focus, out-of-range, fast-flick) is geometry-independent and
+    // isn't re-run per width.
+    for (const width of [1024, 744, 430]) {
+      const context = await browser.newContext({ viewport: { width, height: 1100 } });
+      const page = await context.newPage();
+      await page.goto(base, { waitUntil: "networkidle" });
+      const sectionTop = await readSectionTop(page);
+      const pitch = await readPitch(page);
+
+      for (let i = 0; i < 4; i++) {
+        const slotY = sectionTop + i * pitch;
+        const isLastSlot = i === 3;
+        await wheelToY(page, slotY, isLastSlot ? { stopThreshold: 150 } : {});
+        await page.mouse.wheel(0, isLastSlot ? -120 : 120);
+        await sleep(2600);
+        const finalY = await page.evaluate(() => window.scrollY);
+        results.push({
+          name: `scroll snap: settles back to slot ${i} exactly after a small nudge at ${width}px (tier=${tierFor(width)})`,
+          pass: Math.abs(finalY - slotY) < 1,
+          gating: true,
+          detail: `finalY=${finalY} slotY=${slotY}`,
+        });
+      }
+
+      await context.close();
+    }
+
     for (const viewport of [
       { width: 1440, height: 1000 },
       { width: 1710, height: 1000 },
+      { width: 1024, height: 1200 },
+      { width: 744, height: 1200 },
+      { width: 430, height: 932 },
     ]) {
       const context = await browser.newContext({ viewport });
       const page = await context.newPage();
@@ -799,6 +956,7 @@ async function main() {
     for (const config of [
       { name: "reduced motion", viewport: { width: 1710, height: 960 }, reducedMotion: "reduce" },
       { name: "short viewport (1440x760)", viewport: { width: 1440, height: 760 }, reducedMotion: null },
+      { name: "below MIN_MECHANIC_FLOOR_W (375)", viewport: { width: 375, height: 1000 }, reducedMotion: null },
     ]) {
       const context = await browser.newContext({
         viewport: config.viewport,

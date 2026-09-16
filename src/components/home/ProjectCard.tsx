@@ -72,6 +72,7 @@ export function ProjectCard({ project }: { project: Project }) {
 
       <div
         data-card-panel
+        data-card-tier="desktop"
         className="relative flex w-full flex-col gap-lg rounded-panel bg-true-white px-xl py-lg"
         style={{
           maxWidth: `min(${CARD_MAX_W}px, calc(100% - 2 * var(--card-inset-x)))`,

@@ -11,156 +11,323 @@
 // block 582:2463, and the card component 565:1454 ("project=f3-new" in set
 // 439:5606). Re-read these fresh from Figma if the design changes — do not
 // carry these numbers forward by assumption.
+//
+// Session R4a. Everything below MIN_VIEWPORT_W (1440) used to be an
+// unconditional static fallback (ProjectCard*.tsx in normal flow) — this
+// file only ever described the desktop mechanic. R4a runs the SAME pinned
+// mechanic at every tier the mechanic can physically fit, which means most
+// of what used to be flat module-scope constants are now tier-dependent,
+// height-dependent, or both — see geometryFor() below. There is no Figma
+// reference for the mechanic below 1440px (by design — the file's mocks
+// down there are the fallback card, not a frame of the mechanic; see R3's
+// own diagnostic). Every number this session introduces is either measured
+// off the rendered fallback cards (which DO have a Figma source, since
+// they're reused verbatim as this tier's content) or a documented judgment
+// call — never a guess presented as a measurement.
 
-// --- Primitives, read directly off Figma --------------------------------
+// --- Tiers ------------------------------------------------------------
 
-export const FRAME_W = 1610; // gradient frame width (= --container-page)
-export const FRAME_H = 780; // gradient frame height — the VISIBLE slice only; see FRAME_STRIP_H
-export const GUTTER = 30; // gap between stacked gradient frames (space-lg)
+export type ProjectTier = "phone" | "tablet" | "desktop";
 
-// Extra gradient height carried above and below FRAME_H in the L1 strip
-// only — pure buffer that scrolls past off-window, giving each project more
-// scroll distance ("dwell") before the wipe to the next project begins.
-// Session gradient-extend: checked the actual gradient PNGs pixel-by-pixel
-// before picking a number — they're smooth mesh-gradient/noise images with
-// no baked artwork, already exported far taller than the FRAME_H crop shown
-// today (every current asset has 600px+ of clean margin on each side), and
-// object-cover is width-bound at this container width regardless of height,
-// so growing the strip element just reveals more of the same image — no new
-// Figma exports needed for 200. Never feeds FRAME_H, which stays the
-// mask/viewport size — see FRAME_STRIP_H below for the one place this feeds.
-export const BUFFER = 200;
-
-export const TILE_W = 863; // white card width
-export const TILE_H = 660; // white card height
-export const TILE_INSET_TOP = 60; // card's inset within its frame, top edge
-export const TILE_INSET_BOTTOM = 60; // card's inset within its frame, bottom edge
-
-// The card's horizontal insets in Figma are asymmetric — 374px left, 373px
-// right (441:5987/441:5988) — which would put the card 0.5px right of the
-// frame's own center. Not carried into code: the card is centered against
-// the true viewport by flexbox (ProjectSection.tsx), not by a pixel offset,
-// which is both what CLAUDE.md's centering fix requires and exactly on
-// center, rounding artifact and all.
-
-export const MEDIA_H = 437; // media well height inside the card content
-export const CONTENT_W = 763; // card content width (card width minus px-xl*2)
+// Mirrors --breakpoint-tablet / MIN_MECHANIC_VIEWPORT_W's own thresholds
+// (lib/motion.ts) — the same two-way splits ProjectSection.tsx already
+// computes for card selection (`mobile`, `belowDesktop`), just folded into
+// one three-way tier here so geometry and card choice can never disagree
+// about where a boundary sits.
+export function tierFor(width: number): ProjectTier {
+  if (width < 744) return "phone";
+  if (width < 1440) return "tablet";
+  return "desktop";
+}
 
 export const PROJECT_COUNT = 4;
 
-// --- The banner above the strip -------------------------------------------
+// --- Desktop-tier content dimensions --------------------------------------
+//
+// Unchanged from before R4a, and deliberately still flat constants rather
+// than tier-dependent fields on ProjectGeometry: ProjectTileContent.tsx (and
+// ProjectMedia.tsx's `sizes` hint) render only inside the desktop tier,
+// whose TILE_W/TILE_H are themselves flat at every desktop width by this
+// session's own byte-identical requirement — so there is nothing for these
+// two to vary with. The tablet and phone tiers' own content components
+// (ProjectTileContentTablet.tsx, ProjectTileContentPhone.tsx) define their
+// own local media-well-height consts instead, matching the pattern
+// ProjectCardTablet.tsx/ProjectCardPhone.tsx already used before this
+// session — see those files, not here.
+export const MEDIA_H = 437; // media well height inside the card content
+export const CONTENT_W = 763; // card content width (card width minus px-xl*2)
+
+// --- Banner + pin offset -------------------------------------------------
 
 export const NAV_H = 94; // mirrors --spacing-nav-height
-export const BANNER_H = 56; // Figma "selected work" block, 582:2463
 export const BANNER_GAP = 12; // banner block -> frame 01, mirrors space-sm
 
+// The "SELECTED WORK." banner block's own height: 2 * space-sm (12, the
+// label's own vertical padding) + the mono-header line box. That line box
+// steps 32 -> 26 below --breakpoint-tablet (744), same mobile type-scale
+// ramp every other mono-header instance on the site already follows
+// (globals.css, the `@media (width < 744px)` block) — so the banner is
+// 56px at >=744 (unchanged from every session before this one) and 50px
+// below it, not a flat 56 everywhere. The flat-162 FRAME_PIN this file
+// used to export was wrong by 6px on phones for exactly this reason before
+// R4a; --spacing-stack-pin (globals.css) already composed this correctly
+// from tokens, it just had no JS consumer to catch the drift.
+function bannerHeight(width: number): number {
+  return width < 744 ? 12 + 26 + 12 : 12 + 32 + 12;
+}
+
 // Where the pinned stage's content starts: the banner sits flush above this
-// line, the gradient strip's first frame starts here. Mirrored in
-// globals.css as --spacing-stack-pin, composed from the same three tokens
-// (nav height + banner block height + the gap beneath it) rather than typed
-// as a literal in either place, so it can't drift if one of them changes.
-// 94 + 56 + 12 = 162px.
-export const FRAME_PIN = NAV_H + BANNER_H + BANNER_GAP;
+// line, the gradient strip's first frame starts here. NAV_H + bannerHeight
+// + BANNER_GAP — 162px at >=744 (94+56+12, unchanged), 156px below it
+// (94+50+12).
+function framePin(width: number): number {
+  return NAV_H + bannerHeight(width) + BANNER_GAP;
+}
 
-// --- Derived — computed from the primitives, never typed as literals ----
+// --- Frame width (mirrors the CSS page-gutter ramp, globals.css) --------
+//
+// The frame's own rendered width is already fluid for free — L1's strip,
+// the banner, and the card's centering wrapper all sit inside
+// `mx-auto max-w-page` + `px-page-x` (Tailwind utilities reading
+// --container-page / --spacing-page-x), so nothing here drives that layout
+// directly. This mirror exists only so TILE_W (below) can compute a
+// numeric cap — the mechanic needs an actual px width for the fixed tile
+// element, which CSS alone can't hand back into JS. Thresholds (1024/1440)
+// and values (20/30/50) must match globals.css's own --page-x ramp by
+// hand — same constraint globals.css's own comment already states for its
+// hand-written @media blocks.
+function pageX(width: number): number {
+  if (width >= 1440) return 50;
+  if (width >= 1024) return 30;
+  return 20;
+}
 
-// Height of one ProjectFrame instance *in the L1 strip only*. ProjectFrame's
-// `height` prop defaults to FRAME_H (used by the static ProjectCard
-// fallback, and by the mask/viewport below); the strip passes this instead.
-// This is the decoupling: FRAME_H stays the visible-window size, and this is
-// the only thing BUFFER feeds into scroll pacing. 780 + 2*200 = 1180.
-export const FRAME_STRIP_H = FRAME_H + 2 * BUFFER;
+function frameWidth(width: number): number {
+  return Math.min(1610, width - 2 * pageX(width));
+}
 
-// Vertical distance from one frame's top to the next frame's top. Built from
-// FRAME_STRIP_H, not FRAME_H — that's the strip element's actual height now
-// that it carries buffer content; FRAME_H alone would only describe the
-// visible slice, not the scroll distance a full element occupies.
-// 1180 + 30 = 1210.
-export const PITCH = FRAME_STRIP_H + GUTTER;
+// --card-inset-x's own ramp (globals.css), mirrored for the same reason
+// pageX is above — used by the tablet tier's TILE_W cap (and documented
+// here for the phone tier's own, deliberately different, choice below).
+function cardInsetX(width: number): number {
+  if (width >= 1024) return 30;
+  if (width >= 395) return 20;
+  return 10;
+}
 
-// Total distance the gradient strip and seam layer travel to carry project 1
-// all the way to project PROJECT_COUNT's position. (4 - 1) * 1210 = 3630.
-export const TRAVEL = (PROJECT_COUNT - 1) * PITCH;
+// --- Per-tier design constants, measured off the rendered fallback cards ---
+//
+// TILE_H is measured, not estimated: rendered panel boxes on clean `main`
+// before R4a (ProjectCardPhone/-Tablet, whose own content this session
+// reuses verbatim for the mechanic — see ProjectTileContentPhone.tsx /
+// -Tablet.tsx). Re-measure if either card's content changes; don't assume
+// these hold the way the banner-height mistake above shows a flat carried
+// number can quietly drift wrong.
+const TIER_TILE_W: Record<ProjectTier, number> = { phone: 340, tablet: 659, desktop: 863 };
+const TIER_TILE_H: Record<ProjectTier, number> = { phone: 361, tablet: 532, desktop: 660 };
 
-// The card's fixed top offset within the pinned stage. 162 + 60 = 222.
-export const TILE_TOP = FRAME_PIN + TILE_INSET_TOP;
-export const TILE_BOTTOM = TILE_TOP + TILE_H; // 222 + 660 = 882
+// The frame height Figma actually draws for that tier's own static card —
+// the ceiling FRAME_H may never exceed. 788 for phone/tablet (931:4274,
+// 931:4275); desktop's is the existing 780 (441:5987), unchanged.
+const TIER_FRAME_H_MAX: Record<ProjectTier, number> = { phone: 788, tablet: 788, desktop: 780 };
 
-// The pinned stage's own height — banner band + exactly one frame's worth of
-// window. This, not 100svh, is what the section pins to: the stage ends the
-// instant frame 04 clears it, which is what lets the section's scroll
-// runway end at frame 04's bottom edge instead of one further viewport's
-// worth of scrolling. 162 + 780 = 942.
-// Deliberately FRAME_H, not FRAME_STRIP_H — the visible mask/viewport never
-// grows just because the strip carries more scrollable content per project
-// (session gradient-extend). Growing this was the mistake to avoid.
-export const STAGE_H = FRAME_PIN + FRAME_H;
+// Minimum visual margin between the card and its frame's edge, at the
+// floor. Phone/tablet mirror --spacing-md / --spacing-lg (the same tokens
+// --card-inset-x resolves to at their own widths); desktop keeps its
+// original 60 (TILE_INSET_TOP/BOTTOM's old flat value) so FRAME_H_MIN ==
+// FRAME_H_MAX == 780 there, below.
+const TIER_MIN_INSET: Record<ProjectTier, number> = { phone: 20, tablet: 30, desktop: 60 };
 
-// The section's total scroll runway: the sticky stage holds still for
-// STAGE_H while the strips travel TRAVEL past it, then releases immediately.
-// No viewport term — the runway's length no longer depends on window height.
-export const SECTION_H = TRAVEL + STAGE_H;
+// FRAME_H_MIN = TILE_H + 2*minInset — the floor is "the card fits with a
+// visible band of gradient on both sides," not an arbitrary number. Note
+// desktop's MIN equals its own MAX (780): making desktop height-fluid too
+// would break the 1440/1710 byte-identical requirement this session must
+// hold. See CLAUDE.md's "Deferred work" — tracked there, not silently.
+function frameHMin(tier: ProjectTier): number {
+  return TIER_TILE_H[tier] + 2 * TIER_MIN_INSET[tier];
+}
 
-// Figma: frame 04's bottom edge (441:5993, y=2556+780=3336) to the buttons
-// row's top edge (441:5995, y=3366). Equals --spacing-lg exactly — use that
-// token (mb-lg / pb-lg) in components rather than this raw number; it's
-// exported so the verify script can assert the rendered gap against the
-// Figma measurement it's meant to reproduce.
-export const ACTIONS_GAP = 30;
+// The phone tier's own tile-width floor, deliberately NOT cardInsetX above.
+// That ramp steps 10 -> 20 at 395px, which would pull TILE_W to 320px at
+// vw 400 — below the 325px wrap threshold measured for this card's own
+// content (ProjectTileContentPhone.tsx's meta row wraps between 320 and
+// 325px of tile width; see MIN_MECHANIC_FLOOR_W's own comment below for
+// the full measurement). A flat 10px keeps the mechanic's own tile above
+// that threshold at every width MIN_MECHANIC_FLOOR_W admits. The fallback
+// ProjectCardPhone.tsx is free to use the real --card-inset-x ramp instead
+// (and does) because it has no fixed TILE_H to protect — its panel simply
+// grows taller if a row wraps.
+const PHONE_MECHANIC_MIN_INSET = 10;
 
-// Below this viewport height the card plus its pin offset don't fit, so
-// ProjectSection falls back to normal-flow cards instead of the mechanic.
-// Equal to TILE_BOTTOM: the threshold is "the whole card fits," not some
-// smaller structural floor — a partially-visible fixed card reads as
-// broken, not as an intentional crop.
-export const MIN_VIEWPORT_H = TILE_BOTTOM;
+// TILE_W: capped, not scaled — rule 11's "content does not scale with the
+// viewport" holds at every width the tier's own card fits, and only yields
+// at the very edge, same concession ProjectCardPhone.tsx's fallback makes.
+function tileWidth(width: number, tier: ProjectTier): number {
+  const frameW = frameWidth(width);
+  const inset = tier === "phone" ? PHONE_MECHANIC_MIN_INSET : cardInsetX(width);
+  return Math.min(TIER_TILE_W[tier], frameW - 2 * inset);
+}
 
-// --- Scroll snap ------------------------------------------------------------
-// useProjectSnap.ts. Rest slots are sectionTop + i*PITCH for i in 0..3 — the
-// same offsets the mechanic already derives above, not a second source.
+// --- The gutter between stacked frames -----------------------------------
+//
+// Steps 30 -> 20 below the desktop tier, mirroring the fallback cards'
+// own inter-card rhythm (ProjectSection.tsx's static branch: gap-lg at
+// >=1440, gap-md below — Session R3). Not independently measured for the
+// mechanic itself (no Figma reference exists below 1440 for this seam) —
+// flagged for Alice's physical review, per this session's own plan.
+function gutter(width: number): number {
+  return width >= 1440 ? 30 : 20;
+}
 
-// How long the scroll must be quiet (no Lenis 'scroll' event) before a snap
-// is considered. The debounce alone still fires mid-trackpad-momentum (real
-// wheel events can arrive with >140ms gaps as inertia decays even though
-// the gesture isn't over), so SNAP_VELOCITY_EPS below is a second, required
-// condition, not a fallback.
-export const SNAP_IDLE_MS = 140;
+// --- The one function everything below this line is built from ----------
 
-// lenis.velocity must be under this when the idle timer fires, in addition
-// to the timer itself having gone uninterrupted — see SNAP_IDLE_MS. Set well
-// above "effectively stopped": Lenis's own momentum coasts for a while after
-// the wheel event ends, and waiting for it to decay near zero is what made
-// the snap feel like it fired ~1s after the user let go. Firing while it's
-// still gently coasting (roughly 4x the original 0.15) is what makes the
-// snap feel immediate instead.
-export const SNAP_VELOCITY_EPS = 0.6;
+export type ProjectGeometry = {
+  width: number;
+  svh: number;
+  tier: ProjectTier;
 
-// How far from a slot a snap will still engage. Half a pitch means the
-// section always resolves to *some* slot — deliberately strong for a first
-// look; drop this toward 0 for proximity-only snapping without touching any
-// snap logic, since every guard reads this one constant.
-export const SNAP_RADIUS = PITCH * 0.5;
+  FRAME_W: number; // the rendered frame's own numeric width at this vw
+  FRAME_H: number;
+  FRAME_H_MIN: number;
+  FRAME_H_MAX: number;
+  FRAME_PIN: number;
+  GUTTER: number;
+  BUFFER: number;
+  FRAME_STRIP_H: number;
+  PITCH: number;
+  TRAVEL: number;
 
-// Below this distance from a slot, treat the scroll as already there —
-// snapping a handful of px reads as jitter, not a snap.
-export const SNAP_DEADZONE = 8;
+  TILE_W: number;
+  TILE_H: number;
+  TILE_INSET_TOP: number;
+  TILE_INSET_BOTTOM: number;
+  TILE_TOP: number; // offset from the pinned stage's own top edge
+  TILE_BOTTOM: number;
+
+  CONTENT_INSET_TOP: number;
+  CONTENT_INSET_BOTTOM: number;
+
+  STAGE_H: number;
+  SECTION_H: number;
+
+  MIN_VIEWPORT_H: number;
+
+  // Scroll snap (useProjectSnap.ts) — PITCH-derived, kept alongside PITCH
+  // rather than recomputed at the call site so there's one formula.
+  SNAP_RADIUS: number;
+};
+
+// FRAME_H = clamp(FRAME_H_MIN, 100svh - FRAME_PIN - FRAME_BOTTOM_CLEARANCE,
+// FRAME_H_MAX). FRAME_BOTTOM_CLEARANCE (30, --spacing-lg) mirrors the gap
+// About's own pin holds under its frame (aboutGeometry.ts's BOTTOM_GAP) —
+// a different thing from ACTIONS_GAP below (the section's own margin to
+// the buttons row), which happens to share the same token value but isn't
+// this same distance. `svh`, never window.innerHeight — see
+// useProjectGeometry.ts for why (the iOS address-bar hazard this
+// deliberately stays out of, per the session's own scope).
+//
+// No safe-area term: layout.tsx exports no `viewport` object, so Next
+// emits the default `viewport-fit` (not `cover`) and env(safe-area-inset-*)
+// already resolves to 0 in the visual viewport this measures. If a later
+// session adds `viewport-fit=cover`, env(safe-area-inset-bottom) needs to
+// join FRAME_BOTTOM_CLEARANCE here.
+const FRAME_BOTTOM_CLEARANCE = 30;
+
+export function geometryFor(width: number, svh: number): ProjectGeometry {
+  const tier = tierFor(width);
+  const FRAME_PIN = framePin(width);
+  const FRAME_H_MIN = frameHMin(tier);
+  const FRAME_H_MAX = TIER_FRAME_H_MAX[tier];
+  const FRAME_H = clamp(FRAME_H_MIN, svh - FRAME_PIN - FRAME_BOTTOM_CLEARANCE, FRAME_H_MAX);
+
+  const GUTTER = gutter(width);
+  // Dwell buffer scales continuously with FRAME_H, holding desktop's tuned
+  // dwell-to-frame ratio (200:780) rather than stepping per tier — at
+  // desktop's flat 780 this resolves to exactly 200, so BUFFER (and
+  // everything built from it) is byte-identical to before this session.
+  const BUFFER = Math.round((FRAME_H * 200) / 780);
+  const FRAME_STRIP_H = FRAME_H + 2 * BUFFER;
+  const PITCH = FRAME_STRIP_H + GUTTER;
+  const TRAVEL = (PROJECT_COUNT - 1) * PITCH;
+
+  const TILE_W = tileWidth(width, tier);
+  const TILE_H = TIER_TILE_H[tier];
+  const TILE_INSET_TOP = (FRAME_H - TILE_H) / 2;
+  const TILE_INSET_BOTTOM = TILE_INSET_TOP;
+  const TILE_TOP = FRAME_PIN + TILE_INSET_TOP;
+  const TILE_BOTTOM = TILE_TOP + TILE_H;
+
+  const CONTENT_INSET_TOP = TILE_INSET_TOP + BUFFER;
+  const CONTENT_INSET_BOTTOM = TILE_INSET_BOTTOM + BUFFER;
+
+  const STAGE_H = FRAME_PIN + FRAME_H;
+  const SECTION_H = TRAVEL + STAGE_H;
+
+  // The card's own bottom edge, at FRAME_H's floor (FRAME_H_MIN) — the
+  // narrowest the frame (and therefore the tightest TILE_INSET_TOP) ever
+  // gets before the fallback takes over instead. FRAME_PIN + TILE_H +
+  // minInset, algebraically the same quantity TILE_BOTTOM works out to
+  // once FRAME_H = FRAME_H_MIN (TILE_INSET_TOP there reduces to exactly
+  // minInset). Desktop's FRAME_H is flat at 780 = its own FRAME_H_MAX, so
+  // this reduces to the historical TILE_BOTTOM = 882 exactly (162 + 60 +
+  // 660), unchanged.
+  const MIN_VIEWPORT_H = FRAME_PIN + TILE_H + TIER_MIN_INSET[tier];
+
+  const SNAP_RADIUS = PITCH * 0.5;
+
+  return {
+    width,
+    svh,
+    tier,
+    FRAME_W: frameWidth(width),
+    FRAME_H,
+    FRAME_H_MIN,
+    FRAME_H_MAX,
+    FRAME_PIN,
+    GUTTER,
+    BUFFER,
+    FRAME_STRIP_H,
+    PITCH,
+    TRAVEL,
+    TILE_W,
+    TILE_H,
+    TILE_INSET_TOP,
+    TILE_INSET_BOTTOM,
+    TILE_TOP,
+    TILE_BOTTOM,
+    CONTENT_INSET_TOP,
+    CONTENT_INSET_BOTTOM,
+    STAGE_H,
+    SECTION_H,
+    MIN_VIEWPORT_H,
+    SNAP_RADIUS,
+  };
+}
+
+function clamp(min: number, value: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+// --- The width floor below which the mechanic can't run at all ----------
+//
+// TILE_H is a per-tier constant (used for the clip math and the visibility
+// masks) — a wrapped row silently breaks both. Measured, not estimated:
+// ProjectTileContentPhone's own meta-row `dl` wraps to two lines somewhere
+// between a 320px and a 325px tile, going from a 40px-tall row to a 58px
+// one (panel height 361 -> 379). Only the meta rows move; title (21),
+// media well (171), and CTA (53) are flat throughout. So the phone tile
+// must stay >= 325px wide.
+//
+// tileWidth(vw, "phone") = min(340, (vw - 2*pageX(vw)) - 2*10), and pageX
+// is 20 for every phone-tier width, so this is min(340, vw - 60). Solving
+// vw - 60 >= 325 gives vw >= 385; 390 is the nearest round number with a
+// few px of margin over that measured boundary. Below it, the fallback
+// (ProjectCardPhone) renders instead — its own panel is free to wrap and
+// grow taller, since it has no fixed TILE_H to protect.
+export const MIN_MECHANIC_FLOOR_W = 390;
 
 // --- Content clipping -----------------------------------------------------
-
-// TILE_INSET_TOP/BOTTOM place the card inside the *visible* FRAME_H window —
-// they answer "where does the card sit," not "how long should content stay
-// unclipped." That second question needs BUFFER folded in: the strip element
-// backing content layer `i` is FRAME_STRIP_H tall (FRAME_H core + BUFFER on
-// each edge), so this project's own gradient is still on screen for BUFFER
-// px beyond where the plain FRAME_H math would start clipping it. Clipping
-// on the unmodified insets would cut the content the instant `s` passes
-// TILE_INSET_TOP, while the gradient behind it still plainly reads as this
-// project's — i.e. exactly the FRAME_H/viewport coupling this session
-// exists to remove, reintroduced one level down. One pair of constants, used
-// here and by visibilityMasks in ProjectSection.tsx, so the two can't drift.
-export const CONTENT_INSET_TOP = TILE_INSET_TOP + BUFFER;
-export const CONTENT_INSET_BOTTOM = TILE_INSET_BOTTOM + BUFFER;
-
+//
 // Clip-path for content layer `i`, expressed in terms of the same
 // `--strip-y` custom property that drives the gradient strip and the seam
 // layer (ProjectSection.tsx) — so a layer's visible region can never drift
@@ -180,10 +347,48 @@ export const CONTENT_INSET_BOTTOM = TILE_INSET_BOTTOM + BUFFER;
 //   top    = max(0, s - CONTENT_INSET_TOP)
 //   bottom = max(0, -s - CONTENT_INSET_BOTTOM)
 // This holds however the insets relate to FRAME_STRIP_H - TILE_H; it isn't
-// relying on any particular relationship between them.
-export function contentClipPath(i: number): string {
-  const s = `${i * PITCH}px + var(--strip-y)`;
-  const top = `max(0px, calc(${s} - ${CONTENT_INSET_TOP}px))`;
-  const bottom = `max(0px, calc(-1 * (${s}) - ${CONTENT_INSET_BOTTOM}px))`;
+// relying on any particular relationship between them. Unchanged by R4a
+// except that every input now comes from `geo` instead of a module-scope
+// constant.
+export function contentClipPath(i: number, geo: ProjectGeometry): string {
+  const s = `${i * geo.PITCH}px + var(--strip-y)`;
+  const top = `max(0px, calc(${s} - ${geo.CONTENT_INSET_TOP}px))`;
+  const bottom = `max(0px, calc(-1 * (${s}) - ${geo.CONTENT_INSET_BOTTOM}px))`;
   return `inset(${top} 0px ${bottom} 0px)`;
 }
+
+// --- The section's own margin to the buttons row -------------------------
+//
+// Figma measures 30px from frame 04's bottom edge to the buttons row's top
+// edge (--spacing-lg) — held flat at every tier: it's a page-chrome margin
+// (ProjectSection.tsx's root `mb-lg`), not part of the pinned stage's own
+// scroll geometry, so it doesn't participate in the tier/height fluidity
+// above. See FRAME_BOTTOM_CLEARANCE's own comment for the distinct
+// same-valued gap this is not.
+export const ACTIONS_GAP = 30;
+
+// --- Scroll snap ------------------------------------------------------------
+// useProjectSnap.ts. Rest slots are sectionTop + i*PITCH for i in 0..3 — the
+// same offsets the mechanic already derives above, not a second source.
+// SNAP_RADIUS itself now lives on the geometry object (PITCH-derived, see
+// geometryFor above) since PITCH is no longer a module-scope constant.
+
+// How long the scroll must be quiet (no Lenis 'scroll' event) before a snap
+// is considered. The debounce alone still fires mid-trackpad-momentum (real
+// wheel events can arrive with >140ms gaps as inertia decays even though
+// the gesture isn't over), so SNAP_VELOCITY_EPS below is a second, required
+// condition, not a fallback.
+export const SNAP_IDLE_MS = 140;
+
+// lenis.velocity must be under this when the idle timer fires, in addition
+// to the timer itself having gone uninterrupted — see SNAP_IDLE_MS. Set well
+// above "effectively stopped": Lenis's own momentum coasts for a while after
+// the wheel event ends, and waiting for it to decay near zero is what made
+// the snap feel like it fired ~1s after the user let go. Firing while it's
+// still gently coasting (roughly 4x the original 0.15) is what makes the
+// snap feel immediate instead.
+export const SNAP_VELOCITY_EPS = 0.6;
+
+// Below this distance from a slot, treat the scroll as already there —
+// snapping a handful of px reads as jitter, not a snap.
+export const SNAP_DEADZONE = 8;

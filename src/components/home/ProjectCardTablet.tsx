@@ -1,9 +1,6 @@
 import Image from "next/image";
-import { BlackButton } from "@/components/ui/BlackButton";
-import { MetaRow } from "@/components/ui/MetaRow";
-import { StatusPill } from "@/components/ui/StatusPill";
 import type { Project } from "@/content/projects";
-import { ProjectMedia } from "./ProjectMedia";
+import { ProjectTileContentTablet } from "./ProjectTileContentTablet";
 
 // Tablet project card (Figma "project card", tablet variant 931:4275),
 // rendered by ProjectSection.tsx's fallback between --breakpoint-tablet
@@ -24,11 +21,15 @@ import { ProjectMedia } from "./ProjectMedia";
 // either ramp changes later.
 //
 // R3 diagnostic (see the session's own plan doc) confirmed this is the
-// flat static fallback, not a frame of the pinned scroll mechanic — no
-// gradient strip, no seam layer, no shared fixed card in the source file.
+// flat static fallback, not a frame of the pinned scroll mechanic. Session
+// R4a re-slots it from "the tablet selected-work experience" to "the
+// reduced-motion / short-viewport fallback at tablet widths," the role
+// ProjectCard.tsx already played on desktop. Its own interior moved to
+// ProjectTileContentTablet.tsx so the mechanic's tablet tier renders the
+// identical content — see that file, and ProjectCardPhone.tsx's own
+// comment for the fuller version of this same story.
 const FRAME_H = 788; // gradient frame height, flat across the whole tablet range
 const CARD_W = 659;
-const MEDIA_H = 344;
 
 // Session R3: corner radii are intentionally NOT what 931:4275 literally
 // draws (frame 30 / card 20, inverted from desktop). Those mobile values
@@ -38,7 +39,7 @@ const MEDIA_H = 344;
 // design change, and confirmed with Alice before building. Frame keeps
 // rounded-card, card keeps rounded-panel, same as ProjectCard.tsx.
 export function ProjectCardTablet({ project }: { project: Project }) {
-  const { slug, number, name, status, role, type, color, gradient, thumbnail, video } = project;
+  const { color, gradient } = project;
 
   return (
     <article
@@ -59,6 +60,7 @@ export function ProjectCardTablet({ project }: { project: Project }) {
 
       <div
         data-card-panel
+        data-card-tier="tablet"
         className="relative flex flex-col gap-md rounded-panel bg-true-white p-lg"
         style={{
           width: CARD_W,
@@ -66,43 +68,7 @@ export function ProjectCardTablet({ project }: { project: Project }) {
           boxShadow: "var(--shadow-card)",
         }}
       >
-        <div className="flex w-full items-center justify-between">
-          {/* text-mono (20px), not ProjectCard.tsx's text-mono-header
-              (24px) — 931:4275's own title text style is JetBrains/Regular
-              20/0.06em, confirmed via get_variable_defs, genuinely smaller
-              than the desktop card's title, not a copy-paste of it. */}
-          <h3 className="flex items-center gap-s text-mono font-mono">
-            <span className="text-muted-gray">{number}.</span>
-            <span className="text-deep-black">{name}</span>
-          </h3>
-          {status && <StatusPill {...status} size="tablet" />}
-        </div>
-
-        <div
-          className="relative w-full overflow-hidden rounded-nav border border-divider"
-          style={{ height: MEDIA_H }}
-        >
-          {thumbnail && (
-            <ProjectMedia thumbnail={thumbnail} video={video} alt={`${name} project screenshot`} />
-          )}
-        </div>
-
-        {/* No TIMELINE row and no "ROLE /" / "PROJECT TYPE /" prefixes —
-            931:4275 has neither: two stacked values only, first deep-black
-            (role), second dark-gray (type). `hideLabel` keeps the label in
-            the DOM as sr-only rather than dropping it, so a screen-reader
-            user still gets the distinction a sighted user reads from
-            color/position alone. flex-wrap + gap-md is the same safety net
-            ProjectCard.tsx's own meta row already carries, even though this
-            card's fixed 659px width never actually approaches wrapping
-            within its 744–1439 range. */}
-        <div className="flex w-full flex-wrap items-end justify-between gap-md">
-          <dl className="flex flex-col gap-xs">
-            {role && <MetaRow label="ROLE" value={role} hideLabel />}
-            {type && <MetaRow label="PROJECT TYPE" value={type} hideLabel dim />}
-          </dl>
-          <BlackButton href={`/work/${slug}`}>VIEW CASE STUDY</BlackButton>
-        </div>
+        <ProjectTileContentTablet project={project} />
       </div>
     </article>
   );
