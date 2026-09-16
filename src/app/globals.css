@@ -114,6 +114,21 @@
   --breakpoint-nav: 644px;
   --breakpoint-footer: 519px;
 
+  /* Session R1.1 Part D. --breakpoint-laptop (1024) was reused here from the
+     page-padding ramp, never independently measured against this footer's
+     quote — the same mistake R1 made with --breakpoint-tablet, that Part B
+     already fixed for --breakpoint-footer/-nav. The desktop tier's quote row
+     ("LET'S CIRCLE BACK" + icons on the left, the quote on the right,
+     justify-between) doesn't fit until 1124px: left cluster 343.61px + quote
+     660px + 120px chrome (page-x 30 + footer p-lg 30, each side) = 1123.61,
+     ceil 1124. Wraps at 1123 and below. Binary-searched with the same
+     predicate scripts/verify-breakpoints.mjs already uses for the other two
+     footer/nav boundaries. Below this, the tablet tier's own (quote-less)
+     layout already holds cleanly all the way from 519 — nothing about it
+     needs to change between 1024 and 1123, so this just moves where that
+     tier hands off to the desktop one, rather than adding a fourth layout. */
+  --breakpoint-footer-desktop: 1124px;
+
   /* Session R1.1 Part C. --card-inset-x's own step, below --page-x's ramp
      (see that comment further down). Alice's mockup shows the gap from the
      fallback ProjectCard to its gradient frame dropping to 20px at the iPad

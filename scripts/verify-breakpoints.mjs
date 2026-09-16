@@ -1,10 +1,14 @@
 #!/usr/bin/env node
-// Real-browser verification for the two content-derived breakpoints added in
-// Session R1.1 Part B: --breakpoint-footer and --breakpoint-nav (644),
+// Real-browser verification for the content-derived breakpoints added in
+// Session R1.1 Parts B-D: --breakpoint-footer and --breakpoint-nav (644),
 // globals.css's "Breakpoints" comment. --breakpoint-footer moved from 499 to
 // 519 in Session R1.1 Part C when the tablet footer's shell padding was
 // corrected to match Figma (see that comment) and cost the row 20px of
-// content width. Run on demand with
+// content width. --breakpoint-footer-desktop (1124) was added in Part D:
+// the desktop-tier footer's quote row was gated at --breakpoint-laptop
+// (1024), reused from the page-padding ramp and never independently
+// measured against this row's own content — it actually wraps from 1024
+// to 1123. Run on demand with
 // `node scripts/verify-breakpoints.mjs` — not wired into `build` or `test`.
 // Harness plumbing copied verbatim from verify-project-section.mjs.
 //
@@ -25,6 +29,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 const FOOTER_BREAKPOINT = 519;
 const NAV_BREAKPOINT = 644;
+const FOOTER_DESKTOP_BREAKPOINT = 1124;
 const MIN_GUTTER = 20; // the page-x ramp's own floor value (--spacing-md)
 
 // --- Harness plumbing (shared shape with verify-project-section.mjs) -------
@@ -87,6 +92,32 @@ async function readFooterWraps(page) {
     footers[2].style.display = "none";
     const wrapped = [];
     for (const el of footers[1].querySelectorAll("p, a")) {
+      const text = el.textContent.trim();
+      if (!text) continue;
+      const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
+      const height = el.getBoundingClientRect().height;
+      if (height > lineHeight * 1.3) {
+        wrapped.push({ text, height: Math.round(height), lineHeight: Math.round(lineHeight) });
+      }
+    }
+    return wrapped;
+  });
+}
+
+// --- Footer (desktop tier): same technique as readFooterWraps, forcing
+// footers[0] (the >=--breakpoint-footer-desktop variant, with the quote)
+// visible instead of footers[1]. A separate reader rather than a shared one
+// with a footer-index parameter — readFooterWraps's own DOM-order comment
+// is what a caller needs to get right, and duplicating the four-line body
+// here keeps that comment attached to the tier it actually describes.
+async function readDesktopFooterWraps(page) {
+  return page.evaluate(() => {
+    const footers = document.querySelectorAll("footer");
+    footers[0].style.display = "flex";
+    footers[1].style.display = "none";
+    footers[2].style.display = "none";
+    const wrapped = [];
+    for (const el of footers[0].querySelectorAll("p, a")) {
       const text = el.textContent.trim();
       if (!text) continue;
       const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
@@ -265,6 +296,74 @@ async function main() {
         pass: isTablet === expectTablet,
         gating: true,
         detail: `tablet display=${displays.tablet} mobile display=${displays.mobile}`,
+      });
+      await context.close();
+    }
+
+    // ---- Footer (desktop tier): holds with no wrap at the breakpoint and
+    // above — Session R1.1 Part D. 1440 is worth keeping in this list even
+    // though it's well above the breakpoint: it's where --page-x steps
+    // 30->50, and the quote row needs re-confirming it doesn't re-wrap
+    // across that step (it doesn't — the row only gains width there). -----
+    for (const width of [FOOTER_DESKTOP_BREAKPOINT, 1200, 1439, 1440]) {
+      const context = await browser.newContext({ viewport: { width, height: 900 } });
+      const page = await context.newPage();
+      await page.goto(base, { waitUntil: "networkidle" });
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await sleep(200);
+      const wrapped = await readDesktopFooterWraps(page);
+      results.push({
+        name: `footer desktop tier: no wrap at ${width}px`,
+        pass: wrapped.length === 0,
+        gating: true,
+        detail: wrapped.length
+          ? wrapped.map((w) => `"${w.text}" (${w.height}px / ${w.lineHeight}px line)`).join(", ")
+          : "no wrapped text",
+      });
+      await context.close();
+    }
+
+    // ---- Footer (desktop tier): breaks just below the breakpoint --------
+    // Same intentional-tightness reasoning as the other two boundaries'
+    // checks above (see file header).
+    {
+      const width = FOOTER_DESKTOP_BREAKPOINT - 1;
+      const context = await browser.newContext({ viewport: { width, height: 900 } });
+      const page = await context.newPage();
+      await page.goto(base, { waitUntil: "networkidle" });
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await sleep(200);
+      const wrapped = await readDesktopFooterWraps(page);
+      results.push({
+        name: `footer desktop tier: DOES wrap at ${width}px (confirms the floor is real)`,
+        pass: wrapped.length > 0,
+        gating: true,
+        detail: wrapped.length ? wrapped.map((w) => `"${w.text}"`).join(", ") : "nothing wrapped — floor may have moved",
+      });
+      await context.close();
+    }
+
+    // ---- Footer: the actual --breakpoint-footer-desktop switch lands
+    // exactly at 1124 — reads the real, un-forced markup. ------------------
+    for (const [width, expectDesktop] of [
+      [FOOTER_DESKTOP_BREAKPOINT, true],
+      [FOOTER_DESKTOP_BREAKPOINT - 1, false],
+    ]) {
+      const context = await browser.newContext({ viewport: { width, height: 900 } });
+      const page = await context.newPage();
+      await page.goto(base, { waitUntil: "networkidle" });
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await sleep(200);
+      const displays = await page.evaluate(() => {
+        const footers = document.querySelectorAll("footer");
+        return { desktop: getComputedStyle(footers[0]).display, tablet: getComputedStyle(footers[1]).display };
+      });
+      const isDesktop = displays.desktop !== "none" && displays.tablet === "none";
+      results.push({
+        name: `footer desktop switch: ${width}px shows ${expectDesktop ? "desktop" : "tablet"} tier`,
+        pass: isDesktop === expectDesktop,
+        gating: true,
+        detail: `desktop display=${displays.desktop} tablet display=${displays.tablet}`,
       });
       await context.close();
     }
