@@ -196,7 +196,7 @@ export function MobileNav({ projects }: { projects: Project[] }) {
           aria-label={open ? "Close menu" : "Open menu"}
           onClick={() => setOpen((value) => !value)}
           onKeyDown={handleTriggerKeyDown}
-          className="flex items-center justify-center gap-sm rounded-nav bg-menu-gradient/50 p-sm"
+          className="flex items-center justify-center gap-sm rounded-nav bg-menu-gradient/75 p-sm"
         >
           <span className="flex items-center justify-center px-sm py-btn-y">
             <HamburgerIcon open={open} reducedMotion={reducedMotion} />
