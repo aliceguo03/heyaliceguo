@@ -93,7 +93,10 @@ function HamburgerIcon({ open, reducedMotion }: { open: boolean; reducedMotion: 
 }
 
 const TOP_ITEM = "text-mono-header font-mono uppercase transition-colors duration-200 ease-standard";
-const SUB_ITEM = "text-mono font-mono uppercase transition-colors duration-200 ease-standard";
+// Bug fix: was text-mono — the project list under WORK now matches
+// HOME/WORK/ABOUT/RESUMÉ's own size. Spacing (gap-s between rows, px-md
+// inset) is untouched.
+const SUB_ITEM = "text-mono-header font-mono uppercase transition-colors duration-200 ease-standard";
 
 // pure-white active / light-gray inactive, brightening to pure-white on
 // hover — the same on-dark pair DesktopNav's own WORK dropdown uses
