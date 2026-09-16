@@ -21,7 +21,13 @@ const MotionLink = motion.create(Link);
 const BUTTON_HEIGHT = "62px";
 
 // Each variant has its own Figma padding scheme — they aren't the same
-// component scaled by color. Filled: symmetric px-lg/py-sm (380:1977).
+// component scaled by color. Filled: symmetric px-lg/py-sm (380:1977) at
+// desktop. Session R2a: the mobile instance of this same button (988:7340's
+// "view case study", 949:5325, in the mobile "selected work" project card)
+// measures uniform 16px on all four sides (space-btn-y) — not a scaled-down
+// 30/12, a genuinely different scheme — so it steps at --breakpoint-tablet
+// like the type scale does, widening back to the desktop lg/sm split only
+// at tablet+.
 //
 // Outline covers two distinct Figma components sharing one style, not one
 // padding scheme: "back to top button" (400:3559) is bound to the 24px
@@ -32,6 +38,12 @@ const BUTTON_HEIGHT = "62px";
 // icon) is symmetric space-btn-x on both sides — confirmed by re-reading
 // that node fresh, not inherited from the icon-bearing one.
 //
+// Session R2a: unlike the filled variant, outline does NOT step at mobile —
+// the mobile "back to top button" instance (988:7349, in the mobile
+// buttons band 988:7348) measures pl-24/pr-16/py-16, byte-identical to the
+// desktop reading of 400:3559. Confirmed unchanged, not overlooked; no
+// breakpoint variant added here.
+//
 // Picked by the caller's own `outlineKind` rather than inferred from
 // whether `arrow` is passed: bug-fix pass 1 found the two outline callers
 // were coupled through that proxy (and through this shared VARIANT_CLASSES
@@ -39,7 +51,7 @@ const BUTTON_HEIGHT = "62px";
 // inherited BACK TO TOP's own padding. `outlineKind` names each Figma
 // component directly instead.
 const VARIANT_CLASSES = {
-  filled: "px-lg py-sm bg-ink text-pure-white hover:bg-ink/85",
+  filled: "px-btn-y py-btn-y tablet:px-lg tablet:py-sm bg-ink text-pure-white hover:bg-ink/85",
   outline: "py-btn-y border border-dark-gray bg-porcelain text-dark-gray hover:bg-divider",
 } as const;
 
