@@ -28,11 +28,13 @@ import { HERO_PHOTO_H, HERO_PHOTO_W } from "./caseStudyGeometry";
 // `hidden`/`block` + `tablet:`, the same "render every tier, toggle
 // visibility" pattern Nav.tsx/Footer.tsx use sitewide — chosen over a JS
 // branch so this stays a server component (no hydration flash, no client
-// JS for a purely-visual swap). The phone well always shows `photos[0]`
-// specifically; photos 2/3 in the strip get `loading="lazy"` so a phone
-// viewport (where the strip sits in a permanently `hidden` subtree) never
-// fetches them — `loading="lazy"` defers to viewport intersection, which a
-// `display:none` element never reaches.
+// JS for a purely-visual swap). The phone well shows `hero.mobilePhoto`
+// (types.ts), falling back to `photos[0]` when a project hasn't specified
+// one (round 2, item 2 — GeminiCut/Chase haven't needed to); photos 2/3 in
+// the strip get `loading="lazy"` so a phone viewport (where the strip sits
+// in a permanently `hidden` subtree) never fetches them — `loading="lazy"`
+// defers to viewport intersection, which a `display:none` element never
+// reaches.
 //
 // Card chrome (radius, padding, gaps, shadow) all step at `tablet:` too —
 // Figma's phone card (1005:7982) measures gap-sm(12)/pt-xl(50)/pb-md(20)/
@@ -53,6 +55,12 @@ import { HERO_PHOTO_H, HERO_PHOTO_W } from "./caseStudyGeometry";
 export function CaseStudyHero({ project, hero }: { project: Project; hero: CaseStudy["hero"] }) {
   const singlePhoto = hero.photos.length === 1;
   const [firstPhoto] = hero.photos;
+  // Round 2, item 2: `mobilePhoto` (types.ts) overrides which photo the
+  // phone well below shows — F3Global and Blink both need this, since
+  // photos[0] there isn't the most representative single image. Falls
+  // back to photos[0] for every project that hasn't needed an override
+  // (Chase is single-photo already; GeminiCut's own photos[0] reads fine).
+  const mobilePhoto = hero.mobilePhoto ?? firstPhoto;
 
   return (
     // F9 (fix pass, item 7): matches Figma exactly now — 20px phone, 0px
@@ -104,18 +112,19 @@ export function CaseStudyHero({ project, hero }: { project: Project; hero: CaseS
           </div>
         </div>
 
-        {/* Phone-only single photo (1005:7987) — always photos[0], a fluid
-            aspect-ratio box (272/181, Figma's own stated ratio) rather than
-            a fixed height, since a phone's own viewport width isn't fixed
-            the way the card's desktop/tablet width is. */}
+        {/* Phone-only single photo (1005:7987) — `mobilePhoto` (defaults to
+            photos[0]) above, a fluid aspect-ratio box (272/181, Figma's own
+            stated ratio) rather than a fixed height, since a phone's own
+            viewport width isn't fixed the way the card's desktop/tablet
+            width is. */}
         <div className="block w-full px-md tablet:hidden">
           <div
             className="relative w-full overflow-hidden rounded-nav border border-divider"
             style={{ aspectRatio: "272 / 181" }}
           >
             <Image
-              src={firstPhoto.src}
-              alt={firstPhoto.alt}
+              src={mobilePhoto.src}
+              alt={mobilePhoto.alt}
               fill
               sizes="(max-width: 743px) calc(100vw - 40px), 0px"
               className="object-cover"

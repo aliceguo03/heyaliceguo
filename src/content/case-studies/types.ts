@@ -178,6 +178,17 @@ export type CaseStudy = {
     // its tagline break after "FOR" rather than run the full width.
     // Omitted = fill, so F3Global needs no value here.
     titleWidth?: number;
+    // Which photo the phone-tier single-photo well (CaseStudyHero.tsx)
+    // shows — Figma's own phone mock (1005:7981) has no equivalent node to
+    // measure against (it shows one photo regardless of how many the
+    // project has, with no stated rule for *which* one), so this is a
+    // judgment call, not a transcription. Defaults to `photos[0]` when
+    // omitted (F3Global and Blink both needed an explicit override here —
+    // round 2, item 2 — because their own photos[0] wasn't the most
+    // representative single image on a screen this small). Per that
+    // session: ask which photo to use rather than picking one, whenever a
+    // future project's mobile hero has no photo specified here.
+    mobilePhoto?: Figure;
   };
   // Typed separately from `proseFigure` rather than folded into it: Figma's
   // overview section (736:6063) uses a 30px gap between its text group and

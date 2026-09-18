@@ -57,6 +57,14 @@ export const blink: CaseStudy = {
         alt: "A dark-mode code editor showing HTML for an accessibility checklist, with details/summary blocks, styled headings, and a Tables section.",
       },
     ],
+    // Round 2, item 2 (Alice's own choice): the phone well's default
+    // (photos[0], a UI screenshot) reads less clearly at that size than
+    // the UC San Diego wordmark — reused from the strip's own second
+    // photo rather than duplicated.
+    mobilePhoto: {
+      src: "/work/blink/ucsd logo.jpg",
+      alt: "The UC San Diego wordmark in white, underlined, centered on a solid navy background.",
+    },
   },
   overview: {
     hook: [

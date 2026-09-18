@@ -32,6 +32,14 @@ export const f3global: CaseStudy = {
         alt: "World map highlighting countries with F3Global team members, darker blue marking countries with five or more.",
       },
     ],
+    // Round 2, item 2 (Alice's own choice): the phone well's default
+    // (photos[0], an admin-portal table screenshot) is less representative
+    // of the project than the public homepage hero — reused from the
+    // strip's own second photo rather than duplicated.
+    mobilePhoto: {
+      src: "/work/f3global/hero-card-home.jpg",
+      alt: "F3Global homepage hero reading “Empowering Small Businesses” over a faded world map, with Become a Client and Join as a Member buttons.",
+    },
   },
   overview: {
     hook: [
