@@ -39,11 +39,22 @@ import type { CaseStudy } from "@/content/case-studies/types";
 // (see the CSS var's own comment), so this is a no-op both below 744
 // (single column, no sidebar to compare against) and at 1440+ (Figma's
 // fixed-width column, byte-identical to before this session).
+//
+// Fix pass (round 2, item 4): `mx-auto`, unconditional. Once the cap above
+// binds, the box (width:100% clamped down to the cap) is narrower than its
+// own grid cell — with no auto margins that leftover space sat entirely on
+// the right (default block/grid-item start alignment), reading as an
+// unfinished edge rather than a deliberate layout. `margin: auto` on a
+// grid item centers it within its own grid area exactly like it would in
+// flow or flexbox, splitting that leftover space evenly instead. Harmless
+// everywhere the cap isn't binding — below 744 and at 1440+, `width: 100%`
+// already consumes the whole cell, leaving nothing for auto margins to
+// distribute.
 export function OverviewContent({ overview }: { overview: CaseStudy["overview"] }) {
   return (
     <div className="contents desktop:flex desktop:w-full desktop:flex-col desktop:gap-lg">
       <div
-        className="col-start-1 row-start-2 mt-lg flex w-full flex-col gap-md tablet:col-start-2 tablet:row-start-1 tablet:mt-0"
+        className="col-start-1 row-start-2 mx-auto mt-lg flex w-full flex-col gap-md tablet:col-start-2 tablet:row-start-1 tablet:mt-0"
         style={{ maxWidth: "var(--case-overview-text-max-w)" }}
       >
         <Statement text={overview.hook} />
