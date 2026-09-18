@@ -83,14 +83,23 @@ import type { CaseStudy } from "@/content/case-studies/types";
 // stays on `--case-x` (`px-case-x`, unaffected).
 //
 // Fix pass (item 7, "F9"): `pt-md tablet:pt-0 desktop:pt-3xl` replaces the
-// flat `pt-case-x` above with Figma's own measured gap between the hero
-// card and this section — 20px phone, 0px tablet, 100px desktop — rather
-// than the judgment call the tablet/phone build made (CaseStudyHero.tsx
-// relies entirely on this top padding for its own below-card gap; see that
-// component's own comment). `--case-x` happens to already equal 20 at
-// phone, so `pt-md` is the same rendered value there, just no longer tied
-// to a ramp whose tablet/desktop steps (50/100) were wrong for this
-// specific gap.
+// flat `pt-case-x` above with what that session took to be Figma's own
+// measured gap between the hero card and this section — 20px phone, 0px
+// tablet, 100px desktop — rather than the judgment call the tablet/phone
+// build made (CaseStudyHero.tsx relies entirely on this top padding for
+// its own below-card gap; see that component's own comment). `--case-x`
+// happens to already equal 20 at phone, so `pt-md` is the same rendered
+// value there.
+//
+// Fix pass (round 2, item 3): `tablet:pt-0` was wrong — per direct design
+// review (Alice), the tablet gap is a real, explicit 50px, not 0. Corrected
+// to `tablet:pt-xl` (the same 50px value the ramp held before the F9 pass
+// above zeroed it out); phone (`pt-md`, 20px) and desktop (`desktop:pt-3xl`,
+// 100px) are untouched — this was specifically a tablet-tier miss, not a
+// structural gap (CaseStudyHero.tsx's own `pb-0` still supplies nothing
+// here; this section's top padding is still the sole source of the space
+// between the hero card and the metadata/content row at every width below
+// desktop).
 export function CaseStudyBody({
   project,
   overview,
@@ -108,7 +117,7 @@ export function CaseStudyBody({
 
   return (
     <section
-      className="grid w-full items-start gap-x-xl px-case-x pt-md pb-lg tablet:pt-0 tablet:pb-case-x desktop:pt-3xl"
+      className="grid w-full items-start gap-x-xl px-case-x pt-md pb-lg tablet:pt-xl tablet:pb-case-x desktop:pt-3xl"
       style={{ gridTemplateColumns: "var(--case-grid-cols)" }}
     >
       <CasePanel project={project} sections={sections} current={current} onJump={jumpTo} />

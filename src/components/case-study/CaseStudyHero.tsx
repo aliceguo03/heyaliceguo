@@ -63,16 +63,13 @@ export function CaseStudyHero({ project, hero }: { project: Project; hero: CaseS
   const mobilePhoto = hero.mobilePhoto ?? firstPhoto;
 
   return (
-    // F9 (fix pass, item 7): matches Figma exactly now — 20px phone, 0px
-    // tablet, 100px desktop — rather than the judgment call the tablet/
-    // phone build made here (splitting the difference between the flat
-    // pre-existing padding and Figma's own numbers). `pb-0` is unchanged:
-    // the gap below the card is supplied entirely by CaseStudyBody.tsx's
-    // own top padding on the section below this one (`pt-md tablet:pt-0
-    // desktop:pt-3xl` there, see that component's own comment), not by
-    // anything in this section. `desktop:pb-xl` also stays unchanged —
-    // desktop's own gap below the card is a different, unrelated measure
-    // from this fix.
+    // F9 (fix pass, item 7; corrected round 2, item 3): `pb-0` — the gap
+    // below the card is supplied entirely by CaseStudyBody.tsx's own top
+    // padding on the section below this one (`pt-md tablet:pt-xl
+    // desktop:pt-3xl` there, 20/50/100 — see that component's own comment
+    // for the tablet correction), not by anything in this section.
+    // `desktop:pb-xl` stays unchanged — desktop's own gap below the card
+    // is a different, unrelated measure from this fix.
     <section className="flex w-full flex-col px-case-x pb-0 pt-md desktop:pb-xl">
       <div className="flex w-full flex-col items-start gap-sm overflow-hidden rounded-card border border-divider bg-porcelain pb-md pt-xl shadow-case-card tablet:gap-xl tablet:rounded-panel tablet:pb-xl tablet:pt-3xl">
         <div
