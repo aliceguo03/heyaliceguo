@@ -110,8 +110,19 @@ export function CarouselTabs({ items }: { items: TabsCarouselItem[] }) {
           1440px floor — this was already latent before this session, just
           never exercised below 1440px width. Wraps to 2x2 at phone
           (mobile mock 1005:8050), inert at tablet/desktop where 732 still
-          fits inside the (wider) available row. */}
-      <div role="tablist" aria-label="Editing modes" className="flex flex-wrap items-center gap-sm tablet:gap-md">
+          fits inside the (wider) available row.
+
+          Fix pass (item 3): --case-tabs-display/-cols (globals.css) force
+          a real 2x2 grid across the 385-834px band, where flex-wrap on its
+          own breaks 3-1 rather than 2-2 (Figma never shows a straggler).
+          flex-wrap/items-center are inert once display is grid; the grid
+          and gap utilities apply in both modes. */}
+      <div
+        role="tablist"
+        aria-label="Editing modes"
+        className="flex flex-wrap items-center gap-sm tablet:gap-md"
+        style={{ display: "var(--case-tabs-display)", gridTemplateColumns: "var(--case-tabs-cols)" }}
+      >
         {items.map((item, index) => (
           <SelectTab
             key={item.label}

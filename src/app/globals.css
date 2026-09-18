@@ -538,6 +538,35 @@
   }
 }
 
+/* CarouselTabs.tsx's tablist (GeminiCut's "design decisions" tabs,
+   767:7270). The four tabs' combined width is 732px at tablet/desktop type
+   scale (--text-mono-caption, 20px gap) and 613px at phone scale (14px
+   type, 12px gap — SelectTab.tsx steps both below --breakpoint-tablet).
+   Natural flex-wrap already breaks 3-1 rather than 2-2 across two real
+   width bands once the row can no longer hold that combined width — Figma
+   shows only the two-row 2x2 state (mobile mock 1005:8050), never a
+   straggler. Fix pass (item 3): force a 2x2 grid across exactly the bands
+   where flex-wrap gets this wrong (measured: 519-653px and 744-833px,
+   combined into one band, 385-834px, per the approved answer — this also
+   avoids a one-row/2x2/one-row/2x2 flip-flop as the viewport narrows).
+   Below 385px flex-wrap's own 1-2-1 is left alone (out of scope; the
+   approved answer scoped this fix to the tablet transition zone
+   specifically). A media query can't read a custom property directly
+   (see --breakpoint-tablet's own note above), so both the display mode and
+   the column template are their own vars, read through inline style on the
+   tablist itself (CLAUDE.md rule 2 rules out an arbitrary-value class for
+   "1fr 1fr"). */
+:root {
+  --case-tabs-display: flex;
+  --case-tabs-cols: none;
+}
+@media (width >= 385px) and (width < 835px) {
+  :root {
+    --case-tabs-display: grid;
+    --case-tabs-cols: 1fr 1fr;
+  }
+}
+
 /* CaseStudyHero.tsx's header text column. Fluid (fills the card) below
    1440; HERO_HEADER_W's fixed 929px (caseStudyGeometry.ts) only at
    desktop, unchanged from before this ramp — the tablet mock's own header

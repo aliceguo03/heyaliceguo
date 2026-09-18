@@ -33,6 +33,12 @@ import type { KeyboardEvent, Ref } from "react";
 // which uses the same "--spacing-btn-y's value, applied as px, at mobile"
 // pattern for the same reason (a real, uniform mobile padding scheme, not
 // a scaled-down asymmetric one).
+//
+// Fix pass (item 3): `max-w-full` — CarouselTabs.tsx's tablist forces a
+// 2x2 grid across 385-834px, and at the low end of that band a grid column
+// (166.5px at 385px viewport width) is narrower than the longest tab's own
+// natural width (184px at phone type scale). Without this, that tab would
+// overflow its own column instead of wrapping its label to a second line.
 const STATE_CLASSES = {
   selected: "border-accent-project bg-subtle-gray text-accent-project",
   default: "border-muted-gray bg-transparent text-muted-gray hover:border-deep-black hover:text-deep-black",
@@ -68,7 +74,7 @@ export function SelectTab({
       tabIndex={tabIndex}
       onClick={onClick}
       onKeyDown={onKeyDown}
-      className={`rounded-btn border px-btn-y py-sm text-mono-mobile font-mono uppercase transition-colors duration-200 ease-standard tablet:px-md tablet:text-mono-caption ${STATE_CLASSES[selected ? "selected" : "default"]}`}
+      className={`max-w-full rounded-btn border px-btn-y py-sm text-mono-mobile font-mono uppercase transition-colors duration-200 ease-standard tablet:px-md tablet:text-mono-caption ${STATE_CLASSES[selected ? "selected" : "default"]}`}
     >
       {label}
     </button>
