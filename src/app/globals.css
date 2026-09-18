@@ -152,6 +152,23 @@
      the file actually draws. Verified in scripts/verify-project-section.mjs. */
   --breakpoint-card: 395px;
 
+  /* Fix pass (item 4). CaseStudyActions.tsx's BACK TO HOME / NEXT PROJECT
+     pair runs edge to edge (no horizontal padding of its own — the page's
+     own gutter comes from wherever it's placed) and wraps once the two
+     buttons' combined width exceeds the viewport. `next.footerLabel`
+     varies per project, so the binding case is the longest of the four
+     live projects' labels, measured at phone type scale:
+       "BACK TO HOME"          171.0px
+       "NEXT PROJECT: GEMINICUT" 263.9px  <- longest
+     171.0 + 12 (gap-sm) + 263.9 = 446.9px, plus --case-x's own 20px gutter
+     on each side once the row gets that padding (see CaseStudyActions.tsx)
+     = 486.9px. Below this the pair is stacked instead of wrapped — see
+     that component for the vertical layout. Binary-searched against the
+     live longest-label render, not estimated from the shorter labels
+     alone (a threshold tuned to "NEXT PROJECT: BLINK" would still overflow
+     on "NEXT PROJECT: GEMINICUT"). */
+  --breakpoint-actions: 487px;
+
   /* --- Color: backgrounds ---------------------------------------------- */
   --color-porcelain: #fefffd;
   --color-ink: #0a0a0a;
