@@ -231,6 +231,18 @@
      change per breakpoint. */
   --spacing-page-x: var(--page-x);
 
+  /* Case study page's own horizontal gutter — a separate ramp from
+     --page-x, same reasoning globals.css's --page-x comment already gives
+     for why --card-inset-x needed its own ramp rather than reusing that
+     one: case-study pages were "explicitly out of scope" for --page-x and
+     kept a flat --spacing-3xl (100px) at every width (see that comment,
+     further down). Session R5 (case study responsive pass) gives that flat
+     value a real ramp — 20/50/100, read through the alias below, same
+     three-step shape as --page-x but its own numbers (100 unchanged at
+     >=1440, so every existing desktop case-study page renders
+     byte-identical to before this ramp existed). */
+  --spacing-case-x: var(--case-x);
+
   /* Nav's own height, referenced by anything that pins beneath it */
   --spacing-nav-height: 94px;
 
@@ -446,6 +458,86 @@
 @media (width >= 744px) {
   :root {
     --blackbutton-height: 62px;
+  }
+}
+
+/* Case study responsive geometry. Session R5 — the case study template
+   (CaseStudyBody.tsx, CaseStudyHero.tsx) was built to a hard >=1440px
+   assumption (see this file's own --page-x comment: "Case-study pages are
+   explicitly out of scope and keep their own px-3xl"). These ramps are
+   that deferred pass. Same three ramps' worth of reasoning as --page-x/
+   --card-inset-x/the hero ramp above — a plain px value with no spacing
+   token, read through an inline style var() rather than a Tailwind
+   utility, changing per breakpoint via :root+@media since a bare @media
+   condition can't reference a custom property (see --breakpoint-tablet's
+   own note). Thresholds match --breakpoint-tablet/-desktop above. */
+
+/* --case-x: the alias above resolves this to px-case-x/py-case-x etc.
+   20px below 744, 50px 744-1439, 100px >=1440 — the last step is
+   deliberately unchanged from the flat --spacing-3xl every case-study
+   section used before this ramp, so 1440/1710 render byte-identical. */
+:root {
+  --case-x: var(--spacing-md);
+}
+@media (width >= 744px) {
+  :root {
+    --case-x: var(--spacing-xl);
+  }
+}
+@media (width >= 1440px) {
+  :root {
+    --case-x: var(--spacing-3xl);
+  }
+}
+
+/* CaseStudyBody.tsx's grid-template-columns: panel | content, two real
+   tracks (the gap between them is a real Tailwind gap-x-xl utility, not
+   baked into this string). A single 1fr column below 744 — no panel
+   column at all; the panel becomes a plain full-width block, first in
+   source order, at that tier. 383px (PANEL_W, caseStudyGeometry.ts)
+   reused as-is at tablet AND desktop: Figma's tablet mock (1015:8153)
+   measures the exact same 383px panel box, so this needed no independent
+   remeasurement, just a wider consumer of the existing constant — hence
+   one breakpoint, not two. */
+:root {
+  --case-grid-cols: 1fr;
+}
+@media (width >= 744px) {
+  :root {
+    --case-grid-cols: 383px 1fr;
+  }
+}
+
+/* CaseStudyHero.tsx's header text column. Fluid (fills the card) below
+   1440; HERO_HEADER_W's fixed 929px (caseStudyGeometry.ts) only at
+   desktop, unchanged from before this ramp — the tablet mock's own header
+   frame (1015:8658) measures 929 wide inside a 922px-wide card, i.e.
+   effectively edge-to-edge, not a second fixed measurement worth its own
+   constant. */
+:root {
+  --case-hero-header-w: 100%;
+}
+@media (width >= 1440px) {
+  :root {
+    --case-hero-header-w: 929px;
+  }
+}
+
+/* CaseStudyHero.tsx's 3-photo strip, per-photo width/height. Tablet's own
+   measured 591x393 (Figma iPad Pro mock, 1015:8153's three "photo" nodes)
+   — a genuine re-measurement, not a scaled fraction of HERO_PHOTO_W/H
+   (785x522, caseStudyGeometry.ts) — held flat from 744 up to the existing
+   1440px floor, where it steps to the unchanged desktop value. Only
+   relevant tablet+desktop: the strip is hidden entirely below 744
+   (CaseStudyHero.tsx's phone-only single-photo well instead). */
+:root {
+  --case-hero-photo-w: 591px;
+  --case-hero-photo-h: 393px;
+}
+@media (width >= 1440px) {
+  :root {
+    --case-hero-photo-w: 785px;
+    --case-hero-photo-h: 522px;
   }
 }
 

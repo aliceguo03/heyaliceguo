@@ -18,7 +18,18 @@ export function Stats({ items, columnWidth = STAT_W }: Omit<StatsBlock, "kind">)
 
   return (
     <div
-      className="grid w-full gap-x-3xl gap-y-xl"
+      // Session R5 (case study responsive pass): `justify-center` centers
+      // the grid's own tracks within the content column below desktop —
+      // GeminiCut's tablet mock (1029:8781) shows its 2-item row centered,
+      // not left-packed the way desktop's own 4-item 2x2 is (P1 plan
+      // "Flags" #7, unchanged and untouched by this session).
+      // `desktop:justify-normal` restores the exact absence of a
+      // justify-content value desktop had before this session (Tailwind's
+      // `justify-normal` maps to `justify-content: normal`, CSS Grid's own
+      // initial value) rather than leaving `justify-center` to also apply
+      // at >=1440, which would have shifted every existing desktop stats
+      // block.
+      className="grid w-full justify-center gap-x-3xl gap-y-xl desktop:justify-normal"
       // minmax(0, columnWidth), not a flat columnWidth: each track holds
       // exactly STAT_W (or a project's own columnWidth override, e.g.
       // Blink's STAT_W_WIDE — left-packed, per the approved answer)
