@@ -249,51 +249,53 @@ export const CAROUSEL_STAGE_H = 734;
 // require the stage already rendered.
 export const MIN_CAROUSEL_VIEWPORT_H = STICKY_TOP + CAROUSEL_STAGE_H + PANEL_BOTTOM_GAP; // 870
 
-// --- Fix pass (item 5, round 1; retargeted round 2 item 4): overview
-// column fill, 744-1439px --------------------------------------------------
+// --- Fix pass (item 5, round 1; retargeted round 2 item 4; rebuilt round 3):
+// overview column fill, 744-1439px ------------------------------------------
 //
 // In this range the overview's text column (OverviewContent.tsx) can
 // render noticeably shorter than the metadata sidebar beside it, leaving
 // dead space under the sidebar. A narrower column wraps to more lines and
-// grows taller, closing that gap — this is that cap.
+// grows taller, closing that gap.
+//
+// Round 1 (flat px cap, 420) and round 2 (retargeted to 360, `mx-auto`
+// centering) both chased a flat 75%-fill target. Round 2's centering read
+// wrong once built, and the percentage-of-remaining-space alternative
+// tried in round 3 broke down at the 1439px checkpoint specifically — the
+// sidebar column hits its own 383px ceiling there while the content track
+// keeps growing, so it balloons to 906px, nearly double its width at
+// 1024px (504px); no percentage in a sane range gets Chase (the tightest
+// project) to 75% at that width without the column reading unreasonably
+// narrow at every *other* checkpoint. Round 3 replaces the flat-75%-target
+// idea entirely with a tiered read of the same fill ratio (rendered text
+// height / sidebar height): Good >=90%, Acceptable 65-90%, Not acceptable
+// <65% — the real requirement was never "hit exactly 75%," it was "don't
+// leave the shortest project looking obviously unfinished next to the
+// sidebar."
 //
 // Measured (Playwright, dev server, all four live projects, at five
-// checkpoint widths: 1439/1320/1200/1080/1024): the column width needed to
-// reach 75% fill is close to flat *per project* across the whole range
-// (it's a line-count threshold, not a function of viewport) — f3global
-// ~522px, chase ~421px, geminicut ~606px, blink ~551px — so this is a flat
-// cap, not a clamp() ramp that varies with viewport width.
-//
-// Round 1 picked 420px — the loosest cap that cleared f3global/geminicut/
-// blink's own thresholds — which left Chase (the tightest of the four)
-// landing right at its own edge (71-81%, missing 75% at the two narrowest
-// checkpoints) and, more visibly, left comfortable slack on the other
-// three that showed up as dead space on ONE side of the column rather than
-// closing it (round 2's own complaint — see OverviewContent.tsx's `mx-auto`
-// for the other half of that fix). Round 2 retargets narrower, since a
-// smaller cap wraps to more lines and only ever *helps* fill (never
-// hurts), landing every project comfortably past 75% instead of right at
-// its edge. Measured fill at the new 360px cap:
+// checkpoint widths: 1439/1320/1200/1080/1024) confirms fill is a function
+// of *absolute pixel width*, not viewport — the numbers are within 1pt of
+// identical across 1439/1320/1200/1080, and shift by only a few points at
+// 1024 (the panel's own row-wrap changes there, not the text column). So
+// unlike round 3's percentage attempt, a single flat width genuinely is
+// the correct "curve" here — there's no real per-checkpoint variation to
+// build a clamp() from. At 320px, every project lands solidly in Good at
+// every checkpoint:
 //           1439  1320  1200  1080  1024
-//   f3       97%   97%   97%   97%   97%
-//   chase    83%   83%   83%   83%   80%
-//   gemini  114%  114%  114%  114%  110%
-//   blink   105%  105%  105%  105%  101%
-// Chase is still the binding project (80-83%, vs. 71-81% at the old 420px
-// cap) but now clears 75% at every checkpoint, not just most of them — a
-// side effect of choosing "comfortably past the target" rather than "the
-// loosest cap that still clears it," not a change targeted at Chase
-// specifically. One shared value across all four projects, not a
-// per-project number — see round 1's own note on why (content/case-
-// studies/types.ts's `stats.columnWidth` precedent, if a per-project value
-// is ever wanted instead).
+//   f3      105%  105%  105%  105%  105%
+//   chase    97%   97%   97%   97%   93%   <- binding project, still Good
+//   gemini  127%  127%  127%  127%  122%
+//   blink   117%  117%  117%  117%  113%
+// Screenshot-checked for readability at 1439 (the narrowest column
+// relative to its own track, since that track is the widest) — reads as a
+// normal paragraph measure, no awkward single-word lines.
 //
-// Scoped to 744-1439px only (globals.css's --case-overview-text-max-w):
-// below 744 the sidebar stacks above the text column rather than beside
-// it, so there's no dead space beside it to close; at and above 1440 the
-// column is Figma's own fixed 1077px (CONTENT_W above), unrelated to this
-// fill problem entirely.
-export const OVERVIEW_TEXT_MAX_W = 360;
+// Scoped to 744-1439px only (globals.css's --case-overview-text-w): below
+// 744 the sidebar stacks above the text column rather than beside it, so
+// there's no dead space beside it to close; at and above 1440 the column
+// is Figma's own fixed 1077px (CONTENT_W above), unrelated to this fill
+// problem entirely.
+export const OVERVIEW_TEXT_W = 320;
 
 // --- GeminiCut video figures ----------------------------------------------
 //

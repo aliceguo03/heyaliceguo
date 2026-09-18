@@ -32,30 +32,32 @@ import type { CaseStudy } from "@/content/case-studies/types";
 // group — Figure.tsx itself stays a plain, unwrapped component elsewhere
 // (every other caller still renders it bare).
 //
-// Fix pass (item 5): `--case-overview-text-max-w` (globals.css) caps the
-// text group's own width between 744 and 1439px — narrower than its grid
-// cell there — so the column wraps to more lines and its rendered height
-// closes in on the metadata sidebar beside it. `none` outside that range
-// (see the CSS var's own comment), so this is a no-op both below 744
-// (single column, no sidebar to compare against) and at 1440+ (Figma's
-// fixed-width column, byte-identical to before this session).
+// Fix pass (item 5, round 1): the text group's own width is narrower than
+// its grid cell between 744 and 1439px, so the column wraps to more lines
+// and its rendered height closes in on the metadata sidebar beside it.
+// `--case-overview-text-w` (globals.css) resolves to `100%` outside that
+// range, so this is a no-op both below 744 (single column, no sidebar to
+// compare against) and at 1440+ (Figma's fixed-width column, byte-
+// identical to before round 1).
 //
-// Fix pass (round 2, item 4): `mx-auto`, unconditional. Once the cap above
-// binds, the box (width:100% clamped down to the cap) is narrower than its
-// own grid cell — with no auto margins that leftover space sat entirely on
-// the right (default block/grid-item start alignment), reading as an
-// unfinished edge rather than a deliberate layout. `margin: auto` on a
-// grid item centers it within its own grid area exactly like it would in
-// flow or flexbox, splitting that leftover space evenly instead. Harmless
-// everywhere the cap isn't binding — below 744 and at 1440+, `width: 100%`
-// already consumes the whole cell, leaving nothing for auto margins to
-// distribute.
+// Round 2 added `mx-auto` to center the leftover space the cap left in its
+// grid cell — reverted in round 3 (see below); this is back to a plain
+// `width`, no auto margins.
+//
+// Fix pass (round 3): back to left-aligned (no `mx-auto` — round 2's
+// centering didn't hold up on review) with a real `width` (not
+// `max-width`) driving the column, per OVERVIEW_TEXT_W's own comment
+// (caseStudyGeometry.ts) for why round 3 replaced round 1/2's flat-75%-
+// fill-target reasoning with a tiered one instead. With no auto margins,
+// the column starts flush against the sidebar's own gap (`gap-x-xl` on
+// CaseStudyBody.tsx's row) and whatever's left of the grid cell sits as
+// plain margin on the right — not split between both sides.
 export function OverviewContent({ overview }: { overview: CaseStudy["overview"] }) {
   return (
     <div className="contents desktop:flex desktop:w-full desktop:flex-col desktop:gap-lg">
       <div
-        className="col-start-1 row-start-2 mx-auto mt-lg flex w-full flex-col gap-md tablet:col-start-2 tablet:row-start-1 tablet:mt-0"
-        style={{ maxWidth: "var(--case-overview-text-max-w)" }}
+        className="col-start-1 row-start-2 mt-lg flex w-full flex-col gap-md tablet:col-start-2 tablet:row-start-1 tablet:mt-0"
+        style={{ width: "var(--case-overview-text-w)" }}
       >
         <Statement text={overview.hook} />
         {overview.paragraphs.map((paragraph, index) => (

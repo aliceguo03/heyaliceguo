@@ -572,29 +572,31 @@
 }
 
 /* OverviewContent.tsx's text-group column (hook + paragraphs, not the
-   figure below it). Fix pass (item 5, retargeted round 2 item 4): capped
-   at OVERVIEW_TEXT_MAX_W (360px, caseStudyGeometry.ts — see that
-   constant's own comment for the full measured-fill derivation, including
-   why round 2 narrowed it from the original 420px) between 744 and
-   1439px, where a narrower column wraps to more lines and closes the gap
-   between the overview's own rendered height and the metadata sidebar
-   beside it. `none` below 744 (the sidebar stacks above the text there,
-   so there's no dead space beside it to close) and `none` again at 1440+
-   (the column is Figma's own fixed 1077px there, CONTENT_W — a different,
-   unrelated width). OverviewContent.tsx's `mx-auto` centers whatever
-   space this cap leaves inside the content track, rather than letting it
-   accumulate on one side. */
+   figure below it). Fix pass (item 5, round 1; retargeted round 2;
+   rebuilt round 3): a real `width` (not `max-width`) of OVERVIEW_TEXT_W
+   (320px, caseStudyGeometry.ts — see that constant's own comment for the
+   full measured-fill derivation and why round 3 replaced both round 1's
+   flat-75%-target cap and round 2's percentage-of-remaining-space/
+   `mx-auto` centering) between 744 and 1439px, where a narrower column
+   wraps to more lines and closes the gap between the overview's own
+   rendered height and the metadata sidebar beside it. `100%` below 744
+   (the sidebar stacks above the text there, so there's no dead space
+   beside it to close) and `100%` again at 1440+ (the column is Figma's
+   own fixed 1077px there, CONTENT_W — a different, unrelated width).
+   Left-aligned by default (no `mx-auto`, reverted round 3) — the column
+   starts right after the sidebar's own gap and the remaining track width
+   sits as plain margin on the right, not split between both sides. */
 :root {
-  --case-overview-text-max-w: none;
+  --case-overview-text-w: 100%;
 }
 @media (width >= 744px) {
   :root {
-    --case-overview-text-max-w: 360px;
+    --case-overview-text-w: 320px;
   }
 }
 @media (width >= 1440px) {
   :root {
-    --case-overview-text-max-w: none;
+    --case-overview-text-w: 100%;
   }
 }
 
