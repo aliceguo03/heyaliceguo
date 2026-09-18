@@ -218,6 +218,47 @@ export const CAROUSEL_STAGE_H = 734;
 // require the stage already rendered.
 export const MIN_CAROUSEL_VIEWPORT_H = STICKY_TOP + CAROUSEL_STAGE_H + PANEL_BOTTOM_GAP; // 870
 
+// --- Fix pass (item 5): overview column fill, 744-1439px -----------------
+//
+// In this range the overview's text column (OverviewContent.tsx) can
+// render noticeably shorter than the metadata sidebar beside it, leaving
+// dead space under the sidebar. A narrower column wraps to more lines and
+// grows taller, closing that gap — this is that cap.
+//
+// Measured (Playwright, dev server, all four live projects, at five
+// checkpoint widths: 1439/1320/1200/1080/1024) with items 1 and 2's fixes
+// already applied: the column width needed to reach 75% fill is close to
+// flat *per project* across the whole range (it's a line-count threshold,
+// not a function of viewport) — f3global ~522px, chase ~421px,
+// geminicut ~606px, blink ~551px — so this is a flat cap, not a clamp()
+// ramp that varies with viewport width.
+//
+// One shared value across all four projects, not a per-project number:
+// 420px clears f3global/geminicut/blink's own thresholds with room to
+// spare, but Chase's overview copy is short relative to its metadata list
+// (it has the shortest paragraphs of the four), and no single cap reaches
+// 75% for Chase without overshooting how narrow the other three need to
+// go. Measured fill at 420px, with items 1+2 applied:
+//           1439  1320  1200  1080  1024
+//   f3       92%   88%   88%   81%   81%
+//   chase    81%   78%   78%   74%   71%   <- misses 75% at 1080/1024
+//   gemini  115%  115%  105%  100%   96%
+//   blink   105%  100%   96%   88%   85%
+// Approved as-is: Chase lands 71-81%, up to 4pts short of the 75% target
+// at the two narrowest checkpoints, rather than solving this per-project
+// (which would need its own content-model change — see
+// content/case-studies/types.ts's own `stats.columnWidth` precedent if
+// that's wanted later). Uncapped, the same checkpoints measure 52-74% for
+// Chase and 56-74% for f3global, so 420px is a real improvement across the
+// board even where it falls short of the target.
+//
+// Scoped to 744-1439px only (globals.css's --case-overview-text-max-w):
+// below 744 the sidebar stacks above the text column rather than beside
+// it, so there's no dead space beside it to close; at and above 1440 the
+// column is Figma's own fixed 1077px (CONTENT_W above), unrelated to this
+// fill problem entirely.
+export const OVERVIEW_TEXT_MAX_W = 420;
+
 // --- GeminiCut video figures ----------------------------------------------
 //
 // Every other figure in the template is FIGURE_ASPECT (1077x556, a 1.937:1

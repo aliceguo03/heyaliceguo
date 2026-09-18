@@ -31,10 +31,21 @@ import type { CaseStudy } from "@/content/case-studies/types";
 // carry its own grid placement and margins independently of the text
 // group — Figure.tsx itself stays a plain, unwrapped component elsewhere
 // (every other caller still renders it bare).
+//
+// Fix pass (item 5): `--case-overview-text-max-w` (globals.css) caps the
+// text group's own width between 744 and 1439px — narrower than its grid
+// cell there — so the column wraps to more lines and its rendered height
+// closes in on the metadata sidebar beside it. `none` outside that range
+// (see the CSS var's own comment), so this is a no-op both below 744
+// (single column, no sidebar to compare against) and at 1440+ (Figma's
+// fixed-width column, byte-identical to before this session).
 export function OverviewContent({ overview }: { overview: CaseStudy["overview"] }) {
   return (
     <div className="contents desktop:flex desktop:w-full desktop:flex-col desktop:gap-lg">
-      <div className="col-start-1 row-start-2 mt-lg flex w-full flex-col gap-md tablet:col-start-2 tablet:row-start-1 tablet:mt-0">
+      <div
+        className="col-start-1 row-start-2 mt-lg flex w-full flex-col gap-md tablet:col-start-2 tablet:row-start-1 tablet:mt-0"
+        style={{ maxWidth: "var(--case-overview-text-max-w)" }}
+      >
         <Statement text={overview.hook} />
         {overview.paragraphs.map((paragraph, index) => (
           <p key={index} className="m-0 w-full text-body font-sans text-deep-black">

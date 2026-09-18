@@ -555,6 +555,29 @@
   }
 }
 
+/* OverviewContent.tsx's text-group column (hook + paragraphs, not the
+   figure below it). Fix pass (item 5): capped at OVERVIEW_TEXT_MAX_W
+   (420px, caseStudyGeometry.ts — see that constant's own comment for the
+   full measured-fill derivation) between 744 and 1439px, where a narrower
+   column wraps to more lines and closes the gap between the overview's
+   own rendered height and the metadata sidebar beside it. `none` below
+   744 (the sidebar stacks above the text there, so there's no dead space
+   beside it to close) and `none` again at 1440+ (the column is Figma's
+   own fixed 1077px there, CONTENT_W — a different, unrelated width). */
+:root {
+  --case-overview-text-max-w: none;
+}
+@media (width >= 744px) {
+  :root {
+    --case-overview-text-max-w: 420px;
+  }
+}
+@media (width >= 1440px) {
+  :root {
+    --case-overview-text-max-w: none;
+  }
+}
+
 /* CarouselTabs.tsx's tablist (GeminiCut's "design decisions" tabs,
    767:7270). The four tabs' combined width is 732px at tablet/desktop type
    scale (--text-mono-caption, 20px gap) and 613px at phone scale (14px
