@@ -5,7 +5,6 @@ import { CasePanel } from "./CasePanel";
 import { OverviewContent } from "./OverviewContent";
 import { CaseStudySection } from "./CaseStudySection";
 import { useCaseStudyPanel } from "./useCaseStudyPanel";
-import { contentColumnWidthCss } from "./caseStudyGeometry";
 import type { Project } from "@/content/projects";
 import type { CaseStudy } from "@/content/case-studies/types";
 
@@ -58,6 +57,21 @@ import type { CaseStudy } from "@/content/case-studies/types";
 // every `[data-section]` regardless — `display: contents` removes an
 // element from the layout tree, never from the DOM tree.
 //
+// Fix pass (commit 8): `contentRef` used to carry its own inline `width`
+// (caseStudyGeometry.ts's contentColumnWidthCss) to reproduce the pre-grid
+// flex row's clamp(807px, ..., 1077px) shape. At desktop that div is a
+// real grid item (not `display: contents` there), so its own width was
+// circularly sizing the very `1fr` track it sat in — the browser can't
+// resolve a percentage against a track whose own size depends on that
+// percentage, so the clamp's `calc()` branch silently failed and every
+// desktop viewport landed on the clamp's floor (807px) instead of growing
+// up to 1077px at wider widths. That clamp now lives on the grid TRACK
+// itself (`--case-grid-cols`'s >=1440 branch, globals.css), where a
+// percentage resolves against the grid container's own definite width —
+// no circularity. This div needs no width of its own any more: CSS
+// Grid's default `justify-items: stretch` already fills a grid item to
+// its track's size, so `desktop:flex` alone is enough.
+//
 // Fix pass (item 6): `pb-lg tablet:pb-case-x` splits the bottom padding
 // out of the flat `p-case-x` it used to share with every other side. Below
 // 744 this section's own bottom padding is what supplies the gap between
@@ -99,11 +113,7 @@ export function CaseStudyBody({
     >
       <CasePanel project={project} sections={sections} current={current} onJump={jumpTo} />
 
-      <div
-        ref={contentRef}
-        className="contents desktop:flex desktop:flex-col desktop:gap-3xl"
-        style={{ width: contentColumnWidthCss }}
-      >
+      <div ref={contentRef} className="contents desktop:flex desktop:flex-col desktop:gap-3xl">
         <OverviewContent overview={overview} />
         <div className="col-start-1 row-start-4 mt-lg flex flex-col gap-3xl tablet:col-span-2 tablet:row-start-3 desktop:mt-0 desktop:pt-xl">
           {sections.map((section) => (

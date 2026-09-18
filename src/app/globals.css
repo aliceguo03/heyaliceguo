@@ -540,7 +540,23 @@
 
    >= 1440px restores the flat 383px literal unconditionally, so desktop
    stays byte-identical to before this session regardless of what the
-   sub-1440 expression resolves to. */
+   sub-1440 expression resolves to.
+
+   Fix pass (commit 8): the second (content) track used to be a bare
+   `1fr` at >=1440, with the content DIV's own inline `width` (formerly
+   caseStudyGeometry.ts's contentColumnWidthCss, CaseStudyBody.tsx)
+   supplying the real clamp(807px, ..., 1077px) shape. That's circular
+   inside a grid — the item's width can't size the very track it
+   participates in — and silently pinned every desktop viewport to the
+   clamp's floor (807px) instead of growing up to 1077px at the 1710px
+   reference width. The clamp now lives on the TRACK itself instead,
+   where a percentage resolves against the grid container's own definite
+   content box (no circularity). 383/807/1077/50 mirror PANEL_W/
+   CONTENT_MIN_W/CONTENT_W/PANEL_CONTENT_GAP (caseStudyGeometry.ts) as
+   literals, same duplication-with-a-pointer-back convention as PANEL_W's
+   383 above. The content div itself no longer sets its own width at
+   desktop — CSS Grid's default `justify-items: stretch` fills it to
+   this track's size for free (see contentColumnWidthCss's own comment). */
 :root {
   --case-grid-cols: 1fr;
 }
@@ -551,7 +567,7 @@
 }
 @media (width >= 1440px) {
   :root {
-    --case-grid-cols: 383px 1fr;
+    --case-grid-cols: 383px clamp(807px, calc(100% - 433px), 1077px);
   }
 }
 

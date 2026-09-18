@@ -190,6 +190,37 @@ export const CONTENT_MIN_W =
 // width constraint, so that box is exactly the viewport minus
 // 2*SECTION_PAD_X, the same box PANEL_CONTENT_GAP and PANEL_W are
 // subtracted from here.
+//
+// Fix pass (commit 8, found while verifying item 5): this formula wrote
+// correctly the day it was authored — CaseStudy.tsx's row was a flex
+// container back then, so `100%` really did mean "the row's own content
+// box." Session R5 (50501f7) converted that row to a CSS grid
+// (CaseStudyBody.tsx, --case-grid-cols) without moving this formula off
+// the content DIV's own inline `width`. At >=1440 that div is a real grid
+// item (not `display: contents` there — see CaseStudyBody.tsx), so its
+// `width` now helps size the very `1fr` track it sits in: a circular
+// percentage the browser can't resolve, so `calc()`'s middle branch
+// collapsed and every desktop viewport silently landed on the clamp's
+// floor, CONTENT_MIN_W (807px) — correct by coincidence at exactly 1440
+// (807 IS the right answer there), visibly wrong everywhere above it
+// (1710's reference width should render 1077, not 807).
+//
+// The fix moves this exact formula onto the grid TRACK itself
+// (globals.css's `--case-grid-cols`, >=1440 branch) instead of the grid
+// ITEM's width. A percentage inside a grid-template-columns track
+// function resolves against the grid container's own (definite,
+// non-circular) content box — the same quantity `100%` meant here before
+// R5 — so the same arithmetic is circularity-free once it's the track's
+// job instead of the item's. The content div no longer needs its own
+// `width` at desktop at all: CSS Grid's default `justify-items: stretch`
+// already fills a item to its track's size with no explicit width, which
+// is what `desktop:flex` alone now relies on (see CaseStudyBody.tsx).
+//
+// This string is no longer imported anywhere (CaseStudyBody.tsx used to
+// be its one consumer) — kept exported as the derivation record for the
+// literal duplicated into globals.css, same "TS is the source, CSS
+// duplicates the literal with a comment pointing back" convention
+// --case-grid-cols's own PANEL_W literal already follows.
 export const contentColumnWidthCss = `clamp(${CONTENT_MIN_W}px, calc(100% - ${PANEL_W}px - ${PANEL_CONTENT_GAP}px), ${CONTENT_W}px)`;
 
 // --- Design Decisions carousel (760:6790) --------------------------------
