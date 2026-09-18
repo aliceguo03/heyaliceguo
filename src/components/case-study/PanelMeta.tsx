@@ -40,6 +40,15 @@ const ROWS: { label: string; key: "role" | "timeline" | "type" | "tools" | "team
 // matching the phone mock's own "roles"->"back to top button" gap; 30 at
 // tablet, matching 1029:8724's own measured gap).
 //
+// Fix pass (item 1): required, no default. CasePanel.tsx's `belowDesktop`
+// branch used to call this without a `fixed` prop, silently falling through
+// to the `= true` default below — so the `h-full`/`justify-between` branch
+// rendered inside an `InfoPanel` with no explicit height, `h-full` resolved
+// against an auto-height ancestor, and the status-link gap collapsed to 0px
+// instead of 20/30. Every call site now passes `fixed` explicitly
+// (CasePanel.tsx) so a future missing prop is a type error, not a silent
+// layout bug.
+//
 // Type size: `text-mono-mobile tablet:text-mono` (not a `fixed`-driven
 // branch) resolves correctly at every tier without extra logic — desktop
 // and tablet both satisfy the `tablet:` variant (giving --text-mono,
@@ -57,11 +66,11 @@ const ROWS: { label: string; key: "role" | "timeline" | "type" | "tools" | "team
 export function PanelMeta({
   project,
   compact = false,
-  fixed = true,
+  fixed,
 }: {
   project: Project;
   compact?: boolean;
-  fixed?: boolean;
+  fixed: boolean;
 }) {
   const type = compact ? "text-mono-caption" : "text-mono-mobile tablet:text-mono";
   const isPhone = useViewportBelow(0, BREAKPOINT_TABLET);

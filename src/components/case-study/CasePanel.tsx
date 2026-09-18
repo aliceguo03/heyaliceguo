@@ -74,7 +74,7 @@ export function CasePanel({
   if (belowDesktop) {
     return (
       <InfoPanel fixed={false}>
-        <PanelMeta project={project} />
+        <PanelMeta project={project} fixed={false} />
       </InfoPanel>
     );
   }
@@ -101,7 +101,7 @@ export function CasePanel({
             transition={{ duration: reducedMotion ? 0 : DUR.hover, ease: EASE }}
           >
             {current === -1 ? (
-              <PanelMeta project={project} compact={compact} />
+              <PanelMeta project={project} compact={compact} fixed />
             ) : (
               <PanelNav
                 sections={sections}
