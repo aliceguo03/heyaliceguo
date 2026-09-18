@@ -57,6 +57,17 @@ import type { CaseStudy } from "@/content/case-studies/types";
 // live in the DOM. `useCaseStudyPanel.ts`'s querySelectorAll still finds
 // every `[data-section]` regardless — `display: contents` removes an
 // element from the layout tree, never from the DOM tree.
+//
+// Fix pass (item 6): `pb-lg tablet:pb-case-x` splits the bottom padding
+// out of the flat `p-case-x` it used to share with every other side. Below
+// 744 this section's own bottom padding is what supplies the gap between
+// the last content block and CaseStudyActions.tsx's buttons row — Figma
+// specifies 30px there, but `--case-x` is 20px at phone, so the flat
+// version under-supplied it. `pb-lg` is a literal 30px, independent of
+// `--case-x`'s own ramp; `tablet:pb-case-x` restores the previous
+// (correct, unchanged) 50/100 behaviour from 744 up. Top and horizontal
+// padding stay on `--case-x` (`pt-case-x` until item 7 below changes it,
+// `px-case-x` unaffected).
 export function CaseStudyBody({
   project,
   overview,
@@ -74,7 +85,7 @@ export function CaseStudyBody({
 
   return (
     <section
-      className="grid w-full items-start gap-x-xl p-case-x"
+      className="grid w-full items-start gap-x-xl px-case-x pt-case-x pb-lg tablet:pb-case-x"
       style={{ gridTemplateColumns: "var(--case-grid-cols)" }}
     >
       <CasePanel project={project} sections={sections} current={current} onJump={jumpTo} />
