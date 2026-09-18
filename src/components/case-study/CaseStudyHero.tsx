@@ -55,22 +55,16 @@ export function CaseStudyHero({ project, hero }: { project: Project; hero: CaseS
   const [firstPhoto] = hero.photos;
 
   return (
-    // F9 (new this session, same "flag rather than guess" treatment as the
-    // plan's F1-F8): Figma's own coordinates put the metadata/text row
-    // flush against the card's bottom edge at tablet (0px gap, 1015:8153's
-    // "card" and "Frame 1" both end/start at y=909) and close to flush at
-    // phone (~20px, 1005:7980's "top card frame" ends 20px below its own
-    // "iphone card"). `pb-xl` (this section's own unconditional 50px)
-    // combined with CaseStudyBody's own top `p-case-x` would have given 70
-    // (phone) / 100 (tablet) instead — visibly too much air below the card
-    // compared to either measurement. `pb-0` here relies entirely on
-    // CaseStudyBody's own `p-case-x` top padding for the gap below desktop
-    // (20 phone, 50 tablet) — closer to Figma's own numbers than either
-    // extreme (the unmodified 70/100, or literally flush), without
-    // presuming the tablet mock's 0px is a deliberate design choice rather
-    // than two adjacent frames' layer bounds coinciding by coincidence.
-    // `desktop:pb-xl` restores the original unconditional value at
-    // >=1440, unchanged.
+    // F9 (fix pass, item 7): matches Figma exactly now — 20px phone, 0px
+    // tablet, 100px desktop — rather than the judgment call the tablet/
+    // phone build made here (splitting the difference between the flat
+    // pre-existing padding and Figma's own numbers). `pb-0` is unchanged:
+    // the gap below the card is supplied entirely by CaseStudyBody.tsx's
+    // own top padding on the section below this one (`pt-md tablet:pt-0
+    // desktop:pt-3xl` there, see that component's own comment), not by
+    // anything in this section. `desktop:pb-xl` also stays unchanged —
+    // desktop's own gap below the card is a different, unrelated measure
+    // from this fix.
     <section className="flex w-full flex-col px-case-x pb-0 pt-md desktop:pb-xl">
       <div className="flex w-full flex-col items-start gap-sm overflow-hidden rounded-card border border-divider bg-porcelain pb-md pt-xl shadow-case-card tablet:gap-xl tablet:rounded-panel tablet:pb-xl tablet:pt-3xl">
         <div

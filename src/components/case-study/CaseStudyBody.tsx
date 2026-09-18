@@ -65,9 +65,18 @@ import type { CaseStudy } from "@/content/case-studies/types";
 // specifies 30px there, but `--case-x` is 20px at phone, so the flat
 // version under-supplied it. `pb-lg` is a literal 30px, independent of
 // `--case-x`'s own ramp; `tablet:pb-case-x` restores the previous
-// (correct, unchanged) 50/100 behaviour from 744 up. Top and horizontal
-// padding stay on `--case-x` (`pt-case-x` until item 7 below changes it,
-// `px-case-x` unaffected).
+// (correct, unchanged) 50/100 behaviour from 744 up. Horizontal padding
+// stays on `--case-x` (`px-case-x`, unaffected).
+//
+// Fix pass (item 7, "F9"): `pt-md tablet:pt-0 desktop:pt-3xl` replaces the
+// flat `pt-case-x` above with Figma's own measured gap between the hero
+// card and this section — 20px phone, 0px tablet, 100px desktop — rather
+// than the judgment call the tablet/phone build made (CaseStudyHero.tsx
+// relies entirely on this top padding for its own below-card gap; see that
+// component's own comment). `--case-x` happens to already equal 20 at
+// phone, so `pt-md` is the same rendered value there, just no longer tied
+// to a ramp whose tablet/desktop steps (50/100) were wrong for this
+// specific gap.
 export function CaseStudyBody({
   project,
   overview,
@@ -85,7 +94,7 @@ export function CaseStudyBody({
 
   return (
     <section
-      className="grid w-full items-start gap-x-xl px-case-x pt-case-x pb-lg tablet:pb-case-x"
+      className="grid w-full items-start gap-x-xl px-case-x pt-md pb-lg tablet:pt-0 tablet:pb-case-x desktop:pt-3xl"
       style={{ gridTemplateColumns: "var(--case-grid-cols)" }}
     >
       <CasePanel project={project} sections={sections} current={current} onJump={jumpTo} />
