@@ -3,6 +3,24 @@
 // matching Figma treating `link` as independent of `light`.
 export type StatusKind = "live" | "nda" | "prototype" | "shipped";
 
+// Session R5 (case study responsive pass): a third, distinct treatment of
+// the same status data, alongside the desktop/tablet pill this file
+// already draws. The phone mock (1005:8011) shows the status as a
+// standalone bordered button — "VIEW {label} ↗" — styled like BlackButton's
+// existing outline/backToTop treatment (border-dark-gray, bg-porcelain,
+// hover:bg-divider, rounded-btn, pl-btn-x/pr-md/py-btn-y), not the pill's
+// dot+muted-text style. A variant, not a conditional inside the pill's own
+// markup: the two share no measurable property (border vs none, filled
+// background vs transparent, "VIEW {label}" vs bare `label`), the same
+// reasoning ui/SelectTab.tsx's own header comment gives for staying a
+// separate component from BlackButton rather than bolting on a fourth
+// variant there. `variant="button"` with no `href` falls back to the plain
+// pill-without-link render below (unchanged) — a bordered button with
+// nothing to link to doesn't read as a button at all, and Chase (NDA) and
+// Blink (shipped) both currently omit `href`, so this is what they'll get
+// once the follow-up session opts them into this variant at phone width.
+export type StatusVariant = "pill" | "button";
+
 // Which element carries the on-hover shift, and which way. "left" (the
 // default, unchanged) is the homepage project cards' existing treatment —
 // the dot+label group nudges left, away from a stationary arrow, cheaper
@@ -48,6 +66,7 @@ export function StatusPill({
   arrowHover = "left",
   size = "default",
   short = false,
+  variant = "pill",
 }: {
   label: string;
   // Session R3: the phone card's own short form (projects.ts) — "LIVE" /
@@ -62,6 +81,7 @@ export function StatusPill({
   // Only meaningful together with `shortLabel` — ProjectCardPhone passes
   // both; every other caller passes neither and gets `label` unchanged.
   short?: boolean;
+  variant?: StatusVariant;
 }) {
   const { dot: dotSize, text: textClass, gap, icon } = SIZE_CONFIG[size];
   const displayLabel = short && shortLabel ? shortLabel : label;
@@ -80,6 +100,35 @@ export function StatusPill({
         {dot}
         <span className={`${textClass} font-mono text-muted-gray`}>{displayLabel}</span>
       </div>
+    );
+  }
+
+  if (variant === "button") {
+    // Copies BlackButton's outline/backToTop chrome directly (border-dark-
+    // gray, bg-porcelain, hover:bg-divider, rounded-btn, pl-btn-x/pr-md/
+    // py-btn-y, uppercase text-mono) rather than importing it — BlackButton
+    // is a click/href union with its own magnet-eligibility logic this
+    // status button doesn't need, and the two only share a handful of
+    // classes. `text-mono` unconditional (not `textClass`/SIZE_CONFIG's own
+    // per-size override): BlackButton's own outline variant deliberately
+    // doesn't step at mobile either, per its own comment — the global
+    // mobile type step already shrinks --text-mono site-wide, so this
+    // renders correctly at 16/21 below 744 with no extra branching.
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group inline-flex items-center justify-center gap-sm rounded-btn border border-dark-gray bg-porcelain py-btn-y pl-btn-x pr-md text-mono font-mono uppercase text-dark-gray transition-colors duration-200 ease-standard hover:bg-divider"
+      >
+        <span>VIEW {displayLabel}</span>
+        <span
+          aria-hidden="true"
+          className="flex size-icon shrink-0 items-center justify-center transition-transform duration-200 ease-standard group-hover:translate-x-sm"
+        >
+          ↗
+        </span>
+      </a>
     );
   }
 

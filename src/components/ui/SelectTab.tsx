@@ -24,6 +24,15 @@ import type { KeyboardEvent, Ref } from "react";
 // that fill is unique to selected, never shared with hover). Hover only
 // applies to the inactive/default state — Figma shows no distinct hover
 // treatment for an already-selected tab.
+//
+// Session R5 (case study responsive pass): horizontal padding and label
+// size step at --breakpoint-tablet — the phone mock (1005:8050) measures
+// this tab at 14px/px-btn-y (16, uniform) where tablet/desktop keep
+// 16px/px-md (20, unchanged from before this session). `px-btn-y` reads
+// oddly for a horizontal value — see BlackButton.tsx's own filled variant,
+// which uses the same "--spacing-btn-y's value, applied as px, at mobile"
+// pattern for the same reason (a real, uniform mobile padding scheme, not
+// a scaled-down asymmetric one).
 const STATE_CLASSES = {
   selected: "border-accent-project bg-subtle-gray text-accent-project",
   default: "border-muted-gray bg-transparent text-muted-gray hover:border-deep-black hover:text-deep-black",
@@ -59,7 +68,7 @@ export function SelectTab({
       tabIndex={tabIndex}
       onClick={onClick}
       onKeyDown={onKeyDown}
-      className={`rounded-btn border px-md py-sm text-mono-caption font-mono uppercase transition-colors duration-200 ease-standard ${STATE_CLASSES[selected ? "selected" : "default"]}`}
+      className={`rounded-btn border px-btn-y py-sm text-mono-mobile font-mono uppercase transition-colors duration-200 ease-standard tablet:px-md tablet:text-mono-caption ${STATE_CLASSES[selected ? "selected" : "default"]}`}
     >
       {label}
     </button>

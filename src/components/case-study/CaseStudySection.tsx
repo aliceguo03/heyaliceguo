@@ -31,6 +31,12 @@ function skipsReveal(block: Block): boolean {
 // for a case study with three sections or six. `tabIndex={-1}` gives a jump
 // (PanelNav's onJump) a real, non-tab-order focus target, the same
 // `#page-top` precedent Hero's wordmark already uses for BACK TO TOP.
+//
+// Session R5 (case study responsive pass): title type steps
+// `text-mono tablet:text-mono-header` — the phone mock (1005:8026) shows
+// this row at --text-mono (which the sitewide mobile step already renders
+// at 16/21), not --text-mono-header's own 24/32; tablet/desktop keep the
+// header size, unchanged from before this session.
 export function CaseStudySection({ section }: { section: Section }) {
   return (
     <div
@@ -39,7 +45,7 @@ export function CaseStudySection({ section }: { section: Section }) {
       tabIndex={-1}
       className="flex w-full scroll-mt-nav-height flex-col"
     >
-      <ScrollReveal as="div" className="flex w-full items-center justify-between py-sm text-mono-header font-mono">
+      <ScrollReveal as="div" className="flex w-full items-center justify-between py-sm text-mono font-mono tablet:text-mono-header">
         <p className="text-deep-black">{section.navLabel}</p>
         <p className="text-muted-gray">{section.number}</p>
       </ScrollReveal>

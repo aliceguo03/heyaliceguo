@@ -393,10 +393,17 @@
    at paint time (font-size: var(--text-mono), not an inlined literal —
    confirmed in the compiled CSS), so redefining them here is enough — every
    component gets the step for free, no per-component tablet: class needed.
-   --text-mono-caption, --text-body-large and --text-stat are untouched: the
-   first is already the smallest rung, the other two belong to About/
-   case-study sessions. Threshold must match --breakpoint-tablet above (see
-   note there — @media conditions can't reference a custom property). */
+   --text-mono-caption and --text-stat are untouched: the first is already
+   the smallest rung, the second still belongs to a future case-study
+   session (StatValue.tsx — no mobile mock has exercised it yet).
+   --text-body-large steps here too as of Session R5 (case study responsive
+   pass) — the GeminiCut mobile mock (1005:7980) shows the overview hook and
+   every section's own Statement heading at 20/26, one rung down from
+   desktop's 24/32, matching this ramp's own "one rung down" rule exactly.
+   This also affects About's TextBlock.tsx, the only other --text-body-large
+   consumer — verified at 393px before/after this change (see this session's
+   plan). Threshold must match --breakpoint-tablet above (see note there —
+   @media conditions can't reference a custom property). */
 @media (width < 744px) {
   :root {
     --text-display: 60px;
@@ -408,6 +415,8 @@
     --text-mono--letter-spacing: 0.03em;
     --text-body: 16px;
     --text-body--line-height: 20px;
+    --text-body-large: 20px;
+    --text-body-large--line-height: 26px;
   }
 }
 

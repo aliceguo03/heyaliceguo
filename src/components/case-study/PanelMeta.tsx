@@ -1,4 +1,7 @@
+"use client";
+
 import { StatusPill } from "@/components/ui/StatusPill";
+import { BREAKPOINT_TABLET, useViewportBelow } from "@/lib/motion";
 import type { Project } from "@/content/projects";
 
 // Row labels are structural chrome (same treatment as MetaRow.tsx's own
@@ -44,6 +47,13 @@ const ROWS: { label: string; key: "role" | "timeline" | "type" | "tools" | "team
 // matching the phone mock's own JetBrains/Mobile style exactly. `compact`
 // only ever fires at desktop, so the ternary and the tier-driven fallback
 // never compete for the same render.
+//
+// `isPhone` (`useViewportBelow(0, BREAKPOINT_TABLET)`) picks StatusPill's
+// `variant` — "button" below 744, the pill everywhere else. This is a
+// genuine post-hydration swap (one anchor, one frame), the same trade
+// Hero.tsx already accepts for its own mobile/desktop layout choice,
+// scoped here to a single element rather than a layout: rendering both
+// variants would put two links to the same URL in the tab order.
 export function PanelMeta({
   project,
   compact = false,
@@ -54,6 +64,7 @@ export function PanelMeta({
   fixed?: boolean;
 }) {
   const type = compact ? "text-mono-caption" : "text-mono-mobile tablet:text-mono";
+  const isPhone = useViewportBelow(0, BREAKPOINT_TABLET);
   return (
     <div
       className={
@@ -78,6 +89,7 @@ export function PanelMeta({
           kind={project.status.kind}
           href={project.status.href}
           arrowHover="right"
+          variant={isPhone ? "button" : "pill"}
         />
       )}
     </div>

@@ -14,9 +14,13 @@ import type { Project } from "@/content/projects";
 // strings, not a casing transform of one another. The nav dropdown keeps
 // `name` (the long form) unchanged; this button is the only other consumer
 // that needed the short one.
+//
+// Session R5 (case study responsive pass): `gap-sm tablet:gap-md` — the
+// phone mock's own buttons row (1005:8107) sits noticeably tighter than
+// desktop/tablet's unchanged gap-md.
 export function CaseStudyActions({ next }: { next: Project }) {
   return (
-    <div className="flex w-full items-center justify-center gap-md pb-lg">
+    <div className="flex w-full items-center justify-center gap-sm pb-lg tablet:gap-md">
       <BlackButton variant="outline" outlineKind="secondary" href="/">
         BACK TO HOME
       </BlackButton>

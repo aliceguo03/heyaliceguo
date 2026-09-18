@@ -107,6 +107,16 @@ export const STAT_W = 411;
 // columnWidth` for how a content file opts into this instead of STAT_W.
 export const STAT_W_WIDE = 425;
 
+// Phone tier's own stat column width (1005:8095/1005:8073) — Session R5
+// (case study responsive pass). A single centered column, not a scaled
+// fraction of STAT_W/STAT_W_WIDE: Figma's phone mock measures 298px,
+// which fits the 375px SE floor (375 - 2*20 page inset - some slack =
+// 335px available) with room to spare. Unlike STAT_W_WIDE, this isn't a
+// per-project override — Stats.tsx applies it below --breakpoint-tablet
+// unconditionally, regardless of which `columnWidth` a project's own
+// content passes for tablet+desktop.
+export const STAT_W_PHONE = 298;
+
 // --- The content column's 1440px floor -----------------------------------
 //
 // The row (InfoPanel + gap + content column) sums to exactly 1510px at the

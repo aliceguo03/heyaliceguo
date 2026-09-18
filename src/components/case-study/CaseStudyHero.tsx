@@ -17,17 +17,64 @@ import { HERO_PHOTO_H, HERO_PHOTO_W } from "./caseStudyGeometry";
 // --case-hero-photo-w/-h (591x393, Figma's own tablet measurement, not a
 // scaled fraction of the desktop numbers) instead — both CSS vars, since
 // neither has a spacing token and an inline style can't itself branch on a
-// breakpoint (same reasoning as --blackbutton-height). The phone tier's
-// own single-photo layout is a separate addition; see this component's own
-// comment where that well is added.
+// breakpoint (same reasoning as --blackbutton-height).
+//
+// The phone tier adds a genuinely separate single-photo well (below), not
+// a third state of the existing `singlePhoto`/3-strip branch: Figma's own
+// phone card (1005:7981) shows one photo regardless of how many the
+// project's data carries — GeminiCut has 3 — where `singlePhoto` is a
+// *data*-driven branch (Chase genuinely has one photo at every tier). Both
+// the strip and the new phone well are always rendered and toggled with
+// `hidden`/`block` + `tablet:`, the same "render every tier, toggle
+// visibility" pattern Nav.tsx/Footer.tsx use sitewide — chosen over a JS
+// branch so this stays a server component (no hydration flash, no client
+// JS for a purely-visual swap). The phone well always shows `photos[0]`
+// specifically; photos 2/3 in the strip get `loading="lazy"` so a phone
+// viewport (where the strip sits in a permanently `hidden` subtree) never
+// fetches them — `loading="lazy"` defers to viewport intersection, which a
+// `display:none` element never reaches.
+//
+// Card chrome (radius, padding, gaps, shadow) all step at `tablet:` too —
+// Figma's phone card (1005:7982) measures gap-sm(12)/pt-xl(50)/pb-md(20)/
+// px-md(20)/rounded-card(20), a tighter, squarer treatment than desktop's
+// gap-xl/pt-3xl/pb-xl/rounded-panel. The photo well's own 12px radius has
+// no matching token (`rounded-nav` is the closest existing value, named for
+// an unrelated component — flagged for review rather than adding a new
+// token for one instance) and the card's own shadow (Figma measures
+// 8/11/14.5) doesn't match either existing shadow token, so this reuses
+// `shadow-case-card` (the card's own existing desktop shadow) rather than
+// inventing a third — both are P1-plan "Flags" items, not oversights.
+//
+// Chase's own `singlePhoto` (Chase genuinely has one photo) branch is
+// UNTOUCHED beyond the same hidden/tablet:block toggle every other well
+// gets — its own tablet/phone rendering through this shared component is
+// for the follow-up session to verify (CLAUDE.md build order: GeminiCut
+// only, this pass).
 export function CaseStudyHero({ project, hero }: { project: Project; hero: CaseStudy["hero"] }) {
   const singlePhoto = hero.photos.length === 1;
+  const [firstPhoto] = hero.photos;
 
   return (
-    <section className="flex w-full flex-col px-case-x pb-xl pt-md">
-      <div className="flex w-full flex-col items-start gap-xl overflow-hidden rounded-panel border border-divider bg-porcelain pb-xl pt-3xl shadow-case-card">
+    // F9 (new this session, same "flag rather than guess" treatment as the
+    // plan's F1-F8): Figma's own coordinates put the metadata/text row
+    // flush against the card's bottom edge at tablet (0px gap, 1015:8153's
+    // "card" and "Frame 1" both end/start at y=909) and close to flush at
+    // phone (~20px, 1005:7980's "top card frame" ends 20px below its own
+    // "iphone card"). `pb-xl` (this section's own unconditional 50px)
+    // combined with CaseStudyBody's own top `p-case-x` would have given 70
+    // (phone) / 100 (tablet) instead — visibly too much air below the card
+    // compared to either measurement. `pb-0` here relies entirely on
+    // CaseStudyBody's own `p-case-x` top padding for the gap below desktop
+    // (20 phone, 50 tablet) — closer to Figma's own numbers than either
+    // extreme (the unmodified 70/100, or literally flush), without
+    // presuming the tablet mock's 0px is a deliberate design choice rather
+    // than two adjacent frames' layer bounds coinciding by coincidence.
+    // `desktop:pb-xl` restores the original unconditional value at
+    // >=1440, unchanged.
+    <section className="flex w-full flex-col px-case-x pb-0 pt-md desktop:pb-xl">
+      <div className="flex w-full flex-col items-start gap-sm overflow-hidden rounded-card border border-divider bg-porcelain pb-md pt-xl shadow-case-card tablet:gap-xl tablet:rounded-panel tablet:pb-xl tablet:pt-3xl">
         <div
-          className="flex flex-col gap-sm px-xl text-mono-header font-mono"
+          className="flex flex-col gap-s px-md text-mono font-mono tablet:gap-sm tablet:px-xl tablet:text-mono-header"
           style={{ width: "var(--case-hero-header-w)" }}
         >
           <p className="text-muted-gray">{project.number}.</p>
@@ -37,16 +84,36 @@ export function CaseStudyHero({ project, hero }: { project: Project; hero: CaseS
               desktop this session — Chase's own tablet/phone rendering
               through this shared component is for the follow-up session
               to verify (CLAUDE.md build order: GeminiCut only, this pass). */}
-          <div className="flex w-full flex-col gap-sm" style={{ width: hero.titleWidth }}>
+          <div className="flex w-full flex-col gap-s tablet:gap-sm" style={{ width: hero.titleWidth }}>
             <p className="text-deep-black">{project.name} /</p>
             <p className="text-muted-gray">{hero.tagline}</p>
+          </div>
+        </div>
+
+        {/* Phone-only single photo (1005:7987) — always photos[0], a fluid
+            aspect-ratio box (272/181, Figma's own stated ratio) rather than
+            a fixed height, since a phone's own viewport width isn't fixed
+            the way the card's desktop/tablet width is. */}
+        <div className="block w-full px-md tablet:hidden">
+          <div
+            className="relative w-full overflow-hidden rounded-nav border border-divider"
+            style={{ aspectRatio: "272 / 181" }}
+          >
+            <Image
+              src={firstPhoto.src}
+              alt={firstPhoto.alt}
+              fill
+              sizes="(max-width: 743px) calc(100vw - 40px), 0px"
+              className="object-cover"
+              priority
+            />
           </div>
         </div>
 
         {singlePhoto ? (
           // Single-photo variant (Chase, 730:6547): one well filling the
           // card's own px-xl padding, not the over-wide 3-photo strip below.
-          <div className="w-full px-xl" style={{ height: HERO_PHOTO_H }}>
+          <div className="hidden w-full px-xl tablet:block" style={{ height: HERO_PHOTO_H }}>
             <div className="relative h-full w-full overflow-hidden rounded-card border border-divider">
               <Image
                 src={hero.photos[0].src}
@@ -59,7 +126,7 @@ export function CaseStudyHero({ project, hero }: { project: Project; hero: CaseS
             </div>
           </div>
         ) : (
-          <div className="relative w-full" style={{ height: "var(--case-hero-photo-h)" }}>
+          <div className="relative hidden w-full tablet:block" style={{ height: "var(--case-hero-photo-h)" }}>
             {/* The 3-photo strip is wider than the card and centered — Figma's
                 own left=-443 offset on a 1510-wide frame is, within
                 rounding, exactly (frame width - strip width) / 2, so
@@ -79,6 +146,7 @@ export function CaseStudyHero({ project, hero }: { project: Project; hero: CaseS
                     sizes={`${HERO_PHOTO_W}px`}
                     className="object-cover"
                     priority={index === 0}
+                    loading={index === 0 ? undefined : "lazy"}
                   />
                 </div>
               ))}

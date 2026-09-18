@@ -111,7 +111,7 @@ export function CarouselTabs({ items }: { items: TabsCarouselItem[] }) {
           never exercised below 1440px width. Wraps to 2x2 at phone
           (mobile mock 1005:8050), inert at tablet/desktop where 732 still
           fits inside the (wider) available row. */}
-      <div role="tablist" aria-label="Editing modes" className="flex flex-wrap items-center gap-md">
+      <div role="tablist" aria-label="Editing modes" className="flex flex-wrap items-center gap-sm tablet:gap-md">
         {items.map((item, index) => (
           <SelectTab
             key={item.label}
