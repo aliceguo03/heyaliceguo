@@ -503,15 +503,36 @@
    tracks (the gap between them is a real Tailwind gap-x-xl utility, not
    baked into this string). A single 1fr column below 744 — no panel
    column at all; the panel becomes a plain full-width block, first in
-   source order, at that tier. 383px (PANEL_W, caseStudyGeometry.ts)
-   reused as-is at tablet AND desktop: Figma's tablet mock (1015:8153)
-   measures the exact same 383px panel box, so this needed no independent
-   remeasurement, just a wider consumer of the existing constant — hence
-   one breakpoint, not two. */
+   source order, at that tier.
+
+   Fix pass (item 2): below 1440 the sidebar used to stay flat at 383px
+   (PANEL_W) all the way down to 744 — Figma's tablet mock (1015:8153)
+   does measure that same 383px box, so this is a deliberate departure
+   from that mock, not an oversight. A fixed-width sidebar next to a
+   column that's the only thing shrinking reads as a wide static block
+   beside thin, heavily-wrapped text. clamp(PANEL_MIN_W, 40%, 383px)
+   (PANEL_MIN_W, caseStudyGeometry.ts) lets the sidebar narrow with the
+   content column, capped at 40% of the row and never wider than
+   desktop's 383px, floored at PANEL_MIN_W (280px — the narrowest width
+   that doesn't overflow the longest unbreakable metadata token across
+   all four case studies; see that constant's own derivation). The 40%
+   cap and the 280px floor are in tension in the 744-800px range (40% of
+   the row is already below 280 there), so the floor wins and the split
+   runs slightly wider than 40% at the very bottom of that band —
+   documented on PANEL_MIN_W, not silently absorbed.
+
+   >= 1440px restores the flat 383px literal unconditionally, so desktop
+   stays byte-identical to before this session regardless of what the
+   sub-1440 expression resolves to. */
 :root {
   --case-grid-cols: 1fr;
 }
 @media (width >= 744px) {
+  :root {
+    --case-grid-cols: clamp(280px, 40%, 383px) 1fr;
+  }
+}
+@media (width >= 1440px) {
   :root {
     --case-grid-cols: 383px 1fr;
   }

@@ -117,6 +117,37 @@ export const STAT_W_WIDE = 425;
 // content passes for tablet+desktop.
 export const STAT_W_PHONE = 298;
 
+// --- Fix pass (item 2): the sub-1440 sidebar floor ------------------------
+//
+// Below 1440 the info-panel/sidebar shell (globals.css's --case-grid-cols)
+// narrows proportionally with the content column instead of staying a flat
+// 383px (PANEL_W) all the way to 744 — see that variable's own comment for
+// the full reasoning. This is its floor: the narrowest the sidebar may get
+// before its own content overflows.
+//
+// The binding case is the longest unbreakable token across all four case
+// studies' metadata (PanelMeta.tsx's ROLE/TIMELINE/TYPE/TOOLS/TEAM values —
+// content/projects.ts — a CSS word can't break mid-word without a hyphen
+// point, and none of these have one). Measured directly (not counted by
+// eye) in --text-mono (20px JetBrains Mono, the type size these rows render
+// at from --breakpoint-tablet up — PanelMeta.tsx's `text-mono-mobile
+// tablet:text-mono`):
+//   "CROSS-FUNCTIONAL" (Chase, Blink)   211px  <- longest
+//   "AI-ASSISTED"      (GeminiCut, F3)  145px
+// 211 + 2 * 30 (p-lg, InfoPanel.tsx's own padding) = 271px is the hard
+// overflow floor. PANEL_MIN_W leaves a small margin above it rather than
+// sitting flush.
+//
+// Measured `min-content` panel widths corroborate this is generous, not
+// tight: 207 (f3global) / 234 (chase) / 242 (geminicut) / 234 (blink).
+//
+// This floor sits above 40% of the row in the 744-800px band (40% of 744 is
+// 257.6px, below the 271px overflow floor), so the sidebar runs slightly
+// wider than the nominal 40% split at the very bottom of that range — the
+// floor always wins over the percentage there. Out of scope to "fix"
+// further: any narrower sidebar overflows PANEL_MIN_W's own binding case.
+export const PANEL_MIN_W = 280;
+
 // --- The content column's 1440px floor -----------------------------------
 //
 // The row (InfoPanel + gap + content column) sums to exactly 1510px at the
