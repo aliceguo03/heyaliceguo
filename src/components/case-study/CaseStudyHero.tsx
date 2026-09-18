@@ -72,13 +72,33 @@ export function CaseStudyHero({ project, hero }: { project: Project; hero: CaseS
           style={{ width: "var(--case-hero-header-w)" }}
         >
           <p className="text-muted-gray">{project.number}.</p>
-          {/* `titleWidth` (Chase: 620, 730:6011) narrows just this group —
-              F3Global/GeminiCut omit it and fill the header's own content
-              box, same as before this prop existed. Untouched below
-              desktop this session — Chase's own tablet/phone rendering
-              through this shared component is for the follow-up session
-              to verify (CLAUDE.md build order: GeminiCut only, this pass). */}
-          <div className="flex w-full flex-col gap-s tablet:gap-sm" style={{ width: hero.titleWidth }}>
+          {/* `titleWidth` (Chase: 620, Blink: 692, 730:6011) narrows just
+              this group at the 1710px reference width — it exists purely
+              to reproduce Figma's own deliberate desktop line break
+              ("FOR" for Chase, "AT" for Blink), not as a real container
+              width at every tier. F3Global/GeminiCut omit it and fill the
+              header's own content box, same as before this prop existed.
+              Fix pass (round 2, item 1): the old unconditional `width:
+              titleWidth` clipped Chase and Blink's tagline mid-word below
+              ~800-850px, once the card itself (and --case-hero-header-w's
+              own fluid resolution below 1440) narrowed past the fixed 620/
+              692 literal — the outer card has `overflow-hidden`, so the
+              box's own overflow past the card edge silently cropped text
+              instead of wrapping it. `min(100%, Npx)` fixes this at the
+              source rather than patching a breakpoint: it reproduces the
+              exact same 620/692px box wherever the header's own content
+              box is wider than that (>=~840px for Chase, ~890px for Blink,
+              in practice always true at 1440+ and often true down into
+              tablet), and falls back to filling 100% of the header the
+              moment the container gets narrower than the literal — the
+              same "fill" behavior F3Global/GeminiCut already have
+              unconditionally. Verified against every project's tagline,
+              not just Chase/Blink's current lengths, since a fix tuned to
+              today's two strings could still clip a longer one later. */}
+          <div
+            className="flex w-full flex-col gap-s tablet:gap-sm"
+            style={hero.titleWidth ? { width: `min(100%, ${hero.titleWidth}px)` } : undefined}
+          >
             <p className="text-deep-black">{project.name} /</p>
             <p className="text-muted-gray">{hero.tagline}</p>
           </div>
