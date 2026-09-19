@@ -32,33 +32,29 @@ import type { CaseStudy } from "@/content/case-studies/types";
 // group — Figure.tsx itself stays a plain, unwrapped component elsewhere
 // (every other caller still renders it bare).
 //
-// Fix pass (item 5, round 1): the text group's own width is narrower than
-// its grid cell between 744 and 1439px, so the column wraps to more lines
-// and its rendered height closes in on the metadata sidebar beside it.
-// `--case-overview-text-w` (globals.css) resolves to `100%` outside that
-// range, so this is a no-op both below 744 (single column, no sidebar to
-// compare against) and at 1440+ (Figma's fixed-width column, byte-
-// identical to before round 1).
+// Fix pass (item 5, round 1-3): rounds 1-3 chased a fill-ratio target
+// (text column height vs. the metadata sidebar's own height) — see
+// caseStudyGeometry.ts's own comment on that constant's history, including
+// why round 2's `mx-auto` centering didn't hold up on review.
 //
-// Round 2 added `mx-auto` to center the leftover space the cap left in its
-// grid cell — reverted in round 3 (see below); this is back to a plain
-// `width`, no auto margins.
-//
-// Fix pass (round 3): back to left-aligned (no `mx-auto` — round 2's
-// centering didn't hold up on review) with a real `width` (not
-// `max-width`) driving the column, per OVERVIEW_TEXT_W's own comment
-// (caseStudyGeometry.ts) for why round 3 replaced round 1/2's flat-75%-
-// fill-target reasoning with a tiered one instead. With no auto margins,
-// the column starts flush against the sidebar's own gap (`gap-x-xl` on
-// CaseStudyBody.tsx's row) and whatever's left of the grid cell sits as
-// plain margin on the right — not split between both sides.
+// Fix pass (round 4, simplified): the fill-ratio reasoning is dropped
+// entirely. `tablet:w-7/10` is a plain width fraction — 70% of whatever
+// this div's own grid/flex cell resolves to, which is exactly "the row's
+// remaining width after the sidebar and its gap" at every tier this row
+// applies (a percentage width always resolves against its own containing
+// block, never the full row). At tablet that cell is CaseStudyBody.tsx's
+// own `1fr` grid track; at desktop it's the flex wrapper above, itself
+// `desktop:w-full` inside the same track — so 70% means the same thing in
+// both cases with no separate desktop override needed, unlike rounds 1-3,
+// which reverted to Figma's full-width column at 1440+. No auto margins:
+// the column stays flush against the sidebar's own gap (`gap-x-xl` on
+// CaseStudyBody.tsx's row), and the remaining 30% sits as plain margin on
+// the right. `w-full` below `tablet:` is unaffected — this row is a single
+// stacked column there, with no sidebar beside it to leave a margin against.
 export function OverviewContent({ overview }: { overview: CaseStudy["overview"] }) {
   return (
     <div className="contents desktop:flex desktop:w-full desktop:flex-col desktop:gap-lg">
-      <div
-        className="col-start-1 row-start-2 mt-lg flex w-full flex-col gap-md tablet:col-start-2 tablet:row-start-1 tablet:mt-0"
-        style={{ width: "var(--case-overview-text-w)" }}
-      >
+      <div className="col-start-1 row-start-2 mt-lg flex w-full flex-col gap-md tablet:col-start-2 tablet:row-start-1 tablet:mt-0 tablet:w-7/10">
         <Statement text={overview.hook} />
         {overview.paragraphs.map((paragraph, index) => (
           <p key={index} className="m-0 w-full text-body font-sans text-deep-black">

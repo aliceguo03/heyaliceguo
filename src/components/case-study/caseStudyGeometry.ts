@@ -249,53 +249,24 @@ export const CAROUSEL_STAGE_H = 734;
 // require the stage already rendered.
 export const MIN_CAROUSEL_VIEWPORT_H = STICKY_TOP + CAROUSEL_STAGE_H + PANEL_BOTTOM_GAP; // 870
 
-// --- Fix pass (item 5, round 1; retargeted round 2 item 4; rebuilt round 3):
-// overview column fill, 744-1439px ------------------------------------------
+// --- Overview column width, sidebar+content row (item 5, round 1; retargeted
+// round 2; rebuilt round 3; simplified round 4) -----------------------------
 //
-// In this range the overview's text column (OverviewContent.tsx) can
-// render noticeably shorter than the metadata sidebar beside it, leaving
-// dead space under the sidebar. A narrower column wraps to more lines and
-// grows taller, closing that gap.
-//
-// Round 1 (flat px cap, 420) and round 2 (retargeted to 360, `mx-auto`
-// centering) both chased a flat 75%-fill target. Round 2's centering read
-// wrong once built, and the percentage-of-remaining-space alternative
-// tried in round 3 broke down at the 1439px checkpoint specifically — the
-// sidebar column hits its own 383px ceiling there while the content track
-// keeps growing, so it balloons to 906px, nearly double its width at
-// 1024px (504px); no percentage in a sane range gets Chase (the tightest
-// project) to 75% at that width without the column reading unreasonably
-// narrow at every *other* checkpoint. Round 3 replaces the flat-75%-target
-// idea entirely with a tiered read of the same fill ratio (rendered text
-// height / sidebar height): Good >=90%, Acceptable 65-90%, Not acceptable
-// <65% — the real requirement was never "hit exactly 75%," it was "don't
-// leave the shortest project looking obviously unfinished next to the
-// sidebar."
-//
-// Measured (Playwright, dev server, all four live projects, at five
-// checkpoint widths: 1439/1320/1200/1080/1024) confirms fill is a function
-// of *absolute pixel width*, not viewport — the numbers are within 1pt of
-// identical across 1439/1320/1200/1080, and shift by only a few points at
-// 1024 (the panel's own row-wrap changes there, not the text column). So
-// unlike round 3's percentage attempt, a single flat width genuinely is
-// the correct "curve" here — there's no real per-checkpoint variation to
-// build a clamp() from. At 320px, every project lands solidly in Good at
-// every checkpoint:
-//           1439  1320  1200  1080  1024
-//   f3      105%  105%  105%  105%  105%
-//   chase    97%   97%   97%   97%   93%   <- binding project, still Good
-//   gemini  127%  127%  127%  127%  122%
-//   blink   117%  117%  117%  117%  113%
-// Screenshot-checked for readability at 1439 (the narrowest column
-// relative to its own track, since that track is the widest) — reads as a
-// normal paragraph measure, no awkward single-word lines.
-//
-// Scoped to 744-1439px only (globals.css's --case-overview-text-w): below
-// 744 the sidebar stacks above the text column rather than beside it, so
-// there's no dead space beside it to close; at and above 1440 the column
-// is Figma's own fixed 1077px (CONTENT_W above), unrelated to this fill
-// problem entirely.
-export const OVERVIEW_TEXT_W = 320;
+// Rounds 1-3 chased a fill-ratio target (text column height vs. the
+// metadata sidebar's own height) with a flat pixel width and various
+// alignment schemes — round 2's centering didn't hold up on review, and
+// round 3's percentage-of-remaining-space attempt was scoped only to
+// 744-1439px and rejected as too narrow once retargeted against that
+// fill ratio. Round 4 drops the fill-ratio reasoning entirely per a direct
+// design call: the text column should simply read as a deliberate,
+// proportional column next to the sidebar — not tuned against the
+// sidebar's own height at all. See OverviewContent.tsx's own `tablet:
+// w-7/10` for the current mechanism: a plain width fraction of the
+// content track (the space remaining after the sidebar + its gap), no CSS
+// var or JS constant needed for a single unconditional value. Unlike
+// rounds 1-3, this now holds from 744px all the way through desktop —
+// there is no revert to Figma's full 1077px column at 1440+ this time;
+// the same 70% figure applies wherever the sidebar+content row is active.
 
 // --- GeminiCut video figures ----------------------------------------------
 //
