@@ -261,12 +261,13 @@ export const MIN_CAROUSEL_VIEWPORT_H = STICKY_TOP + CAROUSEL_STAGE_H + PANEL_BOT
 // design call: the text column should simply read as a deliberate,
 // proportional column next to the sidebar — not tuned against the
 // sidebar's own height at all. See OverviewContent.tsx's own `tablet:
-// w-7/10` for the current mechanism: a plain width fraction of the
-// content track (the space remaining after the sidebar + its gap), no CSS
-// var or JS constant needed for a single unconditional value. Unlike
-// rounds 1-3, this now holds from 744px all the way through desktop —
-// there is no revert to Figma's full 1077px column at 1440+ this time;
-// the same 70% figure applies wherever the sidebar+content row is active.
+// w-9/10 desktop:w-full` for the current mechanism: a plain width
+// fraction of the content track (the space remaining after the sidebar +
+// its gap), no CSS var or JS constant needed for two flat values. Round
+// 4's own first attempt extended a 70% fraction through desktop too, with
+// no revert at 1440+ — corrected per direct design review: desktop stays
+// at Figma's full 1077px column (`desktop:w-full`, matching every round
+// before that attempt), and tablet (744-1439px) is 90%, not 70%.
 
 // --- GeminiCut video figures ----------------------------------------------
 //

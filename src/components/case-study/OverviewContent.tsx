@@ -38,23 +38,22 @@ import type { CaseStudy } from "@/content/case-studies/types";
 // why round 2's `mx-auto` centering didn't hold up on review.
 //
 // Fix pass (round 4, simplified): the fill-ratio reasoning is dropped
-// entirely. `tablet:w-7/10` is a plain width fraction — 70% of whatever
-// this div's own grid/flex cell resolves to, which is exactly "the row's
-// remaining width after the sidebar and its gap" at every tier this row
-// applies (a percentage width always resolves against its own containing
-// block, never the full row). At tablet that cell is CaseStudyBody.tsx's
-// own `1fr` grid track; at desktop it's the flex wrapper above, itself
-// `desktop:w-full` inside the same track — so 70% means the same thing in
-// both cases with no separate desktop override needed, unlike rounds 1-3,
-// which reverted to Figma's full-width column at 1440+. No auto margins:
-// the column stays flush against the sidebar's own gap (`gap-x-xl` on
-// CaseStudyBody.tsx's row), and the remaining 30% sits as plain margin on
-// the right. `w-full` below `tablet:` is unaffected — this row is a single
-// stacked column there, with no sidebar beside it to leave a margin against.
+// entirely. `tablet:w-9/10 desktop:w-full` is a plain width fraction of
+// whatever this div's own grid/flex cell resolves to, which is exactly
+// "the row's remaining width after the sidebar and its gap" at tablet (a
+// percentage width always resolves against its own containing block,
+// never the full row) — 90% there, per direct design review, reverting to
+// Figma's own full-width column at 1440+ (`desktop:w-full`, matching every
+// round before round 4's own since-corrected attempt to extend the
+// fraction through desktop too). No auto margins: the column stays flush
+// against the sidebar's own gap (`gap-x-xl` on CaseStudyBody.tsx's row),
+// and the remaining 10% sits as plain margin on the right at tablet.
+// `w-full` below `tablet:` is unaffected — this row is a single stacked
+// column there, with no sidebar beside it to leave a margin against.
 export function OverviewContent({ overview }: { overview: CaseStudy["overview"] }) {
   return (
     <div className="contents desktop:flex desktop:w-full desktop:flex-col desktop:gap-lg">
-      <div className="col-start-1 row-start-2 mt-lg flex w-full flex-col gap-md tablet:col-start-2 tablet:row-start-1 tablet:mt-0 tablet:w-7/10">
+      <div className="col-start-1 row-start-2 mt-lg flex w-full flex-col gap-md tablet:col-start-2 tablet:row-start-1 tablet:mt-0 tablet:w-9/10 desktop:w-full">
         <Statement text={overview.hook} />
         {overview.paragraphs.map((paragraph, index) => (
           <p key={index} className="m-0 w-full text-body font-sans text-deep-black">
