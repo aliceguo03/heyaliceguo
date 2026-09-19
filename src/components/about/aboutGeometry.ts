@@ -1,280 +1,368 @@
-// Frame-specific pixel geometry for the About page's gray frame (Figma
-// "about", 523:6601) — not design tokens, so kept here as documented
-// consts rather than in @theme, following the precedent set by
-// Hero.tsx's own HERO_WIDTH/PHOTO_CELL consts and projectGeometry.ts.
-// Re-measure from Figma rather than assuming these hold; see
-// projectGeometry.ts's own comment for why that discipline matters.
+// About page geometry — tablet pin reflow session. Rewritten from a flat,
+// desktop-only module-scope constant file into a per-tier geometryFor(width,
+// svh) + useAboutGeometry() hook, mirroring projectGeometry.ts /
+// useProjectGeometry.ts exactly (same SSR-assumes-desktop convention, same
+// "one function everything is built from" shape). Read that module's own
+// header comment for the reasoning this one inherits wholesale.
+//
+// Source: Figma qOEfucW57jnzP1h7h0ehks, page "final". Desktop "about"
+// (523:6601), tablet "about" (1045:9705, inside "ipad pro 12.9 (portrait)"
+// 1040:9085), phone "about" (1064:9880, inside "iphone 16 pro" 1040:9289).
+// Phone tier does not use most of what's in this file — About's mobile
+// layout is a stacked spotlight (see CLAUDE.md's sub-session B/C), not a
+// pin — but tierFor/frameWidth/rowWidth below are shared with it (the
+// stacked layout still sits inside the same frame chrome), and the phone
+// tier still needs a value from here wherever noted.
 
 import { NAV_CLEARANCE, NAV_FRAME_GAP } from "@/components/chassis/navGeometry";
 
-// --- Base measurements, all read directly off 523:6601's subtree -------
-
-// Renamed from FRAME_H (5A) to FRAME_H_MAX in session 5B: the frame's
-// actual rendered height is now viewport-dependent (frameHeightCss below)
-// and this is only its ceiling — the exact Figma number, reached only on
-// viewports tall enough that NAV_CLEARANCE + NAV_FRAME_GAP + BOTTOM_GAP
-// leave 940px of room (100svh >= 1076px — an external monitor, not any
-// laptop in the supported range). Nothing imports this raw number
-// directly; every consumer goes through frameHeightCss so there's one
-// place the ceiling is applied.
-export const FRAME_H_MAX = 940; // 523:6601
-export const FRAME_PAD_Y = 100; // Figma padding/xlarge, --spacing-3xl
-
-export const TEXT_COL_W = 663; // 523:6602
-export const PHOTO_COL_W = 653; // 523:6850
-
-export const PHOTO_H = 448; // each "photo and caption" instance's photo, 523:7207
-export const CAPTION_H = 21; // --text-mono-caption's own line box
-
-export const PILL_H = 32; // section count pill, 523:7254
-export const PILL_PAD_X = 16; // Figma reports 16px vertical padding, which
-// can't coexist with a fixed 32px height — clamping. Real geometry is 16px
-// horizontal, 32px fixed height (116px measured width corroborates 16px
-// sides: 01 + / + 06 glyph widths + 2*16 + 2*10 gaps ≈ 116).
-export const PILL_GAP = 20; // --spacing-md, between the pill and the photo window
-export const PHOTO_CAPTION_GAP = 20; // --spacing-md, inside PhotoCaption itself
-
+// Hero geometry (AboutHero.tsx) — untouched by this session (the mobile
+// hero photo stack is its own later sub-session, CLAUDE.md's "D"). Kept
+// here unchanged so AboutHero.tsx doesn't need to know this file was
+// rewritten underneath it. Per Alice: the hero holds this same 868px row
+// down to ABOUT_TIER_BREAKPOINT_W (980) below, in lockstep with the
+// section rows, rather than switching at its own content-only floor
+// (868 + 2*20 page gutter = 908) — see that constant's own comment.
 export const HERO_PHOTO = 256; // each hero photo, 523:6572
 export const HERO_W = 868; // "hero" (523:6847), the title+photos column
 
-// --- Session 5B: the pin -------------------------------------------------
-//
-// Session 5A built the frame at a flat 940px. This session locks it to the
-// viewport instead: the frame's height becomes
-//   FRAME_H = min(FRAME_H_MAX, 100svh - NAV_CLEARANCE - BOTTOM_GAP)
-// and the left column scrolls internally by transform while the frame
-// holds still on screen. See the 5B plan for the full derivation; this
-// file only carries the constants and the CSS expressions built from them.
+export type AboutTier = "phone" | "tablet" | "desktop";
 
-// NAV_CLEARANCE and NAV_FRAME_GAP used to be declared here (session 5B/fix
-// pass). Lifted to chassis/navGeometry.ts (session "case-study panel
-// behaviour") once the case study's sticky info panel needed the same
-// nav-clearance-plus-gap offset — a chassis fact, not an About-page one.
-// Re-exported under their original names so every consumer below (and
-// anything importing them from this module) is unaffected by the move.
-export { NAV_CLEARANCE, NAV_FRAME_GAP };
+// About's own tier boundary — deliberately NOT --breakpoint-tablet (744).
+// See globals.css's own --breakpoint-about comment for the full derivation
+// (the text column's floor, type-scaled for the tablet body size, against
+// the 50/50 column split below) and for why this same boundary governs the
+// hero's row->stack switch too, not just the section rows'.
+export const ABOUT_TIER_BREAKPOINT_W = 980;
+
+export function tierFor(width: number): AboutTier {
+  if (width < ABOUT_TIER_BREAKPOINT_W) return "phone";
+  if (width < 1440) return "tablet";
+  return "desktop";
+}
+
+// Mirrors --page-x's own ramp (globals.css) by hand — same accepted
+// duplication projectGeometry.ts's own pageX() already documents (CSS
+// custom properties can't be read inside a bare JS conditional, and this
+// file has no build step to import globals.css's computed values through).
+function pageX(width: number): number {
+  if (width >= 1440) return 50;
+  if (width >= 1024) return 30;
+  return 20;
+}
+
+function frameWidth(width: number): number {
+  return Math.min(1610, width - 2 * pageX(width));
+}
+
+// The frame's own content width at this viewport/tier — frameWidth minus
+// AboutFrame's own internal padding (FRAME_PAD_X, below). Factored out of
+// columnWidth/geometryFor's own inline duplicates of this same expression
+// (B follow-up cleanup) — behavior-neutral, verified against sub-session
+// A's original tablet measurements before and after.
+function rowWidth(width: number, tier: AboutTier): number {
+  return frameWidth(width) - 2 * FRAME_PAD_X[tier];
+}
+
+// AboutFrame's own internal padding (px-*/py-* in AboutFrame.tsx) — tablet
+// is identical to desktop (both 523:6601 and 1045:9705 measure 50/100),
+// phone steps down to 20/50 (1064:9880). Exported so AboutFrame.tsx's own
+// Tailwind classes (which key off --breakpoint-about, not these numbers
+// directly) stay checkable against this file by eye.
+export const FRAME_PAD_X: Record<AboutTier, number> = { phone: 20, tablet: 50, desktop: 50 };
+export const FRAME_PAD_Y: Record<AboutTier, number> = { phone: 50, tablet: 100, desktop: 100 };
+
+// The photo's own aspect ratio — 653x448 (523:7128, desktop). Confirmed
+// identical (to within rounding) at tablet (1045:9751, 414x284) and phone
+// (1064:9926, 330x226) — one ratio, not three independent measurements
+// that happen to be close. 653 is prime and 448 = 2^6*7, so this is
+// already fully reduced; used directly as a CSS aspect-ratio rather than
+// scaled to either tier's own pixel pair.
+export const PHOTO_ASPECT_W = 653;
+export const PHOTO_ASPECT_H = 448;
+
+// Gap between the text and photo columns, side-by-side tiers only (tablet,
+// desktop — phone stacks instead, see below).
+//
+// Desktop's is NOT a designed gap: 523:6601 lays the row out with
+// `justify-between` and no declared gap at all — 194px is what's left
+// over once TEXT_COL_W (663) and PHOTO_COL_W (653) sit inside the 1510px
+// content box (1610 frame - 2*50 padding). The 50/50 split below changes
+// its ROLE from leftover space to a designed constant (each column is now
+// (rowW - gap)/2, not two independently fixed widths), but its VALUE
+// carries over unchanged, re-derived from the same Figma numbers it
+// always came from (confirmed via get_design_context on 523:6601 during
+// this session, not assumed from the old file). The 50/50 split does move
+// each column by 5px versus the old fixed 663/653 split (658/658) —
+// visually inert, flagged for Alice's own visual pass rather than treated
+// as silently correct.
+//
+// Tablet's own value. 1045:9707 draws it at 40px, and it was confirmed
+// (Playwright, not a visual read) to be rendering exactly that at every
+// width from 1024 to 1439 — no bug. B follow-up: changed to 50px anyway,
+// a deliberate design override on top of a confirmed-correct number, not
+// a fix. 50 already exists as --spacing-xl (globals.css), so this reads
+// that value directly rather than keeping a redundant --spacing-ml token
+// around at the same number (see globals.css's own note on that token's
+// retirement).
+const COLUMN_GAP: Record<"tablet" | "desktop", number> = {
+  tablet: 50, // --spacing-xl
+  desktop: 194,
+};
+
+function columnGap(tier: "tablet" | "desktop"): number {
+  return COLUMN_GAP[tier];
+}
+
+// Each side-by-side column's own width at this viewport — rowWidth minus
+// the gap, split in half. Phone has no meaning for this (stacked, full
+// rowWidth instead) and isn't called with "phone".
+function columnWidth(width: number, tier: "tablet" | "desktop"): number {
+  return (rowWidth(width, tier) - columnGap(tier)) / 2;
+}
+
+// --- Pin frame ceiling, per tier ------------------------------------------
+//
+// Desktop unchanged (940, 523:6601). Tablet is NOT in Figma — the file has
+// no scroll mechanic, so there is no tablet-tier pinned frame to measure
+// (same exemption BLOCK_GAP below already documents). Measured off a real
+// render at this session's own reference tablet width (1024) rather than
+// guessed: the shortest block ("everything else", body text at the
+// tablet-tier colW) needs enough window to isolate a paragraph the same
+// way desktop's BLOCK_GAP isolates one at 320px — see BLOCK_GAP's own
+// comment for the paired derivation. Both numbers were tuned together
+// against a live render; re-derive both if colW, type size, or copy ever
+// changes, don't assume either alone still holds.
+const FRAME_H_MAX: Record<AboutTier, number> = {
+  phone: 0, // unused — phone tier has no pin
+  // Measured, not guessed: at colW ~370-620px (this tier's own width
+  // range), the photo+pill+caption stack needs ~370px of vertical room
+  // (real render, scripts/measure-sweep.mjs). 660 leaves a 460px text
+  // window, ~19% slack below that stack — matching desktop's own
+  // documented ~19% slack ratio (940 -> 740 window vs a ~602px content
+  // stack) rather than an independently chosen number.
+  tablet: 660,
+  desktop: 940,
+};
+
+// Pre-measurement seed for --about-pin-scroll (useAboutPin.ts). Low
+// stakes: SSR always assumes the desktop tier (useAboutGeometry's own
+// convention), so this tablet value is only ever read for the brief
+// window between a tablet-width client's hydration and useAboutPin's own
+// useLayoutEffect correcting it (synchronous, pre-paint) — never during
+// SSR itself. Desktop unchanged (2637, measured at 1710x1040 reference).
+// Tablet's is a real measured range across the tier (980-1439px,
+// scripts/measure-pin-scroll.mjs): 1790 at the wide end to 2219 at the
+// narrow end. 2000 sits mid-range rather than picking either extreme.
+const PIN_SCROLL_ESTIMATE: Record<"tablet" | "desktop", number> = {
+  tablet: 2000,
+  desktop: 2637,
+};
+
+// Gap between text blocks inside the pinned column (TextColumn.tsx),
+// applied as an inline style, not a `gap-*` utility class — not a design
+// token, same exemption as PHOTO_MIN_H/TEXT_COL_MIN_W below: this page's
+// Figma file has no scroll mechanic, so nothing in globals.css's @theme
+// block can back it, and that file's own header rules out inventing a
+// token without a matching Figma variable.
+//
+// Desktop unchanged (320) — see this constant's own derivation from
+// before this session: the binding case is the shortest block ("Everything
+// Else") in the tallest window, isolated with ~40px of margin.
+//
+// Tablet's own value, from the SAME derivation re-run at the tablet
+// tier's own colW and FRAME_H_MAX above (not a scaled copy of desktop's).
+// Real render, scripts/measure-sweep.mjs, every 90px step from 980 to
+// 1439: "Everything Else" is the shortest block at every width sampled,
+// bottoming out at 124px (wide end of the tier, ~1400-1439px, where the
+// column is widest and the block wraps least). Binding case: windowH=460
+// (this tier's own TEXT_WINDOW_H at FRAME_H_MAX), blockH=124 — isolation
+// needs gap >= (460-124)/2 = 168px. 200px clears it with 32px (~19%)
+// margin, matching desktop's own ~14-19% margin ratio rather than an
+// independently chosen number.
+const BLOCK_GAP: Record<"tablet" | "desktop", number> = {
+  tablet: 200,
+  desktop: 320,
+};
+
+// --- Section-count pill, per tier -----------------------------------------
+//
+// Desktop's is a clamped fixed 32px tall (PILL_PAD_X 16, gap to photo 20 —
+// --spacing-md). Tablet's (1076:10221) is genuinely smaller type
+// (--text-mono-mobile, 14px) with its own content-derived height (18px
+// line box + 2*8px padding = 34px — taller than desktop's despite the
+// smaller type) and a tighter 12px gap to the photo (--spacing-sm).
+const PILL_H: Record<"tablet" | "desktop", number> = { tablet: 34, desktop: 32 };
+const PILL_GAP: Record<"tablet" | "desktop", number> = { tablet: 12, desktop: 20 };
+export const PILL_PAD_X = 16; // same at both tiers (523:7254, 1076:10221)
+
+// Caption + the gap between photo and caption — unchanged across tablet
+// and desktop (--text-mono-caption 16px both tiers; --spacing-md gap both
+// tiers, confirmed via get_design_context on both nodes this session).
+const CAPTION_H = 21; // --text-mono-caption's own line box
+const PHOTO_CAPTION_GAP = 20; // --spacing-md
 
 // Gap held between the frame's bottom edge and the viewport's bottom edge
-// for the whole pinned range (mirrors --spacing-lg). Figma corroborates
-// this twice: the "about scroll section" (523:7013) is 970 for a 940
-// frame, and the ticker sits 30px above the frame's top edge at rest.
+// for the whole pinned range — unchanged across tiers (mirrors
+// --spacing-lg, same as before this session).
 export const BOTTOM_GAP = 30;
 
-// Documentation only — not consumed by any layout calc. Figma's "carousel
-// scroll" (523:6576), the role ticker's own rendered height. Recorded here
-// because the ticker's un-pinned scroll past the viewport's top edge
-// during the pinned range (~26px of scroll, ~0.2s under Lenis) is a
-// deliberately accepted transit, not an oversight — see the plan's §A4/A12.
-// A later session must not "fix" this by growing NAV_CLEARANCE to swallow
-// it: doing so only relocates where the ticker sits at lock onset, it
-// cannot prevent the transit (the ticker keeps scrolling for the entire
-// pin), and it costs every viewport 56px of frame height that the photo
-// pays for.
-export const TICKER_H = 26;
-
-// Below this box height a photo reads as a letterboxed band rather than a
-// photograph (653 wide / 300 tall ≈ 2.18:1) — a judgment call, not a
-// Figma measurement. The only non-derived number in this file.
-export const PHOTO_MIN_H = 300;
-
-// Pre-measurement seed for --about-pin-scroll (useAboutPin.ts), so the
-// section's height is already close to correct on the server-rendered pass
-// and the post-hydration ResizeObserver correction is a few px, not a
-// full-height jump. Session 5E (hold removal): the schedule collapsed to a
-// single number — the S at which the last block reaches its own ideal
-// framing (centered, or top-aligned if it's taller than the window; see
-// useAboutPin.ts's measure()) — so this is just that block's target,
-// measured at the 1710x1040 reference viewport with the widened 320px
-// BLOCK_GAP. Real rendered Satoshi metrics — and which viewport a visitor
-// loads at — will differ; that's exactly what the observer corrects.
-export const PIN_SCROLL_ESTIMATE = 2637;
-
-// Below this viewport height the frame plus its pin can't hold PHOTO_MIN_H
-// of photo, so AboutSection falls back to normal-flow rows instead of the
-// pin (see AboutFallback.tsx) — same "the whole thing must fit, not some
-// smaller floor" principle as projectGeometry.ts's MIN_VIEWPORT_H.
-// PHOTO_MIN_H + CAPTION_H + PHOTO_CAPTION_GAP + PILL_H + PILL_GAP
-//   + 2*FRAME_PAD_Y + NAV_CLEARANCE + NAV_FRAME_GAP + BOTTOM_GAP
-// = 300 + 21 + 20 + 32 + 20 + 200 + 94 + 12 + 30 = 729
-export const MIN_ABOUT_VIEWPORT_H =
-  PHOTO_MIN_H +
-  CAPTION_H +
-  PHOTO_CAPTION_GAP +
-  PILL_H +
-  PILL_GAP +
-  2 * FRAME_PAD_Y +
-  NAV_CLEARANCE +
-  NAV_FRAME_GAP +
-  BOTTOM_GAP;
-
-// --- Fix pass (post-5B tuning): the narrow-width column fix ---------------
+// --- MIN_VIEWPORT_H: the svh floor below which the pin can't fit ---------
 //
-// The floor a shrinking text column may not cross, and the gap held once
-// it's shrinking (see textColumnWidthCss below). Judgment call at 24px
-// Satoshi Body Large / 32px line-height: 480px holds ~38-40 characters per
-// line — narrower than the reference 663px column's ~52-55 but still a
-// comfortable reading measure, and it leaves a real margin under the
-// 487px ceiling the arithmetic actually allows at exactly 1440px browser
-// width (measured: 1440px width -> 1240px frame content box -> 1240 -
-// PHOTO_COL_W(653) - MIN_COLUMN_GAP(100) = 487px). Confirmed against a
-// live measured rect, not just hand arithmetic — see the fix-pass plan.
-export const TEXT_COL_MIN_W = 480;
-
-// --spacing-3xl. Held as the floor gap between the two columns as the row
-// narrows — below TEXT_COL_MIN_W's own floor this can't literally hold
-// (the columns would collide before the gap does), but that point is well
-// under 1440px, out of scope for this pass.
-export const MIN_COLUMN_GAP = 100;
-
-// --- Paragraph isolation pass ---------------------------------------------
+// Session before this one used a single PHOTO_MIN_H judgment call (300px —
+// "below this a photo reads as letterboxed") added into a flat formula,
+// and let the photo SHRINK below its natural 448px to satisfy it — the old
+// photoHeightCss was a min() chain, not a fixed value, and at the 1440x760
+// reference viewport it actually rendered the photo at 331px tall, not
+// 448. That flex is what let the pin keep running that low.
 //
-// Gap between text blocks inside the pinned column (TextColumn.tsx) — not a
-// design token: this page's Figma file has no scroll mechanic (same
-// exemption as HOLD_PX previously, PHOTO_MIN_H, and TEXT_COL_MIN_W above),
-// so nothing in globals.css's @theme block can back it, and that file's own
-// header ("do not add values here without a matching Figma variable") rules
-// out inventing one there. Applied as an inline style in TextColumn.tsx, not
-// a `gap-*` utility class.
+// That no longer applies: with the photo's height now aspect-ratio-derived
+// from its own column width (Alice's own call — 50/50 columns, photo
+// height from aspect-ratio, not an independent pixel value), the photo can
+// no longer shrink vertically without ALSO shrinking horizontally, which
+// would break the 50/50 split with the text column. So its REQUIRED
+// height at a given viewport WIDTH is now a fixed, computable quantity —
+// this function asks "given the photo this viewport's WIDTH forces us to
+// render, how much viewport HEIGHT does fitting it, the pill, the gaps,
+// the frame padding, and the nav clearance actually need."
 //
-// The requirement: a centered block must have zero neighbor content visible
-// in the text window. Binding case is the shortest block in the tallest
-// window — "Everything Else" (block 6, 142px tall at the 663px reference
-// column width) inside the 1710x1040 viewport's 704px window — because a
-// short block leaves the most headroom on each side of center for a
-// neighbor to intrude into. At that pairing the minimum gap is
-// (windowH - blockH) / 2 = (704 - 142) / 2 = 281px; every other
-// viewport/block pairing measured needs less (195px at 1440x900, 125px at
-// 1440x760 — both against the 174px-tall "Everything Else" block at the
-// narrower 487px column width). 320px clears the binding case with ~40px of
-// margin. Re-derive this if body copy, column width, or FRAME_H_MAX changes
-// — it's arithmetic on real rendered rects, not a fixed ratio.
-export const BLOCK_GAP = 320;
-
-// The text column's width, both in the pinned view (TextColumn.tsx) and
-// the fallback (AboutFallbackRow.tsx) — same expression, shared, because
-// both sit inside the same "content row" shape (a flex row whose own
-// width traces back to the same frame content box) and resolves to the
-// same numbers in each: confirmed by measuring both at 1440px width, not
-// assumed from the markup alone.
+// Real, flagged consequence: this raises desktop's own threshold from the
+// previous flat 729 to ~880 (verified: scripts/measure-min-viewport.mjs).
+// The 1440x760 reference viewport (13" Air) now renders AboutFallback
+// instead of the pin — it did not before this session. This is not a
+// silent regression: AboutFallback is a real, Figma-sourced layout with
+// no clipping or overflow at that viewport (verified,
+// scripts/measure-overflow.mjs) — rule 11's actual requirement ("without
+// overflow or clipping") still holds, just via a different one of the two
+// mechanisms this page has always had. Flagged for Alice's own review
+// rather than silently accepted or silently worked around (e.g. by
+// letting the photo shrink independently of its column width, which would
+// violate the 50/50 instruction this consequence follows from).
+// --- Phone tier: the stacked pair's own text width ------------------------
 //
-// At the reference 1510px-wide row (1710px browser width) the clamp's
-// middle branch (1510 - 653 - 100 = 757) exceeds the ceiling, so this
-// resolves to exactly TEXT_COL_W (663) — Figma's own split, unchanged.
-// Below that, the middle branch takes over and the text column absorbs
-// the shrink while MIN_COLUMN_GAP holds exactly, down to TEXT_COL_MIN_W.
-// PHOTO_COL_W stays fixed for now — only the text side flexes.
-export const textColumnWidthCss = `clamp(${TEXT_COL_MIN_W}px, calc(100% - ${PHOTO_COL_W}px - ${MIN_COLUMN_GAP}px), ${TEXT_COL_W}px)`;
+// Mobile static stack session. The phone mock (1064:9880, "text with
+// photo" 1064:9882) draws the photo at the full 330px pair column but the
+// text block narrower, 267px — a real, deliberate difference (Alice: "the
+// pair fills the 350px content box... keep the text/photo width
+// difference, which reads as deliberate in the render"), not drift to
+// normalize away. 267/330 is exact (both Figma-measured widths, not
+// approximations), so kept as a fraction rather than a rounded ratio.
+// Photo/caption still get the FULL row width (geo.ROW_W, via
+// PhotoCaption's own `width` prop) — only the text column narrows.
+const PHONE_TEXT_WIDTH_RATIO = 267 / 330;
 
-// --- Derived CSS length expressions ---------------------------------------
+function minViewportH(width: number, tier: "tablet" | "desktop"): number {
+  const colW = columnWidth(width, tier);
+  const photoH = (colW * PHOTO_ASPECT_H) / PHOTO_ASPECT_W;
+  return (
+    photoH +
+    CAPTION_H +
+    PHOTO_CAPTION_GAP +
+    PILL_H[tier] +
+    PILL_GAP[tier] +
+    2 * FRAME_PAD_Y[tier] +
+    NAV_CLEARANCE +
+    NAV_FRAME_GAP +
+    BOTTOM_GAP
+  );
+}
+
+// --- The one function everything above is built from ----------------------
+
+export type AboutGeometry = {
+  width: number;
+  svh: number;
+  tier: AboutTier;
+
+  FRAME_PAD_X: number;
+  FRAME_PAD_Y: number;
+  ROW_W: number; // the frame's own content width (inside its padding)
+
+  // Side-by-side tiers only (tablet, desktop). 0 at phone — the stacked
+  // layout uses ROW_W directly (full width, text above photo) and has no
+  // meaning for a column split.
+  COLUMN_GAP: number;
+  COLUMN_W: number;
+
+  // Phone only — the stacked row's own narrower text width (see
+  // PHONE_TEXT_WIDTH_RATIO above). 0 at tablet/desktop, where the text
+  // column is COLUMN_W instead.
+  PHONE_TEXT_W: number;
+
+  // Pin-only fields — meaningless at phone (no pin there). 0/NaN-safe
+  // zeros rather than undefined so callers that only ever render these at
+  // tablet/desktop tiers (TextColumn, PhotoColumn, useAboutPin) don't need
+  // an extra optional-chaining layer.
+  FRAME_H_MAX: number;
+  FRAME_H: number;
+  TEXT_WINDOW_H: number;
+  BLOCK_GAP: number;
+  PIN_SCROLL_ESTIMATE: number;
+  PILL_H: number;
+  PILL_GAP: number;
+
+  MIN_VIEWPORT_H: number;
+};
+
+export function geometryFor(width: number, svh: number): AboutGeometry {
+  const tier = tierFor(width);
+  const padX = FRAME_PAD_X[tier];
+  const padY = FRAME_PAD_Y[tier];
+  const rowW = rowWidth(width, tier);
+
+  if (tier === "phone") {
+    return {
+      width,
+      svh,
+      tier,
+      FRAME_PAD_X: padX,
+      FRAME_PAD_Y: padY,
+      ROW_W: rowW,
+      COLUMN_GAP: 0,
+      COLUMN_W: rowW,
+      PHONE_TEXT_W: rowW * PHONE_TEXT_WIDTH_RATIO,
+      FRAME_H_MAX: 0,
+      FRAME_H: 0,
+      TEXT_WINDOW_H: 0,
+      BLOCK_GAP: 0,
+      PIN_SCROLL_ESTIMATE: 0,
+      PILL_H: 0,
+      PILL_GAP: 0,
+      // Phone never gates on this (no pin to fall back from) — 0 so any
+      // accidental comparison can't spuriously trigger a fallback.
+      MIN_VIEWPORT_H: 0,
+    };
+  }
+
+  const frameHMax = FRAME_H_MAX[tier];
+  const frameH = Math.min(frameHMax, svh - NAV_CLEARANCE - NAV_FRAME_GAP - BOTTOM_GAP);
+
+  return {
+    width,
+    svh,
+    tier,
+    FRAME_PAD_X: padX,
+    FRAME_PAD_Y: padY,
+    ROW_W: rowW,
+    COLUMN_GAP: columnGap(tier),
+    COLUMN_W: columnWidth(width, tier),
+    PHONE_TEXT_W: 0,
+    FRAME_H_MAX: frameHMax,
+    FRAME_H: frameH,
+    TEXT_WINDOW_H: frameH - 2 * padY,
+    BLOCK_GAP: BLOCK_GAP[tier],
+    PIN_SCROLL_ESTIMATE: PIN_SCROLL_ESTIMATE[tier],
+    PILL_H: PILL_H[tier],
+    PILL_GAP: PILL_GAP[tier],
+    MIN_VIEWPORT_H: minViewportH(width, tier),
+  };
+}
+
+// --- Session before this one: continuous nearest-block mapping -----------
 //
-// Layout is CSS, not JS: every viewport-dependent size below is a string
-// the browser resolves via calc()/min()/max(), so the server-rendered HTML
-// is already correct at every viewport width and nothing reflows at
-// hydration (a JS-computed frame height would guarantee a shift on every
-// load — see the 5B plan §B2). Only the text content's own rendered
-// height — which depends on font metrics, not on the viewport — has to be
-// measured in JS (useAboutPin.ts) and fed back in through
-// --about-text-content-h.
-
-// The frame's rendered height. Caps at FRAME_H_MAX; below that it tracks
-// the viewport exactly, leaving NAV_CLEARANCE + NAV_FRAME_GAP clear at
-// top and BOTTOM_GAP clear at bottom.
-export const frameHeightCss = `min(${FRAME_H_MAX}px, calc(100svh - ${NAV_CLEARANCE + NAV_FRAME_GAP + BOTTOM_GAP}px))`;
-
-// Where the sticky wrapper pins. Reduces algebraically to
-// max(106px, calc(100svh - 970px)) — kept in this definitional form
-// (rather than pre-simplified) so it stays checkable by eye against the
-// lock condition in the plan (frame bottom = viewportH - BOTTOM_GAP) as
-// the constants above change. The 106 is NAV_CLEARANCE + NAV_FRAME_GAP;
-// the 970 (FRAME_H_MAX + BOTTOM_GAP) doesn't move when NAV_FRAME_GAP
-// changes — it only ever governs the OTHER branch of frameHeightCss's
-// min().
-export const stickyTopCss = `calc(100svh - ${BOTTOM_GAP}px - ${frameHeightCss})`;
-
-// The left column's visible window. Arithmetic on the frame, not an
-// independent measurement — the frame's own padding takes it top and
-// bottom, and nothing else does. At FRAME_H_MAX this is 940 - 200 = 740,
-// matching 523:6602's own height exactly.
-export const textWindowCss = `calc(${frameHeightCss} - ${2 * FRAME_PAD_Y}px)`;
-
-// --- PHOTO_WINDOW_MAX caps the right column's window; it is NOT held fixed ---
-//
-// 5A found the naive analogue (frame height minus its own padding, minus
-// the pill and the gap below it) gives 940 - 200 - 32 - 20 = 688, but
-// Figma measures the photo scroll frame (523:6622) at 550 — a real 138px
-// of slack, not a rounding artifact, because the right column's content
-// (602px) sits items-start inside a 740px box and simply doesn't fill it.
-//
-// Session 5B: once the frame's height is viewport-dependent, that slack
-// has to be given up before content does. So this is now a ceiling capped
-// at Figma's measured 550, not a value held fixed independent of
-// TEXT_WINDOW_H — the naive arithmetic becomes the answer once the cap
-// stops binding: min(PHOTO_WINDOW_MAX, TEXT_WINDOW_H - PILL_H - PILL_GAP)
-// reproduces Figma exactly at FRAME_H_MAX (min(550, 688) = 550) and never
-// overflows a shrunk frame. The alternative — holding the 138px of slack
-// fixed and shrinking TEXT_WINDOW_H's headroom by the same amount instead
-// — was considered and rejected: it shrinks the *content* window to
-// preserve *empty space*, backwards from what a short viewport needs.
-export const PHOTO_WINDOW_MAX = 550; // 523:6622, measured
-
-export const photoWindowCss = `min(${PHOTO_WINDOW_MAX}px, calc(${textWindowCss} - ${PILL_H + PILL_GAP}px))`;
-
-// The photo's own height. min(), never flex-1 — a flex child would
-// stretch the 653x448 crop past its real aspect ratio on a tall viewport
-// where the window has headroom to spare. Free to shrink below 448 on a
-// short viewport; never to grow past it.
-export const photoHeightCss = `min(${PHOTO_H}px, calc(${photoWindowCss} - ${PHOTO_CAPTION_GAP + CAPTION_H}px))`;
-
-// The section's total scroll runway: the sticky stage holds still for
-// frameHeightCss, plus the pin's total post-lock scroll. The CSS sticky
-// mechanic's own "how long do I stay stuck" duration is purely
-// sectionHeight - frameHeight, so without this term the pin would release
-// before the column finished traveling to its last block's target.
-//
-// Session 5E (hold removal): collapses close to `contentH - windowH` — a
-// plain "translate the column until its bottom meets the window's bottom"
-// distance — but isn't exactly that. It's the S at which the LAST block
-// reaches its own ideal framing (see targetFor below), which sits
-// (windowH - lastBlockH) / 2 further than flat bottom-alignment whenever
-// the last block is shorter than the window (the common case — a bottom-
-// aligned scroll would stop with the last block's own bottom flush against
-// the window's bottom, past where it's actually centered). useAboutPin.ts's
-// ResizeObserver writes this value directly, seeded at PIN_SCROLL_ESTIMATE
-// for the pre-hydration render. max(0px, …) guards the (only possible on an
-// extremely tall/narrow window) case where content fits without scrolling
-// at all, so the section is never shorter than the frame itself.
-export const sectionHeightCss = `calc(${frameHeightCss} + max(0px, var(--about-pin-scroll, ${PIN_SCROLL_ESTIMATE}px)))`;
-
-// --- Session 5E: continuous nearest-block mapping (replaces the hold/travel
-// schedule) ------------------------------------------------------------
-//
-// The previous session's six hold points, each with its own HOLD_PX dwell
-// and the travel segments stitching them together, are gone outright — not
-// tuned, deleted. With BLOCK_GAP widened so a centered paragraph is fully
-// isolated (see that constant's own comment), a reading pause no longer
-// needs a scroll dead-zone to manufacture it: the isolation itself is what
-// reads as a pause. What survives from that schedule is a single idea,
-// simplified: each block still has an ideal S (the post-lock scroll value
-// at which it's best framed) — centered in the window, or top-aligned if
-// it's taller than the window (useAboutPin.ts's measure() computes this
-// array, `targets`, off real rendered rects — same formula the old `holds`
-// array used, since the per-block exception is unrelated to the schedule
-// that consumed it).
-//
-// The column's translateY is now literally `-clamp(s, 0, targets[last])` —
-// no scheduling function needed for position at all. useAboutPin.ts writes
-// this directly as `pinScroll` (already clamped to that range), and textY
-// just negates it. Motion is continuous end to end: there is no s at which
-// y stops changing, because y IS s (clamped), not a piecewise function of
-// it.
-//
-// currentIndex is the one thing still derived from `targets`: the nearest
-// target to the current (clamped) s. Because `targets` is ascending, the
-// boundary between block i and i+1 falls exactly at their midpoint — "the
-// transition between two blocks is the midpoint between their centers"
-// falls out of a plain nearest-neighbor search, nothing bespoke required.
-// Pure function of s, so reverse-scroll symmetry holds for free: re-entering
-// any point from either direction resolves to the same index.
+// Unchanged by this session — still a pure function of the current
+// (clamped) pin scroll and each block's own measured target, so it works
+// identically at any tier's own BLOCK_GAP/window height.
 export function nearestBlockIndex(s: number, targets: number[]): number {
   if (targets.length === 0) return 0;
 
@@ -289,3 +377,12 @@ export function nearestBlockIndex(s: number, targets: number[]): number {
   }
   return index;
 }
+
+// --- Text column's own minimum width, at desktop's own 24px type ---------
+//
+// Kept for documentation and for globals.css's --breakpoint-about comment
+// to reference — no longer consumed directly by any component (the 50/50
+// split replaces the old clamp-based textColumnWidthCss this constant used
+// to feed). See that breakpoint's own comment for the type-scaled value
+// (400px at tablet's 20px body) this derives 980 from.
+export const TEXT_COL_MIN_W = 480;

@@ -9,6 +9,12 @@ import type { ReactNode } from "react";
 // `height` (a CSS length string, or omitted for natural height in the
 // fallback) and `children` for whatever fills it.
 //
+// Padding steps at --breakpoint-about (980, globals.css) — tablet is
+// identical to desktop (both 50/100, confirmed against 523:6601 and
+// 1045:9705 independently), phone steps to 20/50 (1064:9880). Corner
+// radius does NOT step — rounded-card at every tier (all three Figma
+// nodes agree). Tablet pin reflow session.
+//
 // Background is a single image layer at 40% opacity, bottom-aligned within
 // the frame — same next/image fill + object-cover pattern
 // ProjectFrame.tsx already uses for a gradient-backed frame, with
@@ -34,7 +40,7 @@ export function AboutFrame({ height, children }: { height?: string; children: Re
   return (
     <div
       data-testid="about-frame"
-      className="relative flex items-start justify-between overflow-hidden rounded-card px-xl py-3xl"
+      className="relative flex items-start justify-between overflow-hidden rounded-card px-md py-xl about:px-xl about:py-3xl"
       style={height ? { height } : undefined}
     >
       <Image

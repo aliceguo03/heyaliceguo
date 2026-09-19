@@ -28,13 +28,25 @@ import { DUR, usePrefersReducedMotion } from "@/lib/motion";
 // transform, this doesn't need motion/react at all — a className swap plus
 // a CSS transition (built from DUR.reveal and --ease-standard, never
 // inline literals) does the whole job with zero per-frame JS.
+//
+// Mobile spotlight session: `mutedClassName` (default text-dark-gray,
+// every existing caller's own color, unchanged) lets a second caller swap
+// against a DIFFERENT muted color — About's mobile spotlight is the first:
+// the pinned view's own "headers never fill" rule is locked for THAT
+// mechanism specifically (TextBlock.tsx's own comment), but the mobile
+// spotlight has its own explicit spec calling for the header to
+// participate too, against its own muted-gray (not dark-gray, a different
+// existing token) — a real, deliberate divergence between the two
+// mechanics, not an oversight.
 export function ColorReveal({
   filled,
   className,
+  mutedClassName = "text-dark-gray",
   children,
 }: {
   filled: boolean;
   className?: string;
+  mutedClassName?: string;
   children: ReactNode;
 }) {
   const reducedMotion = usePrefersReducedMotion();
@@ -42,7 +54,7 @@ export function ColorReveal({
   return (
     <p
       data-color-reveal
-      className={`${className ?? ""} ${filled ? "text-deep-black" : "text-dark-gray"}`}
+      className={`${className ?? ""} ${filled ? "text-deep-black" : mutedClassName}`}
       style={
         reducedMotion
           ? undefined

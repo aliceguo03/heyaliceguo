@@ -76,6 +76,40 @@
   --breakpoint-laptop: 1024px;
   --breakpoint-desktop: 1440px;
 
+  /* About page responsiveness session. About's own text+photo rows split
+     50/50 (aboutGeometry.ts) rather than holding a fixed-width photo
+     column — so unlike every other breakpoint above, "where does this row
+     stack" isn't a single content measurement, it's a floor on the TEXT
+     column: (rowW - COLUMN_GAP) / 2 must stay >= TEXT_COL_MIN_W's own
+     tablet-type-scaled value. TEXT_COL_MIN_W (480px, aboutGeometry.ts) was
+     derived at 24px Satoshi Body Large; tablet renders at 20px, where the
+     same ~38-40-char measure is 480 * 20/24 = 400px. Solving
+     (rowW - 40) / 2 >= 400 with rowW = W - 2*pageX(W) - 100 (About's own
+     frame padding, both sides) gives W >= 980 in the pageX=20 band (below
+     1024) — the binding case, since the pageX=30 band (1024-1439) clears
+     it at every width >=1024 already. Also governs the hero's own
+     row->stack switch: the hero's fixed 868px three-photo row only
+     strictly needs 908px (868 + 2*20 page gutter), but holds its layout
+     down to this same 980 rather than switching 72px earlier — a
+     deliberate choice (Alice) so the hero and the section rows below it
+     never disagree about which tier is showing. Verify with a binary
+     search the same way every breakpoint above was, if the column split,
+     gap, or type size ever changes — this is arithmetic on real rendered
+     rects, not a fixed ratio. See aboutGeometry.ts for the tier math this
+     mirrors in JS.
+
+     B follow-up: COLUMN_GAP's tablet value changed 40->50 (a confirmed-
+     correct-at-40, deliberate design override — not a bug fix), which
+     this derivation was built on. Re-solving with 50 moves the true floor
+     to 990, not 980 — this constant was deliberately left at 980 (out of
+     that session's own explicitly scoped-down "tablet spacing only"
+     authorization), so 980-989px now renders the text column at
+     395-399.5px, up to 5px under the 400px floor (measured, not assumed —
+     scripts/diag-breakpoint-check.mjs). Small and within the floor's own
+     soft-judgment-call margin (400 itself is a type-scaled 480), but real;
+     flagged rather than silently left for this comment to go stale. */
+  --breakpoint-about: 980px;
+
   /* Session R1.1 Part B. R1 treated 744 (the widest Figma frame it had
      drawn — iPad mini) as the switch point for the desktop nav pill, the
      mobile type step, AND the footer's tablet/mobile split, all three,
@@ -224,6 +258,14 @@
   --spacing-sm: 12px; /* Figma padding/small — confirmed via get_variable_defs, not guessed */
   --spacing-md: 20px;
   --spacing-lg: 30px;
+  /* --spacing-ml (40px) briefly lived here for About's tablet-tier
+     text<->photo column gap (1045:9707's own gap-[40px]), between lg/30
+     and xl/50. Retired in a B follow-up session: that gap was changed to
+     50px (a design override, not a bug fix — the measured 40px was
+     rendering correctly), which made the token exactly redundant with
+     --spacing-xl below. aboutGeometry.ts's COLUMN_GAP now reads --spacing-
+     xl's own value directly rather than keeping a same-valued second name
+     around. Noted here so a later session doesn't wonder where it went. */
   --spacing-xl: 50px; /* Figma padding/large */
   --spacing-3xl: 100px; /* Figma padding/xlarge */
   --spacing-4xl: 212px; /* Figma padding/xxlarge (was --spacing-2xl) */

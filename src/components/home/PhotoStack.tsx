@@ -68,10 +68,14 @@ const SLOTS = [
 // offset = centre_i - centre_front, scale = size_i / PHOTO_BOX_MOBILE.
 // Rotations (1.77/3.4deg) do carry over exactly — a stylistic constant of
 // the fan look, not a function of container size.
-const STACK_SIZE_MOBILE = { width: 240, height: 212 };
-const PHOTO_BOX_MOBILE = 212;
+// Exported (mobile hero photo stack session): About's own hero stack
+// reuses this exact geometry — "the same component family as the
+// homepage's PhotoStack" per that session's own brief — so it's the
+// single source rather than a second, re-typed copy of the same numbers.
+export const STACK_SIZE_MOBILE = { width: 240, height: 212 };
+export const PHOTO_BOX_MOBILE = 212;
 
-const SLOTS_MOBILE = [
+export const SLOTS_MOBILE = [
   { x: 0, y: 0, rotate: 0, scale: 1 }, // front
   { x: 22.18, y: -4.71, rotate: 1.77, scale: 0.929 }, // mid
   { x: 43.04, y: -3.04, rotate: 3.4, scale: 0.858 }, // back, visible

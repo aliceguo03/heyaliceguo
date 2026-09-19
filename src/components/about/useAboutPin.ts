@@ -24,11 +24,20 @@ import { BOTTOM_GAP, nearestBlockIndex } from "./aboutGeometry";
 // Always called unconditionally (rules of hooks), same shape as
 // useProjectSnap: a no-op internally — the ResizeObserver and resize
 // listener are never attached — whenever `disabled` (reduced motion, or
-// below MIN_ABOUT_VIEWPORT_H) is true and AboutSection renders the
-// fallback instead. useScroll/useTransform themselves are still called in
-// that branch (same precedent as ProjectSection.tsx's stripY: rules of
-// hooks require it, and they're inert since nothing reads pinScroll from
-// the fallback tree).
+// below geo.MIN_VIEWPORT_H) is true and AboutSection renders the fallback
+// instead. useScroll/useTransform themselves are still called in that
+// branch (same precedent as ProjectSection.tsx's stripY: rules of hooks
+// require it, and they're inert since nothing reads pinScroll from the
+// fallback tree).
+//
+// Tablet pin reflow session: this hook takes no tier/geometry input of its
+// own — every tier-dependent number it would need (frame height, window
+// height, BLOCK_GAP) is either DOM-measured directly (wrapper.offsetHeight,
+// windowEl.offsetHeight — already reflecting whatever geo TextColumn/
+// AboutFrame rendered with) or applied by the caller (TextColumn's own
+// `gap: geo.BLOCK_GAP` style). A tier change resizes those measured
+// elements, which the ResizeObserver below already re-triggers on — no
+// separate geo dependency needed for that.
 export function useAboutPin(disabled: boolean) {
   const sectionRef = useRef<HTMLDivElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);

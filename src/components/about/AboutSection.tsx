@@ -5,36 +5,43 @@ import { AboutFallback } from "./AboutFallback";
 import { TextColumn } from "./TextColumn";
 import { PhotoColumn } from "./PhotoColumn";
 import { useAboutPin } from "./useAboutPin";
-import { usePrefersReducedMotion, useViewportBelow, MIN_MECHANIC_VIEWPORT_W } from "@/lib/motion";
-import {
-  MIN_ABOUT_VIEWPORT_H,
-  frameHeightCss,
-  photoHeightCss,
-  photoWindowCss,
-  sectionHeightCss,
-  stickyTopCss,
-  textWindowCss,
-} from "./aboutGeometry";
+import { useAboutGeometry } from "./useAboutGeometry";
+import { usePrefersReducedMotion } from "@/lib/motion";
+import { BOTTOM_GAP } from "./aboutGeometry";
 
 // The About page's gray frame section (Figma "about scroll section",
-// 523:7013) — session 5B's pin. See CLAUDE.md's session-5b plan for the
-// full derivation.
+// 523:7013 desktop / 1045:9704 tablet). See CLAUDE.md's "session-5b" plan
+// for the pin's original derivation, and the tablet-pin-reflow session's
+// own plan for how it now generalizes to a second tier.
 //
-// Reduced motion, a viewport shorter than MIN_ABOUT_VIEWPORT_H (the frame
-// plus its pin can't fit PHOTO_MIN_H of photo — this is short of the
-// 1440x760 reference viewport, so it's normal rendering on some real
-// laptops, not just an edge case), or a viewport narrower than
-// MIN_MECHANIC_VIEWPORT_W (lib/motion.ts — a stopgap so a phone or tablet
-// doesn't run this desktop pin in a space far narrower than it was built
-// for): no pin, no clip, no transform, no listeners — AboutFallback
-// renders instead, reusing the same TextBlock/PhotoCaption leaves rather
-// than a second hand-written layout for the parts that ARE shared. It is
-// not a compressed version of the pinned view — see AboutFallbackRow's own
-// comment.
+// Tablet pin reflow session: the gate used to be a flat
+// `useViewportBelow(MIN_ABOUT_VIEWPORT_H, MIN_MECHANIC_VIEWPORT_W)` —
+// reduced motion, a viewport shorter than a single flat height threshold,
+// or narrower than 1440px, all routed to the SAME AboutFallback. Now:
+//
+// - geo.tier === "phone" (< --breakpoint-about, 980px): a genuinely
+//   different mechanism (no pin at all — stacked pairs with a
+//   reading-line spotlight, mobile spotlight session), not a fallback of
+//   this one. AboutFallback's own phone-tier branch is About's real phone
+//   layout; `reducedMotion` is threaded down to it so it can gate the
+//   spotlight specifically (every pair renders filled under reduced
+//   motion — see that file's own comment) while still using AboutFallback
+//   for the actual DOM/layout either way.
+// - tablet/desktop, but reduced motion or geo.svh < geo.MIN_VIEWPORT_H
+//   (the exact viewport height this tier's own photo-at-this-width, pill,
+//   and frame padding need — see aboutGeometry.ts's minViewportH): the
+//   same AboutFallback, at this tier's own real numbers instead of a flat
+//   per-tier constant.
+// - tablet/desktop, otherwise: the pin, at this tier's own geometry.
+//
+// MIN_MECHANIC_VIEWPORT_W (lib/motion.ts) no longer governs this page —
+// About is the second mechanic (after ProjectSection) to retire it in
+// favor of real tiered geometry; nothing on this page imports it anymore.
 export function AboutSection() {
   const reducedMotion = usePrefersReducedMotion();
-  const tooSmall = useViewportBelow(MIN_ABOUT_VIEWPORT_H, MIN_MECHANIC_VIEWPORT_W);
-  const disabled = reducedMotion || tooSmall;
+  const geo = useAboutGeometry();
+  const tooShort = geo.svh < geo.MIN_VIEWPORT_H;
+  const disabled = geo.tier === "phone" || reducedMotion || tooShort;
 
   // Always called (rules of hooks) — a no-op internally whenever the
   // fallback below renders instead; see useAboutPin.ts's own comment.
@@ -46,18 +53,28 @@ export function AboutSection() {
     return (
       <div data-testid="about-section-fallback" className="mx-auto max-w-page">
         <AboutFrame>
-          <AboutFallback />
+          <AboutFallback geo={geo} reducedMotion={reducedMotion} />
         </AboutFrame>
       </div>
     );
   }
+
+  // Both numeric now (geo.FRAME_H, geo.svh) rather than CSS calc strings —
+  // useAboutGeometry already tracks 100svh reactively (its own probe +
+  // ResizeObserver), so there's no need for the browser to re-derive this
+  // from a var()/calc() chain the way the pre-tier version did. Same
+  // SSR-assumes-desktop tradeoff ProjectSection's own geometry hook
+  // already accepts (a non-desktop-tier or short visitor's first paint
+  // uses the desktop-reference numbers, corrected one client render later)
+  // — not a new risk this session introduces.
+  const stickyTop = geo.svh - BOTTOM_GAP - geo.FRAME_H;
 
   return (
     <div
       ref={sectionRef}
       data-testid="about-section"
       className="relative mx-auto max-w-page"
-      style={{ height: sectionHeightCss }}
+      style={{ height: `calc(${geo.FRAME_H}px + max(0px, var(--about-pin-scroll, ${geo.PIN_SCROLL_ESTIMATE}px)))` }}
     >
       {/*
         The sticky wrapper — never a z-index (see AboutFrame.tsx's own
@@ -72,17 +89,17 @@ export function AboutSection() {
         ref={wrapperRef}
         data-testid="about-sticky-wrapper"
         className="sticky"
-        style={{ top: stickyTopCss, height: frameHeightCss }}
+        style={{ top: stickyTop, height: geo.FRAME_H }}
       >
         <AboutFrame height="100%">
           <TextColumn
-            windowHeight={textWindowCss}
+            geo={geo}
             y={textY}
             windowRef={windowRef}
             contentRef={contentRef}
             currentIndex={currentIndex}
           />
-          <PhotoColumn windowHeight={photoWindowCss} photoHeight={photoHeightCss} activeIndex={currentIndex} />
+          <PhotoColumn geo={geo} activeIndex={currentIndex} />
         </AboutFrame>
       </div>
     </div>

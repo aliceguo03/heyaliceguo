@@ -4,49 +4,44 @@ import { motion } from "motion/react";
 import { ABOUT_SECTIONS } from "@/content/about";
 import { SectionCount } from "./SectionCount";
 import { PhotoCaption } from "./PhotoCaption";
-import { PHOTO_COL_W } from "./aboutGeometry";
+import type { AboutGeometry } from "./aboutGeometry";
 import { DUR, EASE } from "@/lib/motion";
 
-// Right column (Figma "progress track + text", 523:6850). Session 5A
-// rendered all six photo/caption pairs at rest, clipped with
-// overflow:hidden at a fixed PHOTO_WINDOW_H. Session 5B (the pin):
-// `windowHeight`/`photoHeight` are now CSS lengths that track the
-// viewport (aboutGeometry.ts's photoWindowCss/photoHeightCss).
+// Right column (Figma "progress track + text", desktop 523:6850 / tablet
+// 1076:10220-adjacent). All six photo/caption pairs stay mounted, stacked
+// in one CSS grid cell (col/row-start-1) and cross-faded by opacity via
+// motion.div — no mount/unmount, no absolute positioning, no measurement
+// of our own.
 //
-// The photo/counter snap. `activeIndex` (useAboutPin.ts's currentIndex —
-// one source, shared verbatim with the paragraph reveal) selects which of
-// the six PhotoCaptions is on screen — the nearest block's target to the
-// current post-lock scroll (aboutGeometry.ts's nearestBlockIndex), not
-// header-top thresholds, and it can move either direction.
+// Tablet pin reflow session: dropped the explicit windowHeight/photoHeight
+// props entirely. With the photo's own height now aspect-ratio-derived
+// from its column width (PhotoCaption.tsx), every one of the six layers
+// renders at the SAME height automatically (they all share geo.COLUMN_W) —
+// there's no longer a separate "photo window" distinct from the photo's
+// own natural height to compute, so the grid's height is just whatever
+// its tallest (i.e. any) child renders at. Matches Figma's own documented
+// behavior more closely than the old flexed-height version did: 523:6622
+// already showed the photo column's real content NOT filling its
+// available window (138px of slack) — empty space below the pill+photo+
+// caption stack inside a taller frame is what Figma draws, not a
+// regression.
 //
-// All six stay mounted, stacked in one CSS grid cell (col/row-start-1) and
-// cross-faded by opacity via motion.div — no mount/unmount, no absolute
-// positioning, no measurement of our own. The grid's own height is the
-// tallest layer's; since every layer shares the same photoHeightCss, that
-// height never changes across an index swap, so there's no layout shift
-// and the caption never moves. `initial={false}` so nothing fades in on
-// first paint — only index changes animate. `aria-hidden` on every
-// non-active layer keeps only the visible photo's alt text in the
-// accessibility tree. DUR.photoFade (not DUR.reveal): slower/softer on
-// request, same EASE curve — see that constant's own comment.
-export function PhotoColumn({
-  windowHeight,
-  photoHeight,
-  activeIndex,
-}: {
-  windowHeight: string;
-  photoHeight: string;
-  activeIndex: number;
-}) {
+// `activeIndex` (useAboutPin.ts's currentIndex) selects which of the six
+// PhotoCaptions is on screen — the nearest block's target to the current
+// post-lock scroll, not header-top thresholds, and it can move either
+// direction. `initial={false}` so nothing fades in on first paint — only
+// index changes animate. `aria-hidden` on every non-active layer keeps
+// only the visible photo's alt text in the accessibility tree.
+export function PhotoColumn({ geo, activeIndex }: { geo: AboutGeometry; activeIndex: number }) {
   return (
-    <div className="flex shrink-0 flex-col items-start gap-md" style={{ width: PHOTO_COL_W }}>
-      <SectionCount current={activeIndex + 1} total={ABOUT_SECTIONS.length} />
+    <div className="flex shrink-0 flex-col items-start gap-md" style={{ width: geo.COLUMN_W }}>
+      <SectionCount
+        current={activeIndex + 1}
+        total={ABOUT_SECTIONS.length}
+        size={geo.tier === "tablet" ? "compact" : "default"}
+      />
 
-      <div
-        data-testid="about-photo-window"
-        className="grid overflow-hidden"
-        style={{ width: PHOTO_COL_W, height: windowHeight }}
-      >
+      <div data-testid="about-photo-window" className="grid w-full">
         {ABOUT_SECTIONS.map((section, index) => (
           <motion.div
             key={section.id}
@@ -61,7 +56,7 @@ export function PhotoColumn({
               alt={section.alt}
               caption={section.caption}
               priority={index === 0}
-              height={photoHeight}
+              width={geo.COLUMN_W}
             />
           </motion.div>
         ))}
