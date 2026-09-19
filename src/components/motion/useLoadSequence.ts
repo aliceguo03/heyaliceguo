@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { LOAD, usePrefersReducedMotion } from "@/lib/motion"
+import { usePreviousRoute } from "./PageTransitionProvider"
 
 // Fire-once, per CLAUDE.md "Fire-once behavior": a hard reload re-evaluates
 // this module and replays; client-side navigation keeps the module alive and
@@ -36,7 +37,23 @@ export function useLoadSequence() {
   // forever, since nothing would ever re-run the initializer. `play` is
   // recomputed every render instead, so the correction actually reaches it.
   const [hasPlayedAtMount] = useState(() => hasPlayed)
-  const play = !hasPlayedAtMount && !reducedMotion
+  // usePreviousRoute() is already stable for this mount's whole lifetime
+  // (PageTransitionProvider.tsx — a destination page only exists for the
+  // life of its own route segment), so this needs no useState wrapper of
+  // its own: non-null here means this mount was reached by client-side
+  // navigation, which is exactly the case CLAUDE.md's "fires once per hard
+  // page load ... client-side navigation within the app does not" already
+  // promises should never play. Before
+  // this, that promise only held if hasPlayed's 2.15s timer had actually
+  // fired — navigating away and back inside that window (e.g. a fast round
+  // trip through /about) unmounted the pending timer uncompleted, leaving
+  // hasPlayed still false, and the sequence replayed on return. This closes
+  // that gap directly, and also keeps the load sequence and FlipText's own
+  // page-transition flip (Wordmark.tsx) from ever running on the same
+  // mount — flip only fires on client-side arrival too, so the two are now
+  // mutually exclusive by construction, not by coincidence of timing.
+  const previousRoute = usePreviousRoute()
+  const play = !hasPlayedAtMount && !reducedMotion && previousRoute === null
 
   // Only ever flipped from inside a real setTimeout callback below — never
   // synchronously from the effect body itself. `loaded` (returned below)

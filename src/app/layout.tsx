@@ -4,6 +4,7 @@ import { Nav } from "@/components/chassis/Nav";
 import { Footer } from "@/components/chassis/Footer";
 import { SmoothScroll } from "@/components/chassis/SmoothScroll";
 import { CursorLabelProvider } from "@/components/motion/CursorLabel";
+import { PageTransitionProvider } from "@/components/motion/PageTransitionProvider";
 import { LIVE_PROJECTS } from "@/content/liveProjects";
 import "./globals.css";
 
@@ -62,8 +63,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col bg-porcelain text-deep-black font-sans text-body">
         <CursorLabelProvider>
+          {/* Wraps only the routed content, not the chrome around it —
+              Nav/Footer never consume usePreviousRoute(), and this mirrors
+              SmoothScroll's own boundary just inside it. */}
           <Nav projects={LIVE_PROJECTS} />
-          <SmoothScroll>{children}</SmoothScroll>
+          <PageTransitionProvider>
+            <SmoothScroll>{children}</SmoothScroll>
+          </PageTransitionProvider>
           <Footer projects={LIVE_PROJECTS} />
         </CursorLabelProvider>
       </body>

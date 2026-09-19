@@ -7,19 +7,11 @@ export function useActiveRoute() {
   return {
     isHome: pathname === "/",
     // Prefix match — Nav's own WORK pill reads this to stay "selected"
-    // while browsing any case study, not just the literal /work index.
-    // Not the same check the Footer's plain "Work" link needs (see
-    // isWorkIndex below) — the two can legitimately disagree while a
-    // project page is open, and that's by design, not a bug to reconcile.
+    // while browsing any case study. There is no literal /work index route
+    // to disambiguate against (permanently cancelled, session R0 — see
+    // DesktopNav.tsx's WORK pill comment), so this is the only "is Work
+    // active" check the app needs.
     isWork: pathname.startsWith("/work"),
-    // Exact match — the Footer's "Work" link (chassis-level nav, not the
-    // per-project columns) is only active on the literal /work index,
-    // never on /work/[slug]. Kept separate from `isWork` above rather than
-    // changing that check's meaning: the Footer bug was two things bolding
-    // at once ("Work" + the current project), which is fixed by narrowing
-    // *this* link's own match, not by narrowing every consumer of
-    // `pathname.startsWith("/work")`.
-    isWorkIndex: pathname === "/work",
     isAbout: pathname.startsWith("/about"),
   };
 }

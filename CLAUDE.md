@@ -142,12 +142,13 @@ layout shift. Do not load fonts from a CDN or from Google Fonts.
 ## Content model
 
 `src/content/projects.ts` holds all nine projects. Four are featured on the
-homepage; all nine appear in the Work page and the nav dropdown.
+homepage; all nine appear in the nav dropdown. (There is no separate Work index
+page — permanently cancelled, session R0; see "Build order" below.)
 
 Add to the Project type:
   featured: boolean   // true for the four homepage projects
 
-Homepage reads `projects.filter(p => p.featured)`. Work page and nav read all nine.
+Homepage reads `projects.filter(p => p.featured)`. Nav reads all nine.
 The five non-featured projects have no role/timeline/color yet — leave those
 fields optional and don't invent values.
 
@@ -216,28 +217,56 @@ Wrap everything. Under `prefers-reduced-motion: reduce`:
 
 ## Component specs
 
-### Wordmark — `src/components/motion/FlipText.tsx`
+### Wordmark — `src/components/motion/Wordmark.tsx`
+
+The home hero's `<h1>`. Its own load-in animation (letter-by-letter rise, no
+rotation) is documented under "Hero load sequence" below, not here — that's the
+authoritative description; this entry exists only to flag Wordmark's second role.
+
+Since the page-transition session, Wordmark also renders through FlipText (below)
+whenever `/` is reached by a client-side navigation from another page-transition
+route (currently just `/about`) — the rise-in load sequence and the FlipText flip
+are mutually exclusive per mount, never both. See "FlipText" below and
+`src/components/motion/pageTransition.ts`.
+
+### FlipText — `src/components/motion/FlipText.tsx`
 
 Adapted from a Magic UI snippet. The original is broken for this use in four ways;
-all four fixes are required.
+all four fixes are required. **Not** the hero's load-in effect (see "Hero load
+sequence") — this is the page-transition title flip between Home ("alice guo.")
+and About ("about."), the only two routes with a Gambarino display title. Fires on
+client-side navigation between them, both directions; a hard load or a
+non-participating route (e.g. a case study) renders the destination title statically
+instead — see `pageTransition.ts`'s `PAGE_TITLES` map, which is the single source of
+truth for which routes participate.
 
-The effect: "alice guo." flips in character by character on page load, each character
-rotating up on the X axis.
+The effect: the destination title flips in character by character, rotating on the
+X axis, while the departing title's own characters flip out — both layers share one
+center point, so titles of different lengths ("alice guo." vs "about.") never resize
+or drift the box mid-flip. Color interpolates across the same span, from the
+departing route's token to the arriving route's.
 
 1. **No horizontal spacing between characters.** The source demo uses
    `space-x-2`, which inserts 8px between every letter. At 104px Gambarino, that
-   destroys the letterfit and the wordmark stops reading as a wordmark. Characters
+   destroys the letterfit and the title stops reading as a wordmark. Characters
    sit in natural flow with the font's own kerning.
 2. **Preserve the word space.** Splitting on characters turns the space in
-   "alice guo." into an empty span that collapses. Render it as a non-breaking space
-   with explicit width.
+   "alice guo." into an empty span that collapses. Render it as a non-breaking space.
 3. **Add perspective.** `rotateX` without a perspective value on the parent renders
    as a vertical squash, not a flip. Set `perspective: 600px` on the container.
-4. **Accessibility.** Per-character spans make screen readers spell the name out.
-   Put `aria-label="alice guo."` on the container and `aria-hidden` on the spans.
+4. **Accessibility.** Per-character spans make screen readers spell the name out, so
+   every letter span is `aria-hidden`. The accessible name is **not** set on
+   FlipText's own container — a role-less `<span>` doesn't reliably expose
+   `aria-label` to assistive tech — it's set on the caller's `<h1>` instead (both
+   Wordmark and `PageTitle.tsx`), which has a role and honors it.
 
-Import from `motion/react`, not `framer-motion`. Use `EASE`, `DUR.reveal`, and
-`STAGGER` from `lib/motion.ts` rather than the snippet's own values.
+Import from `motion/react`, not `framer-motion`. Use `EASE` and `DUR.page` (not
+`DUR.reveal` — reserved for this exact purpose and otherwise unused) from
+`lib/motion.ts` rather than the snippet's own values. The departing title's own
+per-letter stagger is derived from `STAGGER` but compressed when it's the longer of
+the two titles, so its tail doesn't visibly overlap the already-settled, shorter
+arriving title — see `FlipText.tsx`'s own comment for why this is one-directional
+(confirmed by screenshotting the actual render, not assumed).
 
 ### Magnetic button — `src/components/motion/Magnet.tsx`
 
@@ -472,7 +501,9 @@ phone-tier one (`scripts/verify-project-section.mjs`).
 ### Hero load sequence
 
 On page load, in order (built in `src/components/motion/Wordmark.tsx`,
-`useLoadSequence.ts`, and `LoadReveal.tsx` — not FlipText, which the hero doesn't use):
+`useLoadSequence.ts`, and `LoadReveal.tsx` — not FlipText, which this load-in sequence
+never uses; FlipText is the separate Home/About page-transition flip, see "FlipText"
+above):
 
 1. Wordmark rises in letter by letter, left→right (`translateY` + `opacity`, no
    rotation, no perspective, no shimmer), with enough overlap between letters that
@@ -489,8 +520,10 @@ fast for this slower, more deliberate read. This is the one orchestrated moment 
 page — everything else is quiet.
 
 Fires once per hard page load (module-scope flag in `useLoadSequence.ts`, not
-`localStorage`/`sessionStorage`) — a reload replays it, client-side navigation within
-the app does not.
+`localStorage`/`sessionStorage`, plus a check against `PageTransitionProvider`'s own
+previous-route state) — a reload replays it, client-side navigation within the app
+does not, including a fast round trip through another route and back before the
+module flag itself would otherwise have latched.
 
 ### Photo stack — `src/components/home/PhotoStack.tsx`
 
@@ -547,8 +580,8 @@ src/
 │   ├── layout.tsx        fonts, Lenis, nav, footer
 │   ├── globals.css       @theme tokens
 │   ├── page.tsx          home
-│   ├── work/page.tsx     work index
-│   ├── work/[slug]/      project detail (stubs for now)
+│   ├── work/[slug]/      project detail (stubs for now) — no work/page.tsx: the
+│   │                     Work index was permanently cancelled, session R0
 │   └── about/page.tsx
 ├── components/
 │   ├── chassis/          Nav, Footer, Ticker, Container
@@ -583,7 +616,7 @@ Do not skip ahead. Animation comes last, in one pass, after layout is locked.
 5. One project card (static, perfected)
 6. `projects.ts`, then map the remaining three
 7. Ticker
-8. Work and About pages
+8. About page (no separate Work index page — permanently cancelled, session R0)
 9. Project detail stubs
 10. All animation
 

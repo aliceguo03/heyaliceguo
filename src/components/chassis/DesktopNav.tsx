@@ -137,12 +137,11 @@ export function DesktopNav({ projects }: { projects: Project[] }) {
               paints the shared pill background — no group-hover class
               needed for them to read as one control.
 
-              WORK (the word) is a plain toggle button for now, not a real
-              `/work` link: that route 404s today (no Work index page
-              exists yet — CLAUDE.md build order step 8 is still open). Flip
-              this to `<Link href="/work">` with no onClick once that page
-              ships; until then, keeping its old toggle behavior means
-              nothing here regresses to a dead click. */}
+              WORK (the word) is a plain toggle button, not a link — this is
+              permanent, not interim. Session R0 permanently cancelled the
+              /work index (see WorkSectionActions.tsx and
+              verify-animation.mjs's own comments on the same decision); no
+              page is ever coming for this to point to. */}
           <div
             className={`flex items-center gap-sm rounded-nav py-btn-y pl-btn-x pr-btn-x text-mono font-mono transition-colors duration-200 ease-standard ${navItemColor(workActive)}`}
           >
