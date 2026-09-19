@@ -152,6 +152,23 @@
      the file actually draws. Verified in scripts/verify-project-section.mjs. */
   --breakpoint-card: 395px;
 
+  /* Fix pass (item 4). CaseStudyActions.tsx's BACK TO HOME / NEXT PROJECT
+     pair runs edge to edge (no horizontal padding of its own — the page's
+     own gutter comes from wherever it's placed) and wraps once the two
+     buttons' combined width exceeds the viewport. `next.footerLabel`
+     varies per project, so the binding case is the longest of the four
+     live projects' labels, measured at phone type scale:
+       "BACK TO HOME"          171.0px
+       "NEXT PROJECT: GEMINICUT" 263.9px  <- longest
+     171.0 + 12 (gap-sm) + 263.9 = 446.9px, plus --case-x's own 20px gutter
+     on each side once the row gets that padding (see CaseStudyActions.tsx)
+     = 486.9px. Below this the pair is stacked instead of wrapped — see
+     that component for the vertical layout. Binary-searched against the
+     live longest-label render, not estimated from the shorter labels
+     alone (a threshold tuned to "NEXT PROJECT: BLINK" would still overflow
+     on "NEXT PROJECT: GEMINICUT"). */
+  --breakpoint-actions: 487px;
+
   /* --- Color: backgrounds ---------------------------------------------- */
   --color-porcelain: #fefffd;
   --color-ink: #0a0a0a;
@@ -230,6 +247,18 @@
      declare the utility-generating name, the value lives in :root so it can
      change per breakpoint. */
   --spacing-page-x: var(--page-x);
+
+  /* Case study page's own horizontal gutter — a separate ramp from
+     --page-x, same reasoning globals.css's --page-x comment already gives
+     for why --card-inset-x needed its own ramp rather than reusing that
+     one: case-study pages were "explicitly out of scope" for --page-x and
+     kept a flat --spacing-3xl (100px) at every width (see that comment,
+     further down). Session R5 (case study responsive pass) gives that flat
+     value a real ramp — 20/50/100, read through the alias below, same
+     three-step shape as --page-x but its own numbers (100 unchanged at
+     >=1440, so every existing desktop case-study page renders
+     byte-identical to before this ramp existed). */
+  --spacing-case-x: var(--case-x);
 
   /* Nav's own height, referenced by anything that pins beneath it */
   --spacing-nav-height: 94px;
@@ -381,10 +410,17 @@
    at paint time (font-size: var(--text-mono), not an inlined literal —
    confirmed in the compiled CSS), so redefining them here is enough — every
    component gets the step for free, no per-component tablet: class needed.
-   --text-mono-caption, --text-body-large and --text-stat are untouched: the
-   first is already the smallest rung, the other two belong to About/
-   case-study sessions. Threshold must match --breakpoint-tablet above (see
-   note there — @media conditions can't reference a custom property). */
+   --text-mono-caption and --text-stat are untouched: the first is already
+   the smallest rung, the second still belongs to a future case-study
+   session (StatValue.tsx — no mobile mock has exercised it yet).
+   --text-body-large steps here too as of Session R5 (case study responsive
+   pass) — the GeminiCut mobile mock (1005:7980) shows the overview hook and
+   every section's own Statement heading at 20/26, one rung down from
+   desktop's 24/32, matching this ramp's own "one rung down" rule exactly.
+   This also affects About's TextBlock.tsx, the only other --text-body-large
+   consumer — verified at 393px before/after this change (see this session's
+   plan). Threshold must match --breakpoint-tablet above (see note there —
+   @media conditions can't reference a custom property). */
 @media (width < 744px) {
   :root {
     --text-display: 60px;
@@ -396,6 +432,8 @@
     --text-mono--letter-spacing: 0.03em;
     --text-body: 16px;
     --text-body--line-height: 20px;
+    --text-body-large: 20px;
+    --text-body-large--line-height: 26px;
   }
 }
 
@@ -446,6 +484,153 @@
 @media (width >= 744px) {
   :root {
     --blackbutton-height: 62px;
+  }
+}
+
+/* Case study responsive geometry. Session R5 — the case study template
+   (CaseStudyBody.tsx, CaseStudyHero.tsx) was built to a hard >=1440px
+   assumption (see this file's own --page-x comment: "Case-study pages are
+   explicitly out of scope and keep their own px-3xl"). These ramps are
+   that deferred pass. Same three ramps' worth of reasoning as --page-x/
+   --card-inset-x/the hero ramp above — a plain px value with no spacing
+   token, read through an inline style var() rather than a Tailwind
+   utility, changing per breakpoint via :root+@media since a bare @media
+   condition can't reference a custom property (see --breakpoint-tablet's
+   own note). Thresholds match --breakpoint-tablet/-desktop above. */
+
+/* --case-x: the alias above resolves this to px-case-x/py-case-x etc.
+   20px below 744, 50px 744-1439, 100px >=1440 — the last step is
+   deliberately unchanged from the flat --spacing-3xl every case-study
+   section used before this ramp, so 1440/1710 render byte-identical. */
+:root {
+  --case-x: var(--spacing-md);
+}
+@media (width >= 744px) {
+  :root {
+    --case-x: var(--spacing-xl);
+  }
+}
+@media (width >= 1440px) {
+  :root {
+    --case-x: var(--spacing-3xl);
+  }
+}
+
+/* CaseStudyBody.tsx's grid-template-columns: panel | content, two real
+   tracks (the gap between them is a real Tailwind gap-x-xl utility, not
+   baked into this string). A single 1fr column below 744 — no panel
+   column at all; the panel becomes a plain full-width block, first in
+   source order, at that tier.
+
+   Fix pass (item 2): below 1440 the sidebar used to stay flat at 383px
+   (PANEL_W) all the way down to 744 — Figma's tablet mock (1015:8153)
+   does measure that same 383px box, so this is a deliberate departure
+   from that mock, not an oversight. A fixed-width sidebar next to a
+   column that's the only thing shrinking reads as a wide static block
+   beside thin, heavily-wrapped text. clamp(PANEL_MIN_W, 40%, 383px)
+   (PANEL_MIN_W, caseStudyGeometry.ts) lets the sidebar narrow with the
+   content column, capped at 40% of the row and never wider than
+   desktop's 383px, floored at PANEL_MIN_W (280px — the narrowest width
+   that doesn't overflow the longest unbreakable metadata token across
+   all four case studies; see that constant's own derivation). The 40%
+   cap and the 280px floor are in tension in the 744-800px range (40% of
+   the row is already below 280 there), so the floor wins and the split
+   runs slightly wider than 40% at the very bottom of that band —
+   documented on PANEL_MIN_W, not silently absorbed.
+
+   >= 1440px restores the flat 383px literal unconditionally, so desktop
+   stays byte-identical to before this session regardless of what the
+   sub-1440 expression resolves to.
+
+   Fix pass (commit 8): the second (content) track used to be a bare
+   `1fr` at >=1440, with the content DIV's own inline `width` (formerly
+   caseStudyGeometry.ts's contentColumnWidthCss, CaseStudyBody.tsx)
+   supplying the real clamp(807px, ..., 1077px) shape. That's circular
+   inside a grid — the item's width can't size the very track it
+   participates in — and silently pinned every desktop viewport to the
+   clamp's floor (807px) instead of growing up to 1077px at the 1710px
+   reference width. The clamp now lives on the TRACK itself instead,
+   where a percentage resolves against the grid container's own definite
+   content box (no circularity). 383/807/1077/50 mirror PANEL_W/
+   CONTENT_MIN_W/CONTENT_W/PANEL_CONTENT_GAP (caseStudyGeometry.ts) as
+   literals, same duplication-with-a-pointer-back convention as PANEL_W's
+   383 above. The content div itself no longer sets its own width at
+   desktop — CSS Grid's default `justify-items: stretch` fills it to
+   this track's size for free (see contentColumnWidthCss's own comment). */
+:root {
+  --case-grid-cols: 1fr;
+}
+@media (width >= 744px) {
+  :root {
+    --case-grid-cols: clamp(280px, 40%, 383px) 1fr;
+  }
+}
+@media (width >= 1440px) {
+  :root {
+    --case-grid-cols: 383px clamp(807px, calc(100% - 433px), 1077px);
+  }
+}
+
+
+/* CarouselTabs.tsx's tablist (GeminiCut's "design decisions" tabs,
+   767:7270). The four tabs' combined width is 732px at tablet/desktop type
+   scale (--text-mono-caption, 20px gap) and 613px at phone scale (14px
+   type, 12px gap — SelectTab.tsx steps both below --breakpoint-tablet).
+   Natural flex-wrap already breaks 3-1 rather than 2-2 across two real
+   width bands once the row can no longer hold that combined width — Figma
+   shows only the two-row 2x2 state (mobile mock 1005:8050), never a
+   straggler. Fix pass (item 3): force a 2x2 grid across exactly the bands
+   where flex-wrap gets this wrong (measured: 519-653px and 744-833px,
+   combined into one band, 385-834px, per the approved answer — this also
+   avoids a one-row/2x2/one-row/2x2 flip-flop as the viewport narrows).
+   Below 385px flex-wrap's own 1-2-1 is left alone (out of scope; the
+   approved answer scoped this fix to the tablet transition zone
+   specifically). A media query can't read a custom property directly
+   (see --breakpoint-tablet's own note above), so both the display mode and
+   the column template are their own vars, read through inline style on the
+   tablist itself (CLAUDE.md rule 2 rules out an arbitrary-value class for
+   "1fr 1fr"). */
+:root {
+  --case-tabs-display: flex;
+  --case-tabs-cols: none;
+}
+@media (width >= 385px) and (width < 835px) {
+  :root {
+    --case-tabs-display: grid;
+    --case-tabs-cols: 1fr 1fr;
+  }
+}
+
+/* CaseStudyHero.tsx's header text column. Fluid (fills the card) below
+   1440; HERO_HEADER_W's fixed 929px (caseStudyGeometry.ts) only at
+   desktop, unchanged from before this ramp — the tablet mock's own header
+   frame (1015:8658) measures 929 wide inside a 922px-wide card, i.e.
+   effectively edge-to-edge, not a second fixed measurement worth its own
+   constant. */
+:root {
+  --case-hero-header-w: 100%;
+}
+@media (width >= 1440px) {
+  :root {
+    --case-hero-header-w: 929px;
+  }
+}
+
+/* CaseStudyHero.tsx's 3-photo strip, per-photo width/height. Tablet's own
+   measured 591x393 (Figma iPad Pro mock, 1015:8153's three "photo" nodes)
+   — a genuine re-measurement, not a scaled fraction of HERO_PHOTO_W/H
+   (785x522, caseStudyGeometry.ts) — held flat from 744 up to the existing
+   1440px floor, where it steps to the unchanged desktop value. Only
+   relevant tablet+desktop: the strip is hidden entirely below 744
+   (CaseStudyHero.tsx's phone-only single-photo well instead). */
+:root {
+  --case-hero-photo-w: 591px;
+  --case-hero-photo-h: 393px;
+}
+@media (width >= 1440px) {
+  :root {
+    --case-hero-photo-w: 785px;
+    --case-hero-photo-h: 522px;
   }
 }
 

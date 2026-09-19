@@ -8,7 +8,7 @@ import { Prose } from "./Prose";
 import { Figure } from "./Figure";
 import { SelectTab } from "@/components/ui/SelectTab";
 import { MIN_CAROUSEL_TABS_VIEWPORT_H } from "../caseStudyGeometry";
-import { DUR, EASE, usePrefersReducedMotion, useViewportBelow } from "@/lib/motion";
+import { DUR, EASE, MIN_MECHANIC_VIEWPORT_W, usePrefersReducedMotion, useViewportBelow } from "@/lib/motion";
 import type { Block } from "@/content/case-studies/types";
 
 type TabsCarouselItem = Extract<Block, { kind: "carousel"; mode: "tabs" }>["items"][number];
@@ -48,10 +48,22 @@ export function CarouselTabs({ items }: { items: TabsCarouselItem[] }) {
   // measured threshold, the 13" Air floor included), the tab row + heading +
   // paragraph + video well don't fit below the nav without scrolling. The
   // heading (Statement) drops; tab row, paragraph, and video well stay.
-  // Height-only, no width floor: this drops one line of content rather
-  // than disabling a mechanic, so Session R0's MIN_MECHANIC_VIEWPORT_W
-  // guard doesn't apply.
-  const tightViewport = useViewportBelow(MIN_CAROUSEL_TABS_VIEWPORT_H);
+  //
+  // Session R5 (case study responsive pass): AND-gated to desktop widths
+  // only (`!belowDesktop && shortViewport`, both hooks called
+  // unconditionally per the Rules of Hooks). MIN_CAROUSEL_TABS_VIEWPORT_H
+  // (975) was measured as a 13"-Air accommodation — it was never meant to
+  // fire on a phone or tablet, but every phone viewport satisfies
+  // `height < 975` regardless of its width, and this mechanic now also
+  // runs at those widths (Session R0's original comment, still true for
+  // the *width* half of that pairing: this drops a line of content rather
+  // than disabling a mechanic, so MIN_MECHANIC_VIEWPORT_W's own guard
+  // doesn't apply to `shortViewport` on its own). The mobile mock keeps
+  // the heading ("Spatial Precision: In-Frame Lasso") — dropping it on
+  // every phone would have been wrong, not faithful.
+  const belowDesktop = useViewportBelow(0, MIN_MECHANIC_VIEWPORT_W);
+  const shortViewport = useViewportBelow(MIN_CAROUSEL_TABS_VIEWPORT_H);
+  const tightViewport = !belowDesktop && shortViewport;
   const baseId = useId();
   const stageRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -92,7 +104,25 @@ export function CarouselTabs({ items }: { items: TabsCarouselItem[] }) {
 
   return (
     <div ref={stageRef} className="flex w-full flex-col gap-lg">
-      <div role="tablist" aria-label="Editing modes" className="flex items-center gap-md">
+      {/* flex-wrap: the four tabs' own combined width (732px, Figma's
+          desktop/tablet measurement) already exceeds the content column
+          once it clamps below CONTENT_MIN_W (807px) at the existing
+          1440px floor — this was already latent before this session, just
+          never exercised below 1440px width. Wraps to 2x2 at phone
+          (mobile mock 1005:8050), inert at tablet/desktop where 732 still
+          fits inside the (wider) available row.
+
+          Fix pass (item 3): --case-tabs-display/-cols (globals.css) force
+          a real 2x2 grid across the 385-834px band, where flex-wrap on its
+          own breaks 3-1 rather than 2-2 (Figma never shows a straggler).
+          flex-wrap/items-center are inert once display is grid; the grid
+          and gap utilities apply in both modes. */}
+      <div
+        role="tablist"
+        aria-label="Editing modes"
+        className="flex flex-wrap items-center gap-sm tablet:gap-md"
+        style={{ display: "var(--case-tabs-display)", gridTemplateColumns: "var(--case-tabs-cols)" }}
+      >
         {items.map((item, index) => (
           <SelectTab
             key={item.label}

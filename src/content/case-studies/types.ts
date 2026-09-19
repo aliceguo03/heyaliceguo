@@ -35,10 +35,14 @@ export type Figure = {
 // freezing on the last frame.
 export type VideoSource = {
   src: string;
-  // The well's own height for this source, in px. Deliberately NOT FIGURE_H —
-  // see caseStudyGeometry.ts's CAROUSEL_VIDEO_H/SHOWCASE_VIDEO_H comments for
-  // why each video figure gets its own height rather than reusing 556.
-  height: number;
+  // The well's own aspect ratio for this source, as a CSS `aspect-ratio`
+  // value ("1888 / 1080"). Deliberately NOT FIGURE_ASPECT — see
+  // caseStudyGeometry.ts's CAROUSEL_VIDEO_ASPECT/SHOWCASE_VIDEO_ASPECT
+  // comments for why each video figure gets its own ratio rather than
+  // reusing 1077/556. Session R5: was a flat `height: number` in px; moved
+  // to a ratio so the well stays fluid below the 1710px reference width
+  // instead of over-cropping (see Figure.tsx).
+  aspect: string;
   behavior: "ambient" | "feature";
   // Recording-capture edge-artifact crop, scale()-only — ProjectMedia.tsx's
   // VIDEO_ZOOM precedent (home page cards). Omitted = no zoom.
@@ -47,11 +51,12 @@ export type VideoSource = {
 
 // Every block kind in the template (736:6031), one component each under
 // src/components/case-study/blocks/. `figure` and the figure inside
-// `proseFigure`/`carousel` are always CONTENT_W x FIGURE_H (1077x556) UNLESS
-// the figure carries `video` — GeminiCut's two video figures each have a
-// source aspect ratio FIGURE_H doesn't match (caseStudyGeometry.ts's
-// CAROUSEL_VIDEO_H/SHOWCASE_VIDEO_H), so `VideoSource.height` is the one
-// sanctioned per-figure override, not a general size prop any block can set.
+// `proseFigure`/`carousel` are always FIGURE_ASPECT (1077/556) UNLESS the
+// figure carries `video` — GeminiCut's two video figures each have a source
+// aspect ratio FIGURE_ASPECT doesn't match (caseStudyGeometry.ts's
+// CAROUSEL_VIDEO_ASPECT/SHOWCASE_VIDEO_ASPECT), so `VideoSource.aspect` is
+// the one sanctioned per-figure override, not a general size prop any block
+// can set.
 export type Block =
   | { kind: "statement"; text: Paragraph }
   | { kind: "prose"; paragraphs: Paragraph[] }
@@ -118,7 +123,7 @@ export type Block =
       // the stale pre-correction value Chase's node once had (see chase.ts's
       // own header comment). Omitted = STAT_W, so F3Global/Chase/GeminiCut
       // are unaffected. The one sanctioned per-block override, same role as
-      // VideoSource.height for figures — not a general size prop.
+      // VideoSource.aspect for figures — not a general size prop.
       columnWidth?: number;
     }
   | {
@@ -173,6 +178,17 @@ export type CaseStudy = {
     // its tagline break after "FOR" rather than run the full width.
     // Omitted = fill, so F3Global needs no value here.
     titleWidth?: number;
+    // Which photo the phone-tier single-photo well (CaseStudyHero.tsx)
+    // shows — Figma's own phone mock (1005:7981) has no equivalent node to
+    // measure against (it shows one photo regardless of how many the
+    // project has, with no stated rule for *which* one), so this is a
+    // judgment call, not a transcription. Defaults to `photos[0]` when
+    // omitted (F3Global and Blink both needed an explicit override here —
+    // round 2, item 2 — because their own photos[0] wasn't the most
+    // representative single image on a screen this small). Per that
+    // session: ask which photo to use rather than picking one, whenever a
+    // future project's mobile hero has no photo specified here.
+    mobilePhoto?: Figure;
   };
   // Typed separately from `proseFigure` rather than folded into it: Figma's
   // overview section (736:6063) uses a 30px gap between its text group and

@@ -15,14 +15,23 @@ type TilesBlock = Extract<Block, { kind: "tiles" }>;
 // between `heading`/no-heading and the grid, at this same gap-md rhythm —
 // see types.ts's own comment on why it lives here rather than as a
 // preceding `prose` block.
+//
+// Session R5 (case study responsive pass): a single stacked column below
+// --breakpoint-tablet (the phone mock, 1005:8095, stacks both takeaway
+// cards full-width) — `grid-cols-1 tablet:grid-cols-2`. The grid's own
+// gap and each card's own padding step down to match: gap-sm/p-md at
+// phone, gap-md/p-lg at tablet+ (unchanged from before this session).
 export function Tiles({ heading, lead, items }: Omit<TilesBlock, "kind">) {
   return (
-    <div className="flex w-full flex-col gap-md">
+    <div className="flex w-full flex-col gap-sm tablet:gap-md">
       {heading && <Statement text={heading} />}
       {lead && <Prose paragraphs={lead} />}
-      <div className="grid w-full grid-cols-2 gap-md">
+      <div className="grid w-full grid-cols-1 gap-sm tablet:grid-cols-2 tablet:gap-md">
         {items.map((item, index) => (
-          <div key={index} className="flex flex-col items-start gap-sm rounded-card border border-divider p-lg">
+          <div
+            key={index}
+            className="flex flex-col items-start gap-sm rounded-card border border-divider p-md tablet:p-lg"
+          >
             <p className="w-full text-body font-sans text-dark-gray">{item.title}</p>
             <p className="w-full text-body font-sans text-deep-black">{item.body}</p>
           </div>

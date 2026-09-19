@@ -60,10 +60,21 @@ export const READING_LINE = 0.4;
 // case-study section (736:6063, 736:6072).
 export const CONTENT_W = 1077;
 
-// figure / proseFigure figure — always this size, everywhere, no
+// figure / proseFigure figure — always this ratio, everywhere, no
 // per-project override (CLAUDE.md "figure and the figure inside
-// proseFigure are always 1077x556").
-export const FIGURE_H = 556;
+// proseFigure are always 1077x556"). Session R5 (responsive pass):
+// converted from a flat FIGURE_H=556 px height to an aspect ratio. Every
+// source still image in the template is pre-cropped to exactly this ratio
+// (the JPGs measure 2154x1112 = 1077x556 at 2x — confirmed with `sips`,
+// not assumed), so a fixed height was never faithful once the column
+// itself started clamping narrower than 1077px (contentColumnWidthCss
+// below, and the new sub-1440 tiers this session adds): object-cover was
+// silently cropping real image content out of every figure below the
+// 1710px reference width. aspect-ratio fixes that everywhere, including
+// at the existing 1440px floor — approved as a visible desktop change
+// (Figure.tsx's well goes 556px tall -> 417px tall at exactly 1440px
+// width, matching the ratio exactly rather than over-cropping).
+export const FIGURE_ASPECT = "1077 / 556";
 
 // Hero card's three-photo strip (730:6000). Each photo is ~785px wide by
 // 522 tall; the 1px differences between photos in Figma are rounding
@@ -95,6 +106,47 @@ export const STAT_W = 411;
 // gap-3xl (100px), just a wider 425px track. See types.ts's `stats.
 // columnWidth` for how a content file opts into this instead of STAT_W.
 export const STAT_W_WIDE = 425;
+
+// Phone tier's own stat column width (1005:8095/1005:8073) — Session R5
+// (case study responsive pass). A single centered column, not a scaled
+// fraction of STAT_W/STAT_W_WIDE: Figma's phone mock measures 298px,
+// which fits the 375px SE floor (375 - 2*20 page inset - some slack =
+// 335px available) with room to spare. Unlike STAT_W_WIDE, this isn't a
+// per-project override — Stats.tsx applies it below --breakpoint-tablet
+// unconditionally, regardless of which `columnWidth` a project's own
+// content passes for tablet+desktop.
+export const STAT_W_PHONE = 298;
+
+// --- Fix pass (item 2): the sub-1440 sidebar floor ------------------------
+//
+// Below 1440 the info-panel/sidebar shell (globals.css's --case-grid-cols)
+// narrows proportionally with the content column instead of staying a flat
+// 383px (PANEL_W) all the way to 744 — see that variable's own comment for
+// the full reasoning. This is its floor: the narrowest the sidebar may get
+// before its own content overflows.
+//
+// The binding case is the longest unbreakable token across all four case
+// studies' metadata (PanelMeta.tsx's ROLE/TIMELINE/TYPE/TOOLS/TEAM values —
+// content/projects.ts — a CSS word can't break mid-word without a hyphen
+// point, and none of these have one). Measured directly (not counted by
+// eye) in --text-mono (20px JetBrains Mono, the type size these rows render
+// at from --breakpoint-tablet up — PanelMeta.tsx's `text-mono-mobile
+// tablet:text-mono`):
+//   "CROSS-FUNCTIONAL" (Chase, Blink)   211px  <- longest
+//   "AI-ASSISTED"      (GeminiCut, F3)  145px
+// 211 + 2 * 30 (p-lg, InfoPanel.tsx's own padding) = 271px is the hard
+// overflow floor. PANEL_MIN_W leaves a small margin above it rather than
+// sitting flush.
+//
+// Measured `min-content` panel widths corroborate this is generous, not
+// tight: 207 (f3global) / 234 (chase) / 242 (geminicut) / 234 (blink).
+//
+// This floor sits above 40% of the row in the 744-800px band (40% of 744 is
+// 257.6px, below the 271px overflow floor), so the sidebar runs slightly
+// wider than the nominal 40% split at the very bottom of that range — the
+// floor always wins over the percentage there. Out of scope to "fix"
+// further: any narrower sidebar overflows PANEL_MIN_W's own binding case.
+export const PANEL_MIN_W = 280;
 
 // --- The content column's 1440px floor -----------------------------------
 //
@@ -138,6 +190,37 @@ export const CONTENT_MIN_W =
 // width constraint, so that box is exactly the viewport minus
 // 2*SECTION_PAD_X, the same box PANEL_CONTENT_GAP and PANEL_W are
 // subtracted from here.
+//
+// Fix pass (commit 8, found while verifying item 5): this formula wrote
+// correctly the day it was authored — CaseStudy.tsx's row was a flex
+// container back then, so `100%` really did mean "the row's own content
+// box." Session R5 (50501f7) converted that row to a CSS grid
+// (CaseStudyBody.tsx, --case-grid-cols) without moving this formula off
+// the content DIV's own inline `width`. At >=1440 that div is a real grid
+// item (not `display: contents` there — see CaseStudyBody.tsx), so its
+// `width` now helps size the very `1fr` track it sits in: a circular
+// percentage the browser can't resolve, so `calc()`'s middle branch
+// collapsed and every desktop viewport silently landed on the clamp's
+// floor, CONTENT_MIN_W (807px) — correct by coincidence at exactly 1440
+// (807 IS the right answer there), visibly wrong everywhere above it
+// (1710's reference width should render 1077, not 807).
+//
+// The fix moves this exact formula onto the grid TRACK itself
+// (globals.css's `--case-grid-cols`, >=1440 branch) instead of the grid
+// ITEM's width. A percentage inside a grid-template-columns track
+// function resolves against the grid container's own (definite,
+// non-circular) content box — the same quantity `100%` meant here before
+// R5 — so the same arithmetic is circularity-free once it's the track's
+// job instead of the item's. The content div no longer needs its own
+// `width` at desktop at all: CSS Grid's default `justify-items: stretch`
+// already fills a item to its track's size with no explicit width, which
+// is what `desktop:flex` alone now relies on (see CaseStudyBody.tsx).
+//
+// This string is no longer imported anywhere (CaseStudyBody.tsx used to
+// be its one consumer) — kept exported as the derivation record for the
+// literal duplicated into globals.css, same "TS is the source, CSS
+// duplicates the literal with a comment pointing back" convention
+// --case-grid-cols's own PANEL_W literal already follows.
 export const contentColumnWidthCss = `clamp(${CONTENT_MIN_W}px, calc(100% - ${PANEL_W}px - ${PANEL_CONTENT_GAP}px), ${CONTENT_W}px)`;
 
 // --- Design Decisions carousel (760:6790) --------------------------------
@@ -145,9 +228,10 @@ export const contentColumnWidthCss = `clamp(${CONTENT_MIN_W}px, calc(100% - ${PA
 // Re-read fresh this session, after a text->figure gap fix in Figma. Every
 // internal gap in the node is now 20px/gap-md, identical to ProseFigure's
 // own rhythm: 32 (heading) + 20 + 78 (body, item 0's own height) + 20 + 556
-// (figure) + 20 + 8 (bars) = 734. The body height is specific to item 0's
-// own copy — items 1 and 2 wrap to different line counts, and the column
-// itself clamps narrower below 1710px — but CarouselStage.tsx's
+// (figure, FIGURE_ASPECT's height at the reference 1077px width) + 20 + 8
+// (bars) = 734. The body height is specific to item 0's own copy — items 1
+// and 2 wrap to different line counts, and the column itself clamps
+// narrower below 1710px — but CarouselStage.tsx's
 // grid-stacked slots size themselves to whichever item is tallest at the
 // current column width with zero measurement, so this constant is never
 // used as a literal height on the component. It exists only to derive the
@@ -165,27 +249,56 @@ export const CAROUSEL_STAGE_H = 734;
 // require the stage already rendered.
 export const MIN_CAROUSEL_VIEWPORT_H = STICKY_TOP + CAROUSEL_STAGE_H + PANEL_BOTTOM_GAP; // 870
 
+// --- Overview column width, sidebar+content row (item 5, round 1; retargeted
+// round 2; rebuilt round 3; simplified round 4) -----------------------------
+//
+// Rounds 1-3 chased a fill-ratio target (text column height vs. the
+// metadata sidebar's own height) with a flat pixel width and various
+// alignment schemes — round 2's centering didn't hold up on review, and
+// round 3's percentage-of-remaining-space attempt was scoped only to
+// 744-1439px and rejected as too narrow once retargeted against that
+// fill ratio. Round 4 drops the fill-ratio reasoning entirely per a direct
+// design call: the text column should simply read as a deliberate,
+// proportional column next to the sidebar — not tuned against the
+// sidebar's own height at all. See OverviewContent.tsx's own `tablet:
+// w-9/10 desktop:w-full` for the current mechanism: a plain width
+// fraction of the content track (the space remaining after the sidebar +
+// its gap), no CSS var or JS constant needed for two flat values. Round
+// 4's own first attempt extended a 70% fraction through desktop too, with
+// no revert at 1440+ — corrected per direct design review: desktop stays
+// at Figma's full 1077px column (`desktop:w-full`, matching every round
+// before that attempt), and tablet (744-1439px) is 90%, not 70%.
+
 // --- GeminiCut video figures ----------------------------------------------
 //
-// Every other figure in the template is CONTENT_W x FIGURE_H (1077x556, a
-// 1.937:1 ratio) because every source image was cropped to it. GeminiCut's
-// two video figures are real screen recordings with their own native
-// aspect ratios, measured directly off the files (`mdls`/Spotlight, not
-// assumed) rather than cropped to fit — cropping either would cut into real
-// UI (the recordings' own header bar / prompt input), which CLAUDE.md's
-// "faithful implementation" rule treats as content, not chrome to trim.
-// Each gets its own named height rather than reusing FIGURE_H; see
-// content/case-studies/types.ts's VideoSource.height.
+// Every other figure in the template is FIGURE_ASPECT (1077x556, a 1.937:1
+// ratio) because every source image was cropped to it. GeminiCut's two
+// video figures are real screen recordings with their own native aspect
+// ratios, measured directly off the files (`mdls`/Spotlight, not assumed)
+// rather than cropped to fit — cropping either would cut into real UI (the
+// recordings' own header bar / prompt input), which CLAUDE.md's "faithful
+// implementation" rule treats as content, not chrome to trim. Each gets its
+// own named aspect ratio rather than reusing FIGURE_ASPECT; see
+// content/case-studies/types.ts's VideoSource.aspect.
+//
+// Session R5: converted from a flat px height (CAROUSEL_VIDEO_H=616,
+// SHOWCASE_VIDEO_H=606) to a ratio, same reasoning and same fix as
+// FIGURE_ASPECT above — the posters are pre-cropped to these exact ratios
+// (2154x1232 = 1077x616 at 2x for the carousel; 2154x1211 measures 606 at
+// the 1077 column, within the same rounding this constant always carried).
 
 // The four "design decisions" carousel recordings (gemini-regenerate/
-// -timeline/-style/-sound.mp4) are all 1888x1080. 1077 * (1080/1888) =
-// 616.08, rounded to the nearest px.
-export const CAROUSEL_VIDEO_H = 616;
+// -timeline/-style/-sound.mp4). Three are 1888x1080; gemini-regenerate.mp4
+// is actually 1884x1080 (re-measured this session, correcting the prior
+// "all four are 1888x1080" note here — the 4px difference doesn't move the
+// rounded well height, 616 either way, so one shared ratio still covers
+// all four without a second constant).
+export const CAROUSEL_VIDEO_ASPECT = "1888 / 1080";
 
 // "Gemini Cut Commercial.mp4" is 1920x1080 — true 16:9, and NOT the same
 // ratio as the carousel recordings above, so it does not share their
-// constant. 1077 * (1080/1920) = 605.8, rounded.
-export const SHOWCASE_VIDEO_H = 606;
+// constant.
+export const SHOWCASE_VIDEO_ASPECT = "16 / 9";
 
 // The four carousel recordings carry a thin capture-window border along
 // their edges (screen-recording artifact, not real UI) — a slight zoom
@@ -215,7 +328,10 @@ export const CAROUSEL_VIDEO_ZOOM = 1.02;
 // + 20  (gap-md)
 // + 104 (paragraph, Prose/text-body, 4 lines at 26px line-height)
 // + 20  (gap-md)
-// + 616 (video well, CAROUSEL_VIDEO_H)
+// + 616 (video well, CAROUSEL_VIDEO_ASPECT's height at the 1077px reference
+//        width — this stack height is itself only ever seeded/compared at
+//        that width, so the ratio resolves to the same 616 the old flat
+//        constant held)
 // = 869
 export const CAROUSEL_TABS_STACK_H = 869;
 
