@@ -660,6 +660,91 @@ async function main() {
     await context.close();
   }
 
+  // ---- Mobile hero top-spacing follow-up ---------------------------------
+
+  // Ticker fully visible without scrolling at real phone dimensions — the
+  // actual bug report. Also confirms title-to-photo stays exactly 50px
+  // (gap-xl, unaffected by the my-auto block's own external margins).
+  for (const [width, height] of [
+    [375, 667],
+    [430, 932],
+  ]) {
+    const context = await browser.newContext({ viewport: { width, height } });
+    const page = await context.newPage();
+    await page.goto(`${BASE}/about`, { waitUntil: "networkidle" });
+    const data = await page.evaluate((h) => {
+      const nav = [...document.querySelectorAll('nav[aria-label="Main"]')].filter(
+        (n) => getComputedStyle(n).display !== "none",
+      )[0];
+      const h1 = document.querySelector("h1");
+      const stack = document.querySelector('button[aria-label="Show next photo in photostack"]');
+      const tickerTrack = document.querySelector(".ticker-track");
+      const navRect = nav?.getBoundingClientRect();
+      const h1Rect = h1?.getBoundingClientRect();
+      const stackRect = stack?.getBoundingClientRect();
+      const tickerRect = tickerTrack?.getBoundingClientRect();
+      return {
+        navToTitleGap: h1Rect && navRect ? h1Rect.top - navRect.bottom : null,
+        titleToPhotoGap: stackRect && h1Rect ? stackRect.top - h1Rect.bottom : null,
+        tickerFullyVisible: tickerRect ? tickerRect.top >= 0 && tickerRect.bottom <= h : null,
+      };
+    }, height);
+    record(
+      `hero @ ${width}x${height}: ticker fully visible without scrolling, title-to-photo gap unchanged (50px)`,
+      data.tickerFullyVisible === true && Math.abs(data.titleToPhotoGap - 50) < 0.5,
+      JSON.stringify(data),
+    );
+    await context.close();
+  }
+
+  // Tablet/desktop unaffected by the phone-tier centering fix — still the
+  // flat 212px (pt-4xl) Figma measurement.
+  for (const width of [1024, 1710]) {
+    const context = await browser.newContext({ viewport: { width, height: 900 } });
+    const page = await context.newPage();
+    await page.goto(`${BASE}/about`, { waitUntil: "networkidle" });
+    const gap = await page.evaluate(() => {
+      const nav = [...document.querySelectorAll('nav[aria-label="Main"]')].filter(
+        (n) => getComputedStyle(n).display !== "none",
+      )[0];
+      const h1 = document.querySelector("h1");
+      return h1 && nav ? h1.getBoundingClientRect().top - nav.getBoundingClientRect().bottom : null;
+    });
+    record(`${width}px: nav-to-title gap stays flat 212px (tablet/desktop unaffected)`, gap === 212, `gap=${gap}`);
+    await context.close();
+  }
+
+  // Short phone viewport: no overlap between nav/title or stack/ticker —
+  // my-auto clamps at 0, never negative, content just grows taller than
+  // the viewport (scrollable) rather than clipping or overlapping.
+  {
+    const context = await browser.newContext({ viewport: { width: 375, height: 550 } });
+    const page = await context.newPage();
+    await page.goto(`${BASE}/about`, { waitUntil: "networkidle" });
+    const data = await page.evaluate(() => {
+      const nav = [...document.querySelectorAll('nav[aria-label="Main"]')].filter(
+        (n) => getComputedStyle(n).display !== "none",
+      )[0];
+      const h1 = document.querySelector("h1");
+      const stack = document.querySelector('button[aria-label="Show next photo in photostack"]');
+      const tickerTrack = document.querySelector(".ticker-track");
+      const navRect = nav?.getBoundingClientRect();
+      const h1Rect = h1?.getBoundingClientRect();
+      const stackRect = stack?.getBoundingClientRect();
+      const tickerRect = tickerTrack?.getBoundingClientRect();
+      return {
+        navOverlapsTitle: h1Rect && navRect ? h1Rect.top < navRect.bottom : null,
+        stackOverlapsTicker: stackRect && tickerRect ? stackRect.bottom > tickerRect.top : null,
+      };
+    });
+    record(
+      "375x550 (short viewport): no nav/title or stack/ticker overlap",
+      data.navOverlapsTitle === false && data.stackOverlapsTicker === false,
+      JSON.stringify(data),
+    );
+    await context.close();
+  }
+
   await browser.close();
 
   console.log("\n=== Results ===\n");
