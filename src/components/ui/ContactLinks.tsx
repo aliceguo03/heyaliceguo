@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { useCursorLabel } from "@/components/motion/CursorLabel";
+import { DUR, EASE, usePointerFine, usePrefersReducedMotion } from "@/lib/motion";
 
 export const EMAIL = "a2guo@ucsd.edu";
 export const LINKEDIN_HREF = "https://www.linkedin.com/in/aliceguo03/";
@@ -125,6 +127,8 @@ export function MailButton({
 }) {
   const [hovered, setHovered] = useState(false);
   const cursorLabel = useCursorLabel();
+  const pointerFine = usePointerFine();
+  const reducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     if (!hovered) {
@@ -134,7 +138,7 @@ export function MailButton({
     cursorLabel.show(copied ? "COPIED" : `COPY ${EMAIL.toUpperCase()}`, copied ? "copied" : "action");
   }, [hovered, copied, cursorLabel]);
 
-  return (
+  const button = (
     <button
       type="button"
       onClick={onClick}
@@ -145,6 +149,37 @@ export function MailButton({
     >
       <EnvelopeIcon className={iconClassName} />
     </button>
+  );
+
+  // Touch has no hover, so CursorLabel's bubble (gated to usePointerFine in
+  // CursorLabel.tsx) never renders there — this is the touch-only visible
+  // substitute for it, anchored to the icon instead of following a pointer
+  // that doesn't exist. Gated on pointerFine, not a breakpoint, so a
+  // trackpad-and-mouse tablet still gets the desktop bubble instead. The
+  // announcement itself isn't duplicated here: it's aria-hidden and relies
+  // on the aria-live region the caller (Nav/Footer) already renders off
+  // `useCopyEmail()`'s `announcement`.
+  if (pointerFine) return button;
+
+  return (
+    <span className="relative inline-flex">
+      {button}
+      <AnimatePresence>
+        {copied && (
+          <motion.span
+            aria-hidden="true"
+            initial={reducedMotion ? false : { opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={reducedMotion ? undefined : { opacity: 0, scale: 0.92 }}
+            transition={{ duration: reducedMotion ? 0 : DUR.hover, ease: EASE }}
+            style={{ zIndex: "var(--z-cursor)" }}
+            className="pointer-events-none absolute bottom-full left-1/2 mb-sm -translate-x-1/2 whitespace-nowrap rounded-panel border border-divider bg-true-white px-md py-s text-mono-caption font-mono text-dark-gray"
+          >
+            COPIED
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </span>
   );
 }
 
