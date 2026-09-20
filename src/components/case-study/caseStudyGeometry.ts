@@ -56,6 +56,30 @@ export const MIN_PANEL_COMPACT_VIEWPORT_H = STICKY_TOP + PANEL_COMPACT_H + PANEL
 // sections on either side of it are.
 export const READING_LINE = 0.4;
 
+// Sidebar stacking transition (metadata -> nav swap, useCaseStudyPanel.ts /
+// CasePanel.tsx): the scroll distance, in px, over which the nav layer
+// slides fully into view — centered on the exact scrollY that flips
+// `current` from -1 to 0, so the layer is always half-slid at the instant
+// the discrete index actually changes. Not a Figma measurement — Figma's
+// file has no scroll mechanic to measure this against, same exempt category
+// as READING_LINE above.
+//
+// Review pass: the first pass shipped 120, tuned only against
+// scripts/verify-case-panel.mjs's monotonic-slide check — correct
+// mechanically, but 120px of real scroll covers in a single wheel tick, so
+// in practice it read as a snap, not a stack. Re-tuned against actual
+// scroll feel instead: simulating a continuous, moderate wheel scroll
+// (~2000px/s, a realistic middle pace) and timing the visible transition
+// wall-clock end to end measured 120 -> ~100ms, 200 -> ~166ms, 250 ->
+// ~200ms, 300 -> ~249ms — roughly linear with window size at a fixed scroll
+// speed, as expected. 300, the widest of the range this pass tested, reads
+// as the most clearly deliberate of the four without leaving the requested
+// 200-300 band. Absolute duration still depends on the viewer's own scroll
+// speed/device (trackpad vs. wheel, fast vs. careful) — there's no window
+// size that fixes a felt duration for everyone — so this remains a
+// judgment call pending Alice's own on-device pass, not a settled number.
+export const STACK_WINDOW = 300;
+
 // Content column width shared by the overview section and every
 // case-study section (736:6063, 736:6072).
 export const CONTENT_W = 1077;

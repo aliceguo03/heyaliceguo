@@ -76,10 +76,17 @@ type FlipTextProps = {
   /** Destination color token, e.g. "--color-ink". */
   colorVar: string;
   /**
-   * The title flipped in FROM — null for a non-participant: hard load,
-   * arrival from a route outside pageTransition.ts's PAGE_TITLES map, or
-   * reduced motion. null renders `text` as a plain, unsplit text node; the
-   * caller's own color class (already on its <h1>) supplies the color.
+   * The title flipped in FROM. null only for a hard load — renders `text`
+   * as a plain, unsplit text node, with the caller's own color class
+   * (already on its <h1>) supplying the color. Every other caller-resolved
+   * case (see pageTransition.ts's flipSourceFor) is a real FlipTextSource,
+   * including `{ text: "", colorVar: <this destination's own token> }` for
+   * a client-side arrival from a route outside PAGE_TITLES — an empty
+   * source needs no special case here: `splitChars("")` is `[]`, so the
+   * source layer simply renders no characters and the destination flips in
+   * from nothing. (Reduced motion is a separate gate, checked below via
+   * `usePrefersReducedMotion` — it forces the same plain-text render
+   * regardless of what `from` is, not by making `from` itself null.)
    */
   from: FlipTextSource | null;
 };

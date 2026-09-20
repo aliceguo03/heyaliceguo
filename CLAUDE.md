@@ -224,27 +224,43 @@ rotation) is documented under "Hero load sequence" below, not here — that's th
 authoritative description; this entry exists only to flag Wordmark's second role.
 
 Since the page-transition session, Wordmark also renders through FlipText (below)
-whenever `/` is reached by a client-side navigation from another page-transition
-route (currently just `/about`) — the rise-in load sequence and the FlipText flip
-are mutually exclusive per mount, never both. See "FlipText" below and
-`src/components/motion/pageTransition.ts`.
+whenever `/` is reached by *any* client-side navigation, not only from another
+page-transition route — a fix pass extended the flip to fire from an unmapped
+source too (see "FlipText" below's "flip in from nothing"). The rise-in load
+sequence and the FlipText flip are mutually exclusive per mount, never both: the
+load sequence owns the hard-load case exclusively, and every other mount flips.
+See `src/components/motion/pageTransition.ts`.
 
 ### FlipText — `src/components/motion/FlipText.tsx`
 
 Adapted from a Magic UI snippet. The original is broken for this use in four ways;
 all four fixes are required. **Not** the hero's load-in effect (see "Hero load
 sequence") — this is the page-transition title flip between Home ("alice guo.")
-and About ("about."), the only two routes with a Gambarino display title. Fires on
-client-side navigation between them, both directions; a hard load or a
-non-participating route (e.g. a case study) renders the destination title statically
-instead — see `pageTransition.ts`'s `PAGE_TITLES` map, which is the single source of
-truth for which routes participate.
+and About ("about."), the only two routes with a Gambarino display title. A hard
+load renders the destination title statically — see `pageTransition.ts`'s
+`PAGE_TITLES` map, which is the single source of truth for which routes carry a
+title to flip.
 
 The effect: the destination title flips in character by character, rotating on the
 X axis, while the departing title's own characters flip out — both layers share one
 center point, so titles of different lengths ("alice guo." vs "about.") never resize
 or drift the box mid-flip. Color interpolates across the same span, from the
 departing route's token to the arriving route's.
+
+**Flip in from nothing.** Fires on client-side navigation to Home or About from
+*any* route, not only from each other. Arriving from a route in `PAGE_TITLES`
+(Home ⇄ About) flips from that route's own recorded title, both directions, as
+above. Arriving from anywhere else (a case study, or any future route not in
+`PAGE_TITLES`) flips in from an empty source instead — the destination's own
+characters still rotate in exactly as above, with nothing flipping out opposite
+them, rather than the title simply appearing. Only a genuine hard load (not a
+client-side navigation from anywhere) renders statically. The two-way branch
+(known source vs. empty source vs. hard load) lives in one function,
+`pageTransition.ts`'s `flipSourceFor`, which both Wordmark and `PageTitle.tsx`
+call — `PAGE_TITLES` is still the only place a route's title text/color is
+recorded, this just changes what happens for a *source* route absent from it.
+Navigating between two non-participating routes (e.g. one case study to another)
+is unaffected — neither renders through FlipText/PageTitle at all.
 
 1. **No horizontal spacing between characters.** The source demo uses
    `space-x-2`, which inserts 8px between every letter. At 104px Gambarino, that
@@ -545,6 +561,46 @@ dimensions and aspect ratio.
 - All five images load eagerly. A flash of empty space on click is a bug.
   `priority` on the first, eager loading on the rest.
 - Under reduced motion: instant swap. No flip, no rotation, no transition.
+
+### About hero — `src/components/about/AboutHero.tsx`
+
+**Nav-to-title parity session.** About's title sits at the exact same distance below
+the nav as Home's, at every viewport height, not just at the widths a prior pass
+happened to check. This is a deliberate deviation from Figma: the file specifies a flat
+212px (desktop/tablet) / 100px (phone) in a fixed-height composition with no
+scroll/viewport-fill instruction, but that number only ever matches what's rendered at
+one specific viewport height. Home doesn't use a flat number either — `Hero.tsx`
+centers its content with `my-auto` inside `.viewport-fill`, so its nav-to-title gap is
+a centering *residual* that tracks viewport height (50px at 375×812, 245.4px at
+1710×1107 — never the same number twice).
+
+**Home is the fixed reference and does not change.** About cannot just copy Home's
+centering mechanism — `my-auto` splits whatever's left over after each page's own
+content height, and About's title+photos block is far shorter than Home's
+wordmark+bio+button block, so identical mechanisms still land at different offsets.
+Instead About reads Home's own residual directly, via `--home-title-offset`
+(`globals.css`) — Hero.tsx's centering math (`(100svh - nav - S - T) / 2 + space-xl`)
+reproduced in pure CSS from two tokens, `--home-hero-content-h` (S) and
+`--home-hero-ticker-h` (T), decomposed from Hero.tsx's own spacing so they track any
+future change there automatically. Applied as a literal `padding-top`, not a margin
+inside a centered box — everything below About's title lays out at **fixed** gaps
+(`gap-xl` to the photos, `space-3xl` to the ticker) rather than being re-centered as one
+block the way Home's is. `verify-about-section.mjs`'s Home-constants guard exists so a
+drift in Hero.tsx's own geometry fails loudly instead of silently pulling About's title
+off Home's.
+
+**The peek is About-only.** About's hero uses `.viewport-fill-peek` (`.viewport-fill`
+shortened by `--hero-peek`, 30px) at every tier, so the section after it crops at the
+bottom edge instead of sitting flush — Home's own `.viewport-fill` and ticker are
+untouched, still flush to the fold with no peek.
+
+**Known tradeoff:** because About's content lays out at fixed gaps from a pinned title
+rather than being centered as a block, and nothing pins its ticker to the hero's bottom
+edge, blank space opens between the ticker and the hero's own bottom edge at tall
+viewports (up to ~350px at 1024×1366). This is inherent to the fixed-gap approach and
+was reviewed and accepted, not an oversight — flagged here in case a future pass wants
+`mt-auto` on the ticker instead, which would close that gap at the cost of the
+photo-to-ticker distance no longer being a flat 100px.
 
 ### Footer clock
 

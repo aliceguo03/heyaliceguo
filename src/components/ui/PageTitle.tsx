@@ -2,7 +2,7 @@
 
 import { FlipText } from "@/components/motion/FlipText";
 import { usePreviousRoute } from "@/components/motion/PageTransitionProvider";
-import { PAGE_TITLES, isPageTitleRoute } from "@/components/motion/pageTransition";
+import { PAGE_TITLES, flipSourceFor } from "@/components/motion/pageTransition";
 
 // The Gambarino display treatment used for page titles other than the
 // homepage wordmark (Wordmark.tsx, which owns its own per-letter load
@@ -25,12 +25,16 @@ import { PAGE_TITLES, isPageTitleRoute } from "@/components/motion/pageTransitio
 // (colorVar below) — unrelated to whichever route the flip is arriving
 // from, which supplies its own source color via `from`.
 export function PageTitle({ children }: { children: string }) {
-  // Non-null only when the previous route is itself a PAGE_TITLES entry
-  // (currently just "/") — arriving from anywhere else (a hard load, or a
-  // non-participating route like a case study) leaves this null and
-  // FlipText renders `children` as a plain, unanimated text node.
+  // null only on a hard load (previousRoute === null) — there's no load
+  // sequence on this page to defer to (unlike Wordmark's Home), so a hard
+  // load still renders `children` as a plain, unanimated text node. Every
+  // OTHER client-side arrival now flips, not just from "/": a known
+  // PAGE_TITLES source (currently just that route) flips from its own
+  // recorded title, and any other route (a case study, or any future
+  // non-participant) flips in from nothing — see flipSourceFor's own
+  // comment (pageTransition.ts).
   const previousRoute = usePreviousRoute();
-  const from = previousRoute && isPageTitleRoute(previousRoute) ? PAGE_TITLES[previousRoute] : null;
+  const from = flipSourceFor(previousRoute, PAGE_TITLES["/about"].colorVar);
 
   return (
     <h1 aria-label={children} className="text-display font-display text-center text-dark-gray">

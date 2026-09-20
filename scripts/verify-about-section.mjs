@@ -660,58 +660,121 @@ async function main() {
     await context.close();
   }
 
-  // ---- Mobile hero top-spacing follow-up ---------------------------------
+  // ---- Nav-to-title parity session ---------------------------------------
+  //
+  // Home's nav-to-title gap is a `my-auto` centering residual inside
+  // `.viewport-fill` (Hero.tsx), not a token — it tracks viewport height,
+  // not width tier. About now reads that same residual via
+  // `--home-title-offset` (globals.css) rather than a flat Figma number, so
+  // parity is checked as "resolves to the same value as Home" at a sweep of
+  // viewports, not against a hardcoded constant.
 
-  // Ticker fully visible without scrolling at real phone dimensions — the
-  // actual bug report. Also confirms title-to-photo stays exactly 50px
-  // (gap-xl, unaffected by the my-auto block's own external margins).
-  for (const [width, height] of [
-    [375, 667],
-    [430, 932],
-  ]) {
-    const context = await browser.newContext({ viewport: { width, height } });
-    const page = await context.newPage();
-    await page.goto(`${BASE}/about`, { waitUntil: "networkidle" });
-    const data = await page.evaluate((h) => {
+  async function heroMetrics(page) {
+    return page.evaluate(() => {
       const nav = [...document.querySelectorAll('nav[aria-label="Main"]')].filter(
         (n) => getComputedStyle(n).display !== "none",
       )[0];
       const h1 = document.querySelector("h1");
-      const stack = document.querySelector('button[aria-label="Show next photo in photostack"]');
-      const tickerTrack = document.querySelector(".ticker-track");
+      const heroBox = document.querySelector(".viewport-fill, .viewport-fill-peek");
+      const imgs = heroBox ? [...heroBox.querySelectorAll("img")].map((i) => i.getBoundingClientRect()) : [];
+      const tickerFade = heroBox?.querySelector(".ticker-fade");
       const navRect = nav?.getBoundingClientRect();
       const h1Rect = h1?.getBoundingClientRect();
-      const stackRect = stack?.getBoundingClientRect();
-      const tickerRect = tickerTrack?.getBoundingClientRect();
+      const heroRect = heroBox?.getBoundingClientRect();
+      const tickerRect = tickerFade?.getBoundingClientRect();
+      const photoTop = imgs.length ? Math.min(...imgs.map((r) => r.top)) : null;
+      const photoBottom = imgs.length ? Math.max(...imgs.map((r) => r.bottom)) : null;
       return {
         navToTitleGap: h1Rect && navRect ? h1Rect.top - navRect.bottom : null,
-        titleToPhotoGap: stackRect && h1Rect ? stackRect.top - h1Rect.bottom : null,
-        tickerFullyVisible: tickerRect ? tickerRect.top >= 0 && tickerRect.bottom <= h : null,
+        titleToPhotoGap: photoTop != null && h1Rect ? photoTop - h1Rect.bottom : null,
+        photoToTickerGap: photoBottom != null && tickerRect ? tickerRect.top - photoBottom : null,
+        tickerBottom: tickerRect?.bottom ?? null,
+        heroBottom: heroRect?.bottom ?? null,
+        svh: window.innerHeight,
       };
-    }, height);
+    });
+  }
+
+  // Home is the fixed reference: confirm its own constants (Hero.tsx's S/T,
+  // reproduced as --home-hero-content-h/--home-hero-ticker-h in globals.css)
+  // still hold, so a drift there fails loudly instead of silently pulling
+  // About's title off Home's. Ticker stays flush to the bottom edge — no
+  // peek on Home — except at 375x812, where Home's own content (824px)
+  // already exceeds its min-height box (718px) before this session's
+  // changes (confirmed against main): `min-height`, not `height`, so the
+  // box grows a few px past the fold by design rather than clipping. The
+  // assertion allows growth, only failing if the box falls short of it.
+  for (const [width, height, gap] of [
+    [375, 812, 50.0],
+    [430, 932, 107.0],
+    [1440, 900, 141.9],
+    [1710, 1107, 245.4],
+  ]) {
+    const context = await browser.newContext({ viewport: { width, height } });
+    const page = await context.newPage();
+    await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+    const m = await heroMetrics(page);
     record(
-      `hero @ ${width}x${height}: ticker fully visible without scrolling, title-to-photo gap unchanged (50px)`,
-      data.tickerFullyVisible === true && Math.abs(data.titleToPhotoGap - 50) < 0.5,
-      JSON.stringify(data),
+      `Home ${width}x${height}: nav-to-title gap unchanged (${gap}px), ticker flush to fold`,
+      Math.abs(m.navToTitleGap - gap) < 0.5 && m.heroBottom >= m.svh - 1 && m.heroBottom <= m.svh + 10,
+      JSON.stringify(m),
     );
     await context.close();
   }
 
-  // Tablet/desktop unaffected by the phone-tier centering fix — still the
-  // flat 212px (pt-4xl) Figma measurement.
-  for (const width of [1024, 1710]) {
-    const context = await browser.newContext({ viewport: { width, height: 900 } });
-    const page = await context.newPage();
-    await page.goto(`${BASE}/about`, { waitUntil: "networkidle" });
-    const gap = await page.evaluate(() => {
-      const nav = [...document.querySelectorAll('nav[aria-label="Main"]')].filter(
-        (n) => getComputedStyle(n).display !== "none",
-      )[0];
-      const h1 = document.querySelector("h1");
-      return h1 && nav ? h1.getBoundingClientRect().top - nav.getBoundingClientRect().bottom : null;
-    });
-    record(`${width}px: nav-to-title gap stays flat 212px (tablet/desktop unaffected)`, gap === 212, `gap=${gap}`);
-    await context.close();
+  // Parity sweep: About's title lands exactly where Home's does, at every
+  // tier and every viewport height (not just the widths patched before).
+  for (const [width, height] of [
+    [375, 812],
+    [430, 932],
+    [744, 1133],
+    [1024, 1366],
+    [1440, 760],
+    [1440, 900],
+    [1710, 1107],
+  ]) {
+    const homeCtx = await browser.newContext({ viewport: { width, height } });
+    const homePage = await homeCtx.newPage();
+    await homePage.goto(`${BASE}/`, { waitUntil: "networkidle" });
+    const home = await heroMetrics(homePage);
+    await homeCtx.close();
+
+    const aboutCtx = await browser.newContext({ viewport: { width, height } });
+    const aboutPage = await aboutCtx.newPage();
+    await aboutPage.goto(`${BASE}/about`, { waitUntil: "networkidle" });
+    const about = await heroMetrics(aboutPage);
+    await aboutCtx.close();
+
+    const delta = Math.abs(home.navToTitleGap - about.navToTitleGap);
+    record(
+      `${width}x${height}: nav-to-title gap identical on Home and About (parity)`,
+      delta < 0.5,
+      `home=${home.navToTitleGap} about=${about.navToTitleGap} delta=${delta}`,
+    );
+
+    // About-only: fixed gaps below the pinned title (not re-centered),
+    // ticker fully inside the hero box, and the following section peeks by
+    // exactly --hero-peek (30px) — Home has no peek, checked above.
+    record(
+      `${width}x${height}: About title-to-photo gap is 50px`,
+      Math.abs(about.titleToPhotoGap - 50) < 0.5,
+      `gap=${about.titleToPhotoGap}`,
+    );
+    record(
+      `${width}x${height}: About photo-to-ticker gap is 100px`,
+      Math.abs(about.photoToTickerGap - 100) < 0.5,
+      `gap=${about.photoToTickerGap}`,
+    );
+    record(
+      `${width}x${height}: About ticker fully inside the hero box (not clipped)`,
+      about.tickerBottom <= about.heroBottom + 0.5,
+      `tickerBottom=${about.tickerBottom} heroBottom=${about.heroBottom}`,
+    );
+    record(
+      `${width}x${height}: About hero peeks the next section by 30px`,
+      Math.abs(about.svh - about.heroBottom - 30) < 0.5,
+      `svh=${about.svh} heroBottom=${about.heroBottom}`,
+    );
   }
 
   // Short phone viewport: no overlap between nav/title or stack/ticker —

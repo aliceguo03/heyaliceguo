@@ -110,8 +110,39 @@ async function activeNavItem(page) {
   });
 }
 
+// Fix pass (item 1): PanelNav now mounts for the section's whole life (the
+// stacking transition slides it in/out rather than mounting/unmounting it),
+// so its mere presence in the DOM no longer tells you which layer is on
+// top. [data-panel-nav-layer]'s own `inert` state does — CasePanel.tsx
+// toggles it on `current`, the same discrete value that used to gate
+// whether PanelNav rendered at all. Falls back to the old presence check
+// when that layer doesn't exist at all (belowDesktop and reduced-motion
+// both render only one variant, with no stacking wrapper).
 async function panelVariant(page) {
-  return page.evaluate(() => (document.querySelector("nav[aria-label='Case study sections']") ? "nav" : "meta"));
+  return page.evaluate(() => {
+    const navLayer = document.querySelector("[data-panel-nav-layer]");
+    if (navLayer) return navLayer.inert ? "meta" : "nav";
+    return document.querySelector("nav[aria-label='Case study sections']") ? "nav" : "meta";
+  });
+}
+
+// The nav layer's own translateY, in px, read off its computed transform
+// matrix (matrix(a,b,c,d,tx,ty) — ty is index 5) rather than its inline
+// `style.transform`, so this reflects what the browser actually painted,
+// not the last value React happened to write. `getComputedStyle` resolves
+// the `y: "100%"/"0%"` percentage against the element's own box, so this
+// comes back as a real pixel number either way.
+async function navLayerY(page) {
+  return page.evaluate(() => {
+    const el = document.querySelector("[data-panel-nav-layer]");
+    if (!el) return null;
+    const t = getComputedStyle(el).transform;
+    if (t === "none") return 0;
+    const m = /matrix\(([^)]+)\)/.exec(t);
+    if (!m) return null;
+    const parts = m[1].split(",").map(Number);
+    return parts[5];
+  });
 }
 
 // --- Checks ------------------------------------------------------------------
@@ -367,7 +398,162 @@ async function main() {
       await context.close();
     }
 
-    // ---- Check 7: reduced motion — sticky stays, swap is instant -----------
+    // ---- Check 7: sidebar stacking transition (item 1, scroll-linked) ------
+    // The metadata->nav boundary is where section 0's own top crosses the
+    // reading line (same crossing check 3 already locates); the slide
+    // itself runs through a STACK_WINDOW-px scroll range centered on it
+    // (caseStudyGeometry.ts). Run at both the full (840px, 1710x1040) and
+    // compact (600px, 1440x760) shells, since a percentage `y` transform
+    // gets its slide distance from the layer's own height — a bug scoped to
+    // one variant wouldn't show up testing only the other.
+    {
+      const STACK_WINDOW = 300; // caseStudyGeometry.ts — re-tuned against real scroll feel
+
+      for (const { viewport, label } of [
+        { viewport: { width: 1710, height: 1040 }, label: "full (840px)" },
+        { viewport: { width: 1440, height: 760 }, label: "compact (600px)" },
+      ]) {
+        const context = await browser.newContext({ viewport });
+        const page = await context.newPage();
+        await page.goto(url, { waitUntil: "networkidle" });
+
+        const tops = await sectionTops(page);
+        const boundary = tops[0].top - viewport.height * 0.4;
+        const start = boundary - STACK_WINDOW / 2;
+        const end = boundary + STACK_WINDOW / 2;
+        // The layer's OWN rect height — a percentage `y` transform resolves
+        // against the element's own box. Since the review pass (item 3)
+        // moved the card's border/radius/padding/background onto this same
+        // layer element (rather than a shared, unmoving ancestor), its box
+        // is now the full shell height (840/600), matching panelRect below
+        // exactly — it's read independently here rather than assumed equal
+        // to panelRect, since the two coming apart is exactly the bug this
+        // check exists to catch.
+        const layerHeight = await page.evaluate(() => {
+          const el = document.querySelector("[data-panel-nav-layer]");
+          return el ? el.getBoundingClientRect().height : null;
+        });
+
+        await page.evaluate((y) => window.scrollTo(0, Math.max(0, y)), start - 200);
+        await sleep(150);
+        const beforeY = await navLayerY(page);
+        results.push({
+          name: `${label}: nav layer parked fully below the shell before the window`,
+          pass: beforeY !== null && layerHeight !== null && Math.abs(beforeY - layerHeight) < 2,
+          gating: true,
+          detail: `y=${beforeY} layerHeight=${layerHeight}`,
+        });
+
+        await page.evaluate((y) => window.scrollTo(0, y), end + 200);
+        await sleep(150);
+        const afterY = await navLayerY(page);
+        results.push({
+          name: `${label}: nav layer flush (y=0) well after the window`,
+          pass: afterY !== null && Math.abs(afterY) < 1,
+          gating: true,
+          detail: `y=${afterY}`,
+        });
+
+        // Monotonically decreasing across the window, 10px steps.
+        const downSamples = [];
+        for (let y = start - 20; y <= end + 20; y += 10) {
+          await page.evaluate((yy) => window.scrollTo(0, Math.max(0, yy)), y);
+          await sleep(40);
+          downSamples.push(await navLayerY(page));
+        }
+        const monotonicDown = downSamples.every((v, i) => i === 0 || v <= downSamples[i - 1] + 0.5);
+        results.push({
+          name: `${label}: slide is monotonically decreasing scrolling down`,
+          pass: monotonicDown,
+          gating: true,
+          detail: JSON.stringify(downSamples),
+        });
+
+        // Reversible: scroll back up through the same range and confirm the
+        // same values return (this is the "scrolling back up visibly slides
+        // the nav layer back down" requirement, measured, not eyeballed).
+        const upSamples = [];
+        for (let y = end + 20; y >= start - 20; y -= 10) {
+          await page.evaluate((yy) => window.scrollTo(0, Math.max(0, yy)), y);
+          await sleep(40);
+          upSamples.push(await navLayerY(page));
+        }
+        const downReversed = [...downSamples].reverse();
+        const reversible = upSamples.every((v, i) => Math.abs(v - downReversed[i]) < 1.5);
+        results.push({
+          name: `${label}: scrolling back up reverses the slide`,
+          pass: reversible,
+          gating: true,
+          detail: JSON.stringify({ up: upSamples, downReversed }),
+        });
+
+        // Review pass (item 1): a first pass gave the sliding layer a
+        // shadow, then removed it — at partial progress it bled onto the
+        // metadata layer's own not-yet-covered region, reading as a stray
+        // artifact rather than a leading edge casting depth. Sampled across
+        // the whole window (not just at rest) since that's specifically
+        // where the bled shadow showed up.
+        const noShadowSamples = [];
+        for (let y = start - 20; y <= end + 20; y += 20) {
+          await page.evaluate((yy) => window.scrollTo(0, Math.max(0, yy)), y);
+          await sleep(30);
+          noShadowSamples.push(
+            await page.evaluate(() => {
+              const el = document.querySelector("[data-panel-nav-layer]");
+              return el ? getComputedStyle(el).boxShadow : null;
+            }),
+          );
+        }
+        results.push({
+          name: `${label}: no box-shadow on the sliding layer at any point in the transition`,
+          pass: noShadowSamples.every((s) => s === "none"),
+          gating: true,
+          detail: JSON.stringify(noShadowSamples),
+        });
+
+        // Review pass (item 3): the border/radius/background used to live
+        // on a shared, unmoving shell — only the text slid while that
+        // chrome stayed fixed. Confirm the nav layer's OWN border now
+        // travels with it (present at every progress, not just at rest, and
+        // never on the shared ancestor any more) and the metadata layer
+        // carries the identical equivalent.
+        const chromeSamples = [];
+        for (const y of [start - 20, boundary, end + 20]) {
+          await page.evaluate((yy) => window.scrollTo(0, Math.max(0, yy)), y);
+          await sleep(60);
+          chromeSamples.push(
+            await page.evaluate(() => {
+              const nav = document.querySelector("[data-panel-nav-layer]");
+              const meta = document.querySelector("[data-panel-meta-layer]");
+              const shell = document.querySelector("[data-info-panel]");
+              // Tailwind's preflight reset sets `border-style: solid` on
+              // every element sitewide (width 0) so form controls inherit a
+              // border color for free later — borderStyle alone is "solid"
+              // everywhere regardless of whether a real border is applied.
+              // borderTopWidth is the actual signal: "1px" for a real
+              // border-divider border, "0px" for the reset default.
+              return {
+                navWidth: nav ? getComputedStyle(nav).borderTopWidth : null,
+                metaWidth: meta ? getComputedStyle(meta).borderTopWidth : null,
+                shellWidth: shell ? getComputedStyle(shell).borderTopWidth : null,
+              };
+            }),
+          );
+        }
+        results.push({
+          name: `${label}: each layer carries its own border (not the shared shell)`,
+          pass:
+            chromeSamples.every((s) => s.navWidth === "1px" && s.metaWidth === "1px") &&
+            chromeSamples.every((s) => s.shellWidth === "0px"),
+          gating: true,
+          detail: JSON.stringify(chromeSamples),
+        });
+
+        await context.close();
+      }
+    }
+
+    // ---- Check 8: reduced motion — sticky stays, swap is instant -----------
     {
       const context = await browser.newContext({ viewport: { width: 1710, height: 1040 }, reducedMotion: "reduce" });
       const page = await context.newPage();
@@ -379,6 +565,12 @@ async function main() {
         pass: !!rect && rect.cssTop === "106px",
         gating: true,
         detail: rect?.cssTop,
+      });
+
+      results.push({
+        name: "reduced motion: no scroll-linked stacking layer renders at all",
+        pass: !(await page.evaluate(() => !!document.querySelector("[data-panel-nav-layer]"))),
+        gating: true,
       });
 
       const tops = await sectionTops(page);
@@ -395,7 +587,7 @@ async function main() {
       await context.close();
     }
 
-    // ---- Check 8: deep link on cold load ------------------------------------
+    // ---- Check 9: deep link on cold load ------------------------------------
     {
       const context = await browser.newContext({ viewport: { width: 1710, height: 1040 } });
       const page = await context.newPage();

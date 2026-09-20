@@ -44,15 +44,30 @@ export function InfoPanel({
   children,
   fixed,
   compact = false,
+  chrome = true,
 }: {
   children: ReactNode;
   fixed: boolean;
   compact?: boolean;
+  // Fix pass (item 3, sidebar stacking transition): CasePanel.tsx's
+  // scroll-linked stacking mechanic needs the border/radius/padding/
+  // background to travel WITH whichever layer is moving, not sit fixed on
+  // this shared shell — otherwise only the text slides while the "card"
+  // chrome around it stays put. `false` there strips those classes from
+  // this div entirely and CasePanel.tsx applies the identical values to
+  // each of its two layers instead, so each one is a genuine self-contained
+  // card. Every other caller (the belowDesktop static box, and the
+  // reduced-motion single-layer render) keeps the default `true` — neither
+  // has anything sliding, so the shell owning its own chrome is correct
+  // there, unchanged from before this session.
+  chrome?: boolean;
 }) {
   return (
     <div
       data-info-panel
-      className="col-start-1 row-start-1 mb-lg rounded-card border border-divider p-lg tablet:mb-0 desktop:sticky desktop:shrink-0"
+      className={`col-start-1 row-start-1 mb-lg tablet:mb-0 desktop:sticky desktop:shrink-0 ${
+        chrome ? "rounded-card border border-divider p-lg" : ""
+      }`}
       style={fixed ? { top: STICKY_TOP, width: PANEL_W, height: compact ? PANEL_COMPACT_H : PANEL_H } : undefined}
     >
       {children}

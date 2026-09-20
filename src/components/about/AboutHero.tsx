@@ -10,12 +10,54 @@ import { HERO_PHOTO, HERO_W } from "./aboutGeometry";
 import { useAboutGeometry } from "./useAboutGeometry";
 
 // About's hero (Figma "hero section", 523:6849 desktop/tablet, "hero home"
-// 1049:9788 phone), page "final". Tablet/desktop: Figma's flat 850px — no
-// viewport-fill, unlike the homepage hero: About has no instruction in the
-// file to fill the viewport there, and the vertical rhythm (212px below
-// the nav, 30px to the next section) is Figma's own, not derived from
-// window height. This still holds at tablet/desktop; see the phone-tier
-// note below for where it now doesn't.
+// 1049:9788 phone), page "final". Figma's own vertical rhythm is a flat
+// 212px below the nav (desktop/tablet) or 100px (phone), in a fixed-height
+// composition with no scroll/viewport-fill instruction — but that number
+// only ever coincides with what's actually on screen at one specific
+// viewport height. The homepage's hero doesn't use a flat number either:
+// Hero.tsx centers its content with `my-auto` inside `.viewport-fill`
+// (`min-height: calc(100svh - nav-height)`), so its own nav-to-title gap
+// is a centering *residual* that tracks viewport height (measured: 50px at
+// 375x812, 107px at 430x932, 141.9px at 1440x900, 245.4px at 1710x1107 —
+// never Figma's flat 212/100 except by coincidence).
+//
+// Nav-to-title parity session: real screenshots showed About's title
+// landing anywhere from ~10px to ~163px away from Home's at the same
+// viewport, because the two pages computed the offset by different
+// mechanisms — Home's height-dependent residual vs. About's own flat
+// pt-4xl (tablet/desktop) or its own my-auto centering against its own,
+// much shorter content block (phone). Centering both pages independently
+// can't fix this: `my-auto` splits *whatever's left over* after each
+// page's own content height, and About's title+photos block (310px at
+// phone) is far shorter than Home's wordmark+bio+button block (673px), so
+// the two pages would always land at different offsets even using the
+// identical mechanism.
+//
+// Alice's call: Home is the fixed reference and does not change. About's
+// title instead reads Home's own residual directly — `--home-title-offset`
+// (globals.css), Hero.tsx's centering math reproduced in pure CSS from
+// Home's own content/ticker heights — so About's title lands exactly where
+// Home's does at every viewport height, regardless of what About's own
+// content below the title measures. That offset is applied as a literal
+// `padding-top` here, not a margin inside a centered flex box: everything
+// below the title then lays out at fixed gaps (gap-xl to the photos,
+// space-3xl to the ticker) rather than being re-centered as one block the
+// way Home's is. The tradeoff is blank space between the ticker and the
+// hero's own bottom edge at tall viewports, since nothing pins the ticker
+// to the bottom the way Home's ticker is (see --hero-peek below for why
+// that's fine here).
+//
+// This also means Home's `--home-hero-content-h`/`--home-hero-ticker-h`
+// tokens (globals.css) must stay in step with Hero.tsx's actual geometry —
+// verify-about-section.mjs's Home-constants guard exists so a drift there
+// fails loudly instead of silently pulling About's title off Home's.
+//
+// The hero uses `.viewport-fill-peek` (globals.css) — `.viewport-fill`
+// shortened by `--hero-peek` — at every tier, not just phone: this is what
+// lets the section after the hero (About's own frame) crop at the bottom
+// edge by exactly `--hero-peek`, matching the scroll affordance Home
+// already has by happening to fill the viewport exactly. Home's own
+// `.viewport-fill` and ticker are untouched — the peek is About-only.
 //
 // No side padding on this wrapper — same pattern as Hero.tsx. The 868px
 // title+photos column is centered independently via a fixed width at
@@ -34,95 +76,52 @@ import { useAboutGeometry } from "./useAboutGeometry";
 // different components (the stack owns its own drag/advance state), not
 // a class swap on the same markup — same reasoning Hero.tsx's own
 // PhotoStack/mobile split already uses (a JS boolean threaded down,
-// SSR-assumes-desktop, not a dual-render CSS toggle).
+// SSR-assumes-desktop, not a dual-render CSS toggle). That 980px boundary
+// governs row-vs-stack only now — the vertical spacing above and below it
+// is CSS-only and identical on both sides of it.
 //
 // `about.` itself needs no change: PageTitle already renders through
 // `text-display`, which steps 104->60 below 744 via globals.css's existing
 // mobile type ramp — a different, already-established boundary from this
 // file's own 980, and already correct with zero changes.
-//
-// Top-spacing follow-up (mobile hero photo stack session): the flat
-// 212px top gap (pt-4xl) was Figma's own tablet/desktop measurement,
-// carried unchanged into the phone-tier branch this session added — but
-// Figma has no phone-tier scroll/viewport-fill instruction to measure
-// that gap FROM (the file is a flat mock at one height), and 212px static
-// padding pushed the hero tall enough that the ticker sat below the fold
-// on real phone heights, never visible without scrolling. The homepage's
-// own mobile hero has the identical shape of problem and solves it by
-// NOT using a fixed top gap at all: Hero.tsx's section is `my-auto`
-// inside a `viewport-fill` (`min-height: calc(100svh - nav-height)`)
-// wrapper, so the gap above the wordmark grows or shrinks with whatever
-// vertical room the viewport actually has, confirmed to render 50px at
-// 375x667 and 107px at 430x932 — not one fixed number at any width.
-//
-// About's phone tier now adopts Hero.tsx's own mechanism verbatim:
-// viewport-fill (min-height: calc(100svh - nav-height)) + `my-auto` on
-// the title+stack block. Two things were tried and measured before this
-// one: plain `mt-auto` alone (all free space goes to the top gap only,
-// which at 430x932 gave a 377px nav-to-title gap — nearly 4x the
-// homepage's own 107px at the identical viewport, since About's
-// title+stack block is much shorter than the homepage's wordmark+bio+
-// button, so there's more leftover space and none of it was going toward
-// the photo-to-ticker gap the way the homepage's own centering does); and
-// a `flex-1`+`justify-center` wrapper sized to leave the ticker's own gap
-// fixed at gap-3xl — mathematically NOT equivalent to a real 50/50 split
-// (confirmed: it reproduces the exact same numbers as plain my-auto once
-// you account for where the "other half" of the space actually goes), so
-// it wasn't actually preserving anything plain my-auto didn't already
-// give for the SAME reason. Genuine my-auto centering and a flat
-// photo-to-ticker gap are mutually exclusive — splitting free space
-// evenly necessarily means BOTH margins grow with it, not just the top
-// one. Alice's own call, informed by that finding: let both breathe
-// together, matching Hero.tsx exactly rather than special-casing the
-// ticker's own gap to stay fixed. So the photo-to-ticker gap is NOT
-// pixel-unchanged from before this fix at every height — it grows in
-// lockstep with the top gap now, same as it always implicitly did on the
-// homepage (whose own "bottom gap" was never fixed either; it just has a
-// bio+button block sitting between photo and ticker, so nobody was
-// watching it the way About's gap-3xl was being watched here). Title-to-
-// photo (gap-xl, INSIDE the my-auto block, unaffected by the block's own
-// external margins) stays exactly 50px, unchanged. Tablet/desktop are
-// completely unaffected — this branch only ever renders at phone tier,
-// where the OLD flat-padding structure below already didn't apply.
 export function AboutHero() {
   const geo = useAboutGeometry();
   const stacked = geo.tier === "phone";
 
-  if (stacked) {
-    return (
-      <div className="viewport-fill flex w-full flex-col items-center gap-3xl pb-lg">
-        <div className="my-auto flex flex-col items-center gap-xl">
-          <PageTitle>about.</PageTitle>
-          <AboutPhotoStack />
-        </div>
-
-        <Ticker items={tools} />
-      </div>
-    );
-  }
-
   return (
-    <div className="flex w-full flex-col items-center gap-3xl pt-4xl pb-lg">
-      <div className="flex flex-col items-center gap-xl" style={{ width: HERO_W }}>
+    <div
+      className="viewport-fill-peek flex w-full flex-col items-center"
+      style={{ paddingTop: "var(--home-title-offset)" }}
+    >
+      <div
+        className="flex flex-col items-center gap-xl"
+        style={stacked ? undefined : { width: HERO_W }}
+      >
         <PageTitle>about.</PageTitle>
 
-        <div className="flex items-center justify-center gap-xl">
-          {ABOUT_HERO_PHOTOS.map((photo, index) => (
-            <Image
-              key={photo.src}
-              src={photo.src}
-              alt={photo.alt}
-              width={HERO_PHOTO}
-              height={HERO_PHOTO}
-              priority={index === 0}
-              loading={index === 0 ? undefined : "eager"}
-              className="rounded-card object-cover"
-            />
-          ))}
-        </div>
+        {stacked ? (
+          <AboutPhotoStack />
+        ) : (
+          <div className="flex items-center justify-center gap-xl">
+            {ABOUT_HERO_PHOTOS.map((photo, index) => (
+              <Image
+                key={photo.src}
+                src={photo.src}
+                alt={photo.alt}
+                width={HERO_PHOTO}
+                height={HERO_PHOTO}
+                priority={index === 0}
+                loading={index === 0 ? undefined : "eager"}
+                className="rounded-card object-cover"
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      <Ticker items={tools} />
+      <div className="w-full pt-3xl">
+        <Ticker items={tools} />
+      </div>
     </div>
   );
 }

@@ -113,14 +113,20 @@ export function CaseStudyBody({
   // against — the sections wrapper below is a descendant of it, however
   // deeply nested, so this one ref covers all of them regardless of count.
   const contentRef = useRef<HTMLDivElement>(null);
-  const { current, jumpTo } = useCaseStudyPanel(contentRef);
+  const { current, jumpTo, stackProgress } = useCaseStudyPanel(contentRef);
 
   return (
     <section
       className="grid w-full items-start gap-x-xl px-case-x pt-md pb-lg tablet:pt-xl tablet:pb-case-x desktop:pt-3xl"
       style={{ gridTemplateColumns: "var(--case-grid-cols)" }}
     >
-      <CasePanel project={project} sections={sections} current={current} onJump={jumpTo} />
+      <CasePanel
+        project={project}
+        sections={sections}
+        current={current}
+        stackProgress={stackProgress}
+        onJump={jumpTo}
+      />
 
       <div ref={contentRef} className="contents desktop:flex desktop:flex-col desktop:gap-3xl">
         <OverviewContent overview={overview} />

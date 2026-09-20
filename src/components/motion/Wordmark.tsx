@@ -4,7 +4,7 @@ import { motion } from "motion/react"
 import { EASE, LOAD } from "@/lib/motion"
 import { FlipText } from "./FlipText"
 import { usePreviousRoute } from "./PageTransitionProvider"
-import { PAGE_TITLES, isPageTitleRoute } from "./pageTransition"
+import { PAGE_TITLES, flipSourceFor } from "./pageTransition"
 
 // The hero wordmark: each letter rises into place while fading in, left→right,
 // with heavy overlap between letters — see CLAUDE.md "Component specs" →
@@ -14,10 +14,11 @@ import { PAGE_TITLES, isPageTitleRoute } from "./pageTransition"
 // Two DOM trees now, not one: the load-sequence path below (rise + fade,
 // unchanged) and the page-transition flip (FlipText — rotateX, a different
 // component entirely, see pageTransition.ts). They can never both apply to
-// one mount: `from` below is non-null only on a client-side arrival from
-// another PAGE_TITLES route, and useLoadSequence's own `play` is false
-// whenever that's true (see its own comment), so a mount is either
-// replaying the load sequence or flipping in, never both. The
+// one mount: `from` below (flipSourceFor, pageTransition.ts) is non-null on
+// any client-side arrival — a hard load is the only case it returns null
+// for — and useLoadSequence's own `play` is gated on exactly that same
+// `previousRoute === null` condition (see its own comment), so a mount is
+// either replaying the load sequence or flipping in, never both. The
 // reduced-motion / already-played path within the load-sequence tree
 // (play=false) still renders the exact same spans with initial===animate,
 // so *that* half keeps the "one DOM tree" guarantee CLAUDE.md's "Reduced
@@ -30,12 +31,14 @@ type WordmarkProps = {
 }
 
 export function Wordmark({ play, loaded }: WordmarkProps) {
-  // Non-null only when the previous route is itself a PAGE_TITLES entry
-  // (currently just "/about") — arriving from anywhere else (a hard load,
-  // or a non-participating route like a case study) leaves this null and
-  // FlipText renders WORDMARK_TEXT as a plain, unanimated text node.
+  // null only on a hard load (previousRoute === null) — the LOAD sequence
+  // below owns that case. Every OTHER client-side arrival now flips, not
+  // just from "/about": a known PAGE_TITLES source (currently just that
+  // route) flips from its own recorded title, and any other route (a case
+  // study, or any future non-participant) flips in from nothing — see
+  // flipSourceFor's own comment (pageTransition.ts).
   const previousRoute = usePreviousRoute()
-  const from = previousRoute && isPageTitleRoute(previousRoute) ? PAGE_TITLES[previousRoute] : null
+  const from = flipSourceFor(previousRoute, PAGE_TITLES["/"].colorVar)
 
   if (from) {
     return (

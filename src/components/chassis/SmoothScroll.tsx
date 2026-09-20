@@ -45,6 +45,18 @@ type ScrollOptions = {
   // fixed element like the sticky nav without duplicating its pixel height
   // here as a literal.
   offsetVar?: string;
+  // Fix pass (item 6): skips the animated sweep entirely — an instant jump,
+  // passed straight through to Lenis's own native `immediate` option
+  // (lenis.js's scrollTo, not a `duration: 0` approximation of it). Lenis's
+  // immediate branch sets animatedScroll/targetScroll synchronously, emits
+  // its 'scroll' event (with `userData` still attached — see
+  // PROGRAMMATIC_SCROLL_USER_DATA below, confirmed by reading lenis.js: it
+  // clears userData only AFTER this emit), and calls `onComplete`
+  // synchronously too, all before returning — so `focusDestination` below
+  // still fires, with no separate handling needed for this path. Used by
+  // the route-change effect below; not currently exposed to any other
+  // caller.
+  immediate?: boolean;
 };
 
 type ScrollToFn = (target: ScrollTarget, options?: ScrollOptions) => void;
@@ -167,11 +179,16 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
       offset,
       duration: DUR.scroll,
       easing: SCROLL_EASING,
+      // Lenis ignores duration/easing entirely on this path (see lenis.js —
+      // the immediate branch returns before either is read), so passing
+      // them above is harmless, not contradictory, when immediate is true.
+      immediate: options?.immediate,
       onComplete: focusDestination,
-      // Tags this call (and every 'scroll' event it fires while animating)
-      // as app-initiated — see useProjectSnap.ts, whose idle check must
-      // ignore BACK TO TOP / VIEW MY WORK / focus-follow-scroll landings,
-      // not just its own.
+      // Tags this call (and every 'scroll' event it fires while animating,
+      // or — under `immediate` — the single synchronous event it fires) as
+      // app-initiated — see useProjectSnap.ts, whose idle check must ignore
+      // BACK TO TOP / VIEW MY WORK / focus-follow-scroll landings, not just
+      // its own.
       userData: PROGRAMMATIC_SCROLL_USER_DATA,
     });
   }, []);
@@ -193,12 +210,30 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
   // subsumes Hero.tsx's former per-page fix for arriving at "/", which used
   // the identical scrollTo("top") call gated on its own load-sequence flag;
   // that special case is removed in favor of this one general fix.
+  //
+  // Fix pass (item 6): `{ immediate: true }` — this landing used to run the
+  // same animated DUR.scroll (1.2s) sweep as every button-triggered scroll,
+  // which is wrong specifically here: this isn't a user action to give
+  // feedback for, it's silently correcting Lenis's own stale internal state
+  // after a navigation that already happened instantly. From a scrolled
+  // position, that sweep is a visible, unrequested scroll-up that fires
+  // whileInView reveals on the destination page as it passes them, leaving
+  // them in a bad state before the (also animated) reset finishes — see
+  // ScrollReveal.tsx. `lenisRef.current?.resize()` runs first so Lenis
+  // re-measures the new page's own scroll limit before jumping — without
+  // it, an immediate jump to 0 is unaffected either way (0 is always in
+  // range), but this keeps the instance's cached dimensions from staying
+  // stale into whatever the user does next on the new page. Still tagged
+  // PROGRAMMATIC_SCROLL_USER_DATA (immediate doesn't skip that — see
+  // ScrollOptions.immediate's own comment), so useProjectSnap.ts and
+  // useCaseStudyPanel.ts's guards ignore it exactly as before.
   useEffect(() => {
     if (isFirstRoute.current) {
       isFirstRoute.current = false;
       return;
     }
-    scrollTo("top");
+    lenisRef.current?.resize();
+    scrollTo("top", { immediate: true });
   }, [pathname, scrollTo]);
 
   return (

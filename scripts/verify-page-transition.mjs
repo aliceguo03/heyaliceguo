@@ -13,7 +13,15 @@
 // see FlipText.tsx's own comment), data-flip-source / data-flip-dest (the
 // two letter layers — data-flip-source's mere presence in the DOM is the
 // "a flip is active" signal, since the static from=null branch never
-// renders it at all).
+// renders it at all — including the new empty-source case below, whose
+// source layer is present but contains zero characters).
+//
+// Fix pass (item 5, flipSourceFor): a route outside PAGE_TITLES is no
+// longer a blanket non-participant as a SOURCE — arriving at Home or About
+// from one now flips in from an empty source instead of rendering
+// statically. Check 5 below used to assert the opposite (no flip from a
+// case study); it's rewritten to assert the new behavior instead of
+// dropped, since "a case study -> Home fires no flip" is no longer true.
 
 import { chromium } from "playwright";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -68,6 +76,25 @@ async function navTo(page, linkName) {
     .getByRole("navigation", { name: "Main" })
     .getByRole("link", { name: linkName, exact: true })
     .click();
+}
+
+// Opens the WORK dropdown and clicks the first project — the one way this
+// script reaches a route outside PAGE_TITLES (a case study) without
+// hardcoding a slug. Returns the href it landed on.
+async function gotoFirstProject(page) {
+  await page
+    .getByRole("navigation", { name: "Main" })
+    .getByRole("button", { name: "WORK" })
+    .click();
+  const firstProjectLink = page
+    .getByRole("navigation", { name: "Main" })
+    .locator("#nav-work-menu a[href^='/work/']")
+    .first();
+  await firstProjectLink.waitFor({ state: "visible" });
+  const href = await firstProjectLink.getAttribute("href");
+  await firstProjectLink.click();
+  await page.waitForURL((url) => url.pathname === href);
+  return href;
 }
 
 async function main() {
@@ -171,9 +198,8 @@ async function main() {
     await context.close();
   }
 
-  // ---- Check 5: case study isolation — / -> a case study -> / produces
-  // no flip (source layer never appears), and the case study route itself
-  // has no <h1> at all.
+  // ---- Check 5: case study route itself has no <h1> at all (unchanged —
+  // case studies never render through FlipText/PageTitle either way).
   {
     const context = await browser.newContext({ viewport: { width: 1710, height: 960 } });
     const page = await context.newPage();
@@ -183,46 +209,135 @@ async function main() {
       { timeout: 4000 },
     );
 
-    // Open the WORK dropdown and click the first project.
+    const projectHref = await gotoFirstProject(page);
+    await sleep(150);
+
+    const caseStudyH1Count = await page.locator("h1").count();
+    record(`case study route (${projectHref}) renders no <h1>`, caseStudyH1Count === 0, `h1 count=${caseStudyH1Count}`);
+
+    await context.close();
+  }
+
+  // ---- Check 5b (item 5, flip in from nothing): a case study -> Home or
+  // -> About now DOES flip, from an empty source — the destination's own
+  // characters rotate in with nothing opposite them, rather than the title
+  // just appearing. Verifies both destinations (Wordmark and PageTitle),
+  // mid-flight source-layer presence, resting text/color, accessible name,
+  // and box stability throughout — the same shape as the known-direction
+  // flip checks above, applied to this new source case.
+  const UNMAPPED_SOURCE_DIRECTIONS = [
+    { link: "HOME", to: "/", destText: "alice guo.", destColor: INK },
+    { link: "ABOUT", to: "/about", destText: "about.", destColor: DARK_GRAY },
+  ];
+
+  for (const dir of UNMAPPED_SOURCE_DIRECTIONS) {
+    const context = await browser.newContext({ viewport: { width: 1710, height: 960 } });
+    const page = await context.newPage();
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await page.waitForFunction(
+      () => document.querySelector("#page-top")?.getAttribute("data-loaded") === "true",
+      { timeout: 4000 },
+    );
+
+    await gotoFirstProject(page);
+    await sleep(150);
+
+    await navTo(page, dir.link);
+    await page.waitForURL((url) => url.pathname === dir.to);
+
+    // Mid-flight: the source layer element exists (an active flip),
+    // holding zero characters (nothing to flip out).
+    await sleep(200);
+    const midFlight = await page.evaluate(() => {
+      const h1 = document.querySelector("h1");
+      const source = h1?.querySelector("[data-flip-source]");
+      return {
+        hasSource: !!source,
+        sourceCharCount: source ? source.querySelectorAll(":scope > span").length : null,
+      };
+    });
+    record(
+      `case study -> ${dir.to}: flip is active mid-flight (source layer present)`,
+      midFlight.hasSource === true,
+      JSON.stringify(midFlight),
+    );
+    record(
+      `case study -> ${dir.to}: source layer holds no characters (flip FROM nothing)`,
+      midFlight.sourceCharCount === 0,
+      JSON.stringify(midFlight),
+    );
+
+    // Box stability through the flip — same claim as the known-direction
+    // checks, since this is the same FlipText mechanic with an empty
+    // source, not a special-cased render.
+    const boxes = [];
+    for (let i = 0; i < 10; i++) {
+      const s = await h1State(page);
+      if (s) boxes.push({ left: s.left, width: s.width });
+      await sleep(80);
+    }
+    const stable = boxes.every(
+      (b) => Math.abs(b.left - boxes[0].left) < 1 && Math.abs(b.width - boxes[0].width) < 1,
+    );
+    record(`case study -> ${dir.to}: h1 box never resizes or drifts during the flip`, stable, JSON.stringify(boxes));
+
+    // Rest.
+    await sleep(800);
+    const atRest = await h1State(page);
+    record(`case study -> ${dir.to}: rests at destination text`, atRest?.text === dir.destText, JSON.stringify(atRest));
+    record(`case study -> ${dir.to}: rests at destination color`, atRest?.color === dir.destColor, `color=${atRest?.color}`);
+    record(
+      `case study -> ${dir.to}: accessible name is destination text at rest`,
+      atRest?.ariaLabel === dir.destText,
+      `ariaLabel=${atRest?.ariaLabel}`,
+    );
+
+    await context.close();
+  }
+
+  // ---- Check 5c: must NOT fire between two unmapped routes (case study ->
+  // case study) or from a mapped route to an unmapped one (Home/About ->
+  // case study) — both stay static, matching current (pre- and post-fix)
+  // behavior, since neither renders an h1 through FlipText/PageTitle at all.
+  {
+    const context = await browser.newContext({ viewport: { width: 1710, height: 960 } });
+    const page = await context.newPage();
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await page.waitForFunction(
+      () => document.querySelector("#page-top")?.getAttribute("data-loaded") === "true",
+      { timeout: 4000 },
+    );
+
+    // Home -> case study (mapped source, unmapped destination).
+    const firstHref = await gotoFirstProject(page);
+    await sleep(150);
+    let h1Count = await page.locator("h1").count();
+    record(`Home -> case study (${firstHref}): still renders no <h1>`, h1Count === 0, `h1 count=${h1Count}`);
+
+    // case study -> a different case study (both unmapped) — the WORK
+    // dropdown's SECOND entry, to land on a genuinely different route than
+    // the one already open.
     await page
       .getByRole("navigation", { name: "Main" })
       .getByRole("button", { name: "WORK" })
       .click();
-    const firstProjectLink = page
+    const secondProjectLink = page
       .getByRole("navigation", { name: "Main" })
       .locator("#nav-work-menu a[href^='/work/']")
-      .first();
-    await firstProjectLink.waitFor({ state: "visible" });
-    const projectHref = await firstProjectLink.getAttribute("href");
-    await firstProjectLink.click();
-    await page.waitForURL((url) => url.pathname === projectHref);
-    await sleep(150);
-
-    const caseStudyHasH1 = (await page.locator("h1").count()) > 0;
-    record(
-      `case study route (${projectHref}) renders no <h1>`,
-      !caseStudyHasH1,
-      `h1 count=${await page.locator("h1").count()}`,
-    );
-
-    // Navigate back to Home from the case study — no flip should fire.
-    await page
-      .getByRole("navigation", { name: "Main" })
-      .getByRole("link", { name: "HOME", exact: true })
-      .click();
-    await page.waitForURL((url) => url.pathname === "/");
-
-    let sawSource = false;
-    for (let i = 0; i < 20; i++) {
-      const s = await h1State(page);
-      if (s?.hasSource) sawSource = true;
-      await sleep(50);
+      .nth(1);
+    if (await secondProjectLink.count()) {
+      await secondProjectLink.waitFor({ state: "visible" });
+      const secondHref = await secondProjectLink.getAttribute("href");
+      await secondProjectLink.click();
+      await page.waitForURL((url) => url.pathname === secondHref);
+      await sleep(150);
+      h1Count = await page.locator("h1").count();
+      record(
+        `case study -> case study (${firstHref} -> ${secondHref}): still renders no <h1>`,
+        h1Count === 0,
+        `h1 count=${h1Count}`,
+      );
     }
-    record(
-      "case study -> Home: no flip fires (case studies are non-participants)",
-      !sawSource,
-      `sawSource=${sawSource}`,
-    );
 
     await context.close();
   }

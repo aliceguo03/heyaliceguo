@@ -509,6 +509,50 @@
   }
 }
 
+/* Home's own hero content height (S) and ticker block height (T),
+   decomposed from Hero.tsx's structure rather than hardcoded, so any
+   change to Hero.tsx's spacing or the mobile type ramp keeps these in
+   step automatically: S = space-xl + wordmark line-box + space-xl +
+   hero-images height + space-xl; T = ticker line-height + its own bottom
+   pad. --home-hero-images-h is Figma's "hero images" frame height
+   (441:5968 = 313 at >=744, 988:7307 = 475 below it) — the one number here
+   with no existing token, since it isn't itself a spacing value. Spot-
+   checked against Hero.tsx's rendered geometry: 546.2 / 76 at >=744,
+   673 / 51 below it.
+   --home-title-offset below is Hero.tsx's own `my-auto` centering
+   residual, reproduced in pure CSS: (100svh - nav - S - T) split evenly
+   top/bottom, plus the section's own space-xl top padding. This is what
+   About's hero reads for its own top offset — see AboutHero.tsx's comment
+   for why About derives Home's residual instead of a flat Figma number or
+   its own content height. */
+:root {
+  --home-hero-images-h: 475px;
+  --home-hero-content-h: calc(
+    var(--spacing-xl) + (var(--text-display) * var(--text-display--line-height)) + var(--spacing-xl) +
+      var(--home-hero-images-h) + var(--spacing-xl)
+  );
+  --home-hero-ticker-h: calc(var(--text-mono--line-height) + var(--spacing-lg));
+}
+@media (width >= 744px) {
+  :root {
+    --home-hero-images-h: 313px;
+    --home-hero-ticker-h: calc(var(--text-mono--line-height) + var(--spacing-xl));
+  }
+}
+:root {
+  --home-title-offset: calc(
+    max(0px, 100svh - var(--spacing-nav-height) - var(--home-hero-content-h) - var(--home-hero-ticker-h)) / 2 +
+      var(--spacing-xl)
+  );
+}
+
+/* The sliver of the section after the hero that peeks past the fold —
+   About only; Home's ticker stays flush to the bottom edge, untouched.
+   One token: deepen or shallow the peek by changing this alone. */
+:root {
+  --hero-peek: var(--spacing-lg);
+}
+
 /* BlackButton.tsx's own height ramp. Session R3. Below 744, this component
    forces no explicit height at all — letting py-btn-y (16px, unchanged at
    every width) plus the mobile-stepped --text-mono line-height (26 -> 21,
@@ -764,6 +808,13 @@ html.lenis body {
    browser chrome can't break it later. */
 .viewport-fill {
   min-height: calc(100svh - var(--spacing-nav-height));
+}
+
+/* Same mechanic, shortened by --hero-peek — About's hero only. Home's
+   .viewport-fill above is untouched. See AboutHero.tsx and --hero-peek's
+   own comment above. */
+.viewport-fill-peek {
+  min-height: calc(100svh - var(--spacing-nav-height) - var(--hero-peek));
 }
 
 /* Role ticker (Ticker.tsx) — a continuous marquee, not a discrete transition,

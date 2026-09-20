@@ -101,6 +101,19 @@ export const PROJECTS: Project[] = [
     accent: "#4839cd",
     color: "var(--color-project-f3global)",
     gradient: "/projects/gradients/gradient-f3global.png",
+    // Accent/F3 Gradient (736:6065, confirmed identical on a second node,
+    // the "30+" stat numeral at 736:6109), pulled fresh this session — the
+    // first version of this field. Before this, `caseStudyGradient` was
+    // absent and F3Global's case-study text fell back to wrapping
+    // gradient-f3global.png (the home card's own image asset) in url() —
+    // see this type's own comment on why that was a coincidence, not by
+    // design. This is a real CSS gradient paint instead, same as every
+    // other project's case-study accent; gradient-f3global.png above is
+    // unchanged and still the home/Work card's own background. Checked
+    // against --color-porcelain with scripts/check-gradient-contrast.mjs:
+    // worst point 6.55:1 at the 0% stop (#5344d9) — clears both the 3:1
+    // large-text floor this gradient needs and 4.5:1 with room to spare.
+    caseStudyGradient: "linear-gradient(90deg, #5344d9 0%, #1d41a3 41.346%, #231979 100%)",
     thumbnail: "/projects/f3global.jpg",
     video: "/projects/f3global.mp4",
   },
@@ -120,12 +133,19 @@ export const PROJECTS: Project[] = [
     accent: "#127b89",
     color: "var(--color-project-chase)",
     gradient: "/projects/gradients/gradient-chase.png",
-    // Accent/Chase Gradient (736:6375), re-read after this project's own
-    // second edit (colors only) — a real CSS gradient paint, not an image
-    // fill (see Project.caseStudyGradient's own comment). Distinct from
-    // gradient-chase.png above, which is a separate, unedited asset (the
-    // home/Work card background, 441:5989).
-    caseStudyGradient: "linear-gradient(180deg, #1e8694 0%, #0199ae 43.75%, #249fb5 88.942%)",
+    // Accent/Chase Gradient (736:6310, confirmed identical on a second
+    // node, the "15+" stat numeral at 760:7132), re-pulled fresh this
+    // session after you edited its colors again in Figma — a real CSS
+    // gradient paint, not an image fill (see Project.caseStudyGradient's
+    // own comment). Distinct from gradient-chase.png above, which is a
+    // separate, unedited asset (the home/Work card background, 441:5989) —
+    // only this field changes. Re-verified against --color-porcelain with
+    // scripts/check-gradient-contrast.mjs after the edit: worst point
+    // 4.04:1 at 43% (#3b8993, the interpolated color right at the mid
+    // stop), clearing both the 3:1 large-text floor this gradient needs and
+    // 4.5:1 — the ~2.05:1 defect this gradient carried before its Figma
+    // correction is gone, not just assumed fixed.
+    caseStudyGradient: "linear-gradient(180deg, #1e8694 0%, #3c8993 43.75%, #08768a 88.942%)",
     thumbnail: "/projects/chase.jpg",
   },
   {
