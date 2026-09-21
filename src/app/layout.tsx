@@ -48,6 +48,7 @@ const satoshi = localFont({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://heyaliceguo.com"),
   title: {
     default: "alice guo product design portfolio",
     template: "%s | alice guo product design portfolio",

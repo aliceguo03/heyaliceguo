@@ -608,6 +608,125 @@ The footer shows local San Diego time. Rendering this on the server causes a
 hydration mismatch. Render client-side after mount with a placeholder for the
 server pass.
 
+### Footer — rotating quote system
+
+Desktop-tier footer only (`Footer.tsx`, the `>=--breakpoint-footer-desktop`
+variant, currently 1024px). Sixteen unattributed quotes plus one default
+(`src/content/quotes.ts`, attribution kept only as code comments), unlocked in
+three tiers as a visitor navigates deeper into the site:
+
+- TIER_1 (9 quotes, DEFAULT_QUOTE among them) — always in the pool.
+- TIER_2 (5 quotes) — added at nav-depth 6+.
+- TIER_3 (3 quotes) — added at nav-depth 16+.
+
+Every quote is stored **ALL CAPS, literally** — same sitewide convention as
+every other capitalized label (`SectionLabel`'s "SELECTED WORK.", `about.ts`'s
+`header`, CLAUDE.md rule 9) — never a CSS `text-transform`.
+
+**First load is deterministic.** `DEFAULT_QUOTE` ("A DESIGNER IS A PLANNER WITH
+AN AESTHETIC SENSE.") renders directly in the initial markup — identical on
+server and client, so it's the `useState` initializer itself, no client-only
+effect and no null-initial state needed for this one render (unlike the
+clock's `useSanDiegoTime`, which this hook otherwise mirrors). Random selection
+only takes over from the first client-side navigation onward. Kept in the
+TIER_1 pool afterward rather than retired, so it isn't lost from rotation.
+
+**Nav-depth counter.** A module-scope variable (`useFooterQuote.ts`), not
+`sessionStorage` — hard rule 6 forbids browser storage outright, and this isn't
+an exception to it, just a different, allowed mechanism (same pattern as
+`useLoadSequence.ts`'s `hasPlayed` flag). Increments once per *client-side*
+route change; a hard reload re-evaluates the module and resets to 0. The guard
+against React's dev-only StrictMode double-invoking the mount effect is **not**
+a cleanup that undoes the increment — a cleanup fires before every re-run, not
+only before a synthetic remount, so an early draft that tried this silently
+undid every *real* navigation's increment too, permanently freezing the
+counter at 0 in every environment (a real bug, not a dev-only artifact). The
+fix that's actually safe against duplicate invocations: track the last
+pathname actually processed, and no-op if the incoming one repeats it.
+
+**Selection.** Picked client-only, in an effect. Never repeats the
+immediately-previous quote when the current pool has more than one option —
+this holds for the very first navigation too, correctly excluding
+`DEFAULT_QUOTE` since it's still "the last quote shown" at that point.
+
+**Reroll.** A small icon button (Figma `1096:10268`, `ArrowClockwiseIcon.tsx`),
+hidden until hover/focus on the quote area, `aria-label="Show another quote"`.
+Rerolls within the current pool only — reads whatever `navDepth` already is,
+never advances it, so a locked tier is unreachable by construction rather than
+by a guard that could be forgotten. Same no-immediate-repeat rule. Usable
+immediately, even before the first navigation. Positioned by
+`useFooterQuoteLayout.ts`, not CSS — see Layout below.
+
+**Layout — natural minimum-line wrapping, computed in JS.** Each quote is a
+single unbroken string (`Quote = string`), not pre-broken lines. Rather than
+letting the browser wrap it (this project's first attempt at this), the real
+lines are computed by `footerQuoteFit.ts`'s `fitQuoteLines` — a greedy
+word-wrap against a real, DOM-measured available width, run in
+`useFooterQuoteLayout.ts` (a `useLayoutEffect`, ResizeObserver-driven, same
+shape as `useAboutPin.ts`'s own real-block-height measurements) and rendered
+as fixed `<span>`s, not CSS wrap. Three things plain CSS genuinely can't do,
+which is why this is measured/computed rather than left to `white-space:
+normal` the way the previous session tried:
+
+- **Line 1 has a narrower budget than the rest**, because the reload button
+  sits beside it: `line1Width = availableWidth - buttonWidth(26) -
+  minimumGap(16)`, every other line gets the full `availableWidth`. CSS has
+  no "this box's first line is narrower" primitive short of float/
+  shape-outside, and even those can't feed a JS-computed reservation in.
+- **No dangling single-word last line.** A final pass rebalances a lone
+  orphaned last word by pulling the previous line's last word down (Alice's
+  own worked example: "...OR BELIEVE TO / BE BEAUTIFUL." not "...OR BELIEVE
+  TO BE / BEAUTIFUL."), but only if the rebalanced line still fits its own
+  budget — an orphan that genuinely can't be fixed is left alone rather than
+  forced to overflow. `text-wrap: pretty` covers some of this in some
+  browsers today; relying on it would mean silently reverting to a possible
+  orphan wherever it isn't supported.
+- **The button sits at a truly fixed gap from wherever line 1's text
+  actually starts**, not from the container box's edge. A right-aligned
+  short first line inside a wider box leaves ragged space on its left; a
+  static CSS gap from the box edge would vary with that raggedness. The
+  fix measures line 1's REAL rendered `getBoundingClientRect().left` after
+  it paints and writes the button's position directly from that (imperative,
+  not React state — nothing else needs to re-render off it), locked to
+  exactly the gap that was already correct in the single-line case
+  (`MINIMUM_GAP`, 16px — mirrors `--spacing-footer-quote-gap`, kept in sync
+  by hand same as `lib/motion.ts`'s `BREAKPOINT_TABLET`). The reload button
+  is `position: absolute` for this reason — it no longer needs to be a flex
+  sibling to have its width accounted for, since the line-1 budget above
+  already does that in JS.
+
+`availableWidth` itself is `row1.width - cluster.width`, both read live off
+the DOM (never a flat number) — this is what preserves the earlier session's
+fix (short quotes render on one line at wide viewports; only narrow as real
+room shrinks), now serving the fitting function instead of a CSS `max-width`.
+Real flex siblings (cluster `shrink-0`) still can't overlap the button/text
+structurally, but the reservation is what keeps the text from ever crowding
+closer than `MINIMUM_GAP` to it in the first place.
+
+**No flash on recompute.** `lines` state never resets to null after its first
+value lands — a quote change or a resize swaps directly from the old fitted
+lines to the new ones, never through an empty/intermediate state. The one
+unavoidable exception: real font-metric measurement can't run during SSR, so
+even the deterministic `DEFAULT_QUOTE` needs one client pass before its fitted
+lines exist. Footer.tsx renders the pre-line-fitting-session markup (plain CSS
+wrap, button as an ordinary flex sibling) as a fallback for that one render,
+rather than nothing — a hard load shows real text immediately and swaps to the
+fitted version a frame later, not a pop-in from empty space.
+
+The row's own height is locked (`h-icon`, matching the cluster's single-line
+height) with overflow left at its CSS default (visible), so a 1-4 line quote
+never changes the row's own box height or pushes the row below it down.
+`--breakpoint-footer-desktop` is not content-derived (real flex siblings can't
+overlap, structurally) — it's `--breakpoint-laptop`'s own value. Re-verify
+with `scripts/verify-footer-quote.mjs`, `scripts/verify-footer-quote-wrap.mjs`
+(the gap/orphan/no-crowding checks specifically), and
+`scripts/verify-breakpoints.mjs` after any change to the pool, the layout, or
+the breakpoint.
+
+No `aria-live` on the quote itself (it changes on every navigation; announcing
+it each time would be noise over the route change), and no attribution
+rendered anywhere.
+
 ---
 
 ## Third-party component protocol

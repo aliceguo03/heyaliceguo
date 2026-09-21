@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { AnchorHTMLAttributes, ReactNode } from "react";
 
 // Sitewide inline text link (Figma "any link", 694:5286, variants regular /
@@ -24,16 +25,35 @@ import type { AnchorHTMLAttributes, ReactNode } from "react";
 // applies a global 2px solid outline (--color-deep-black, 3px offset) to
 // every :focus-visible, explicitly marked "Do not remove" — inventing a
 // link-specific ring here would be design that isn't in the file.
+//
+// An `href` starting with "/" is an internal route (e.g. a bio line pointing
+// at its own case study) and renders through next/link, matching every
+// other internal link on the site (Button.tsx, Nav, Footer) — a plain <a>
+// would force a full page reload and skip PageTransitionProvider /
+// SmoothScroll's route-change handling. Every other href (the common case
+// for this component — About body copy, case-study segments) stays a plain
+// <a>, unchanged.
 export function InlineLink({
   children,
   className,
+  href,
   ...rest
-}: { children: ReactNode; className?: string } & AnchorHTMLAttributes<HTMLAnchorElement>) {
+}: { children: ReactNode; className?: string; href: string } & Omit<
+  AnchorHTMLAttributes<HTMLAnchorElement>,
+  "href"
+>) {
+  const classes = `text-accent-blue-light transition-colors duration-200 ease-standard hover:text-accent-blue ${className ?? ""}`;
+
+  if (href.startsWith("/")) {
+    return (
+      <Link href={href} className={classes} {...rest}>
+        {children}
+      </Link>
+    );
+  }
+
   return (
-    <a
-      className={`text-accent-blue-light transition-colors duration-200 ease-standard hover:text-accent-blue ${className ?? ""}`}
-      {...rest}
-    >
+    <a href={href} className={classes} {...rest}>
       {children}
     </a>
   );

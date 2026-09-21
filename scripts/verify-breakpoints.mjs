@@ -4,17 +4,29 @@
 // globals.css's "Breakpoints" comment. --breakpoint-footer moved from 499 to
 // 519 in Session R1.1 Part C when the tablet footer's shell padding was
 // corrected to match Figma (see that comment) and cost the row 20px of
-// content width. --breakpoint-footer-desktop (1124) was added in Part D:
-// the desktop-tier footer's quote row was gated at --breakpoint-laptop
-// (1024), reused from the page-padding ramp and never independently
-// measured against this row's own content — it actually wraps from 1024
-// to 1123. Run on demand with
-// `node scripts/verify-breakpoints.mjs` — not wired into `build` or `test`.
-// Harness plumbing copied verbatim from verify-project-section.mjs.
+// content width.
 //
-// Each breakpoint gets checked in BOTH directions, deliberately, not just
-// "does it still fit at the number we picked": the floor is only real if
-// the component also breaks just below it. Asserting only the holds-at
+// --breakpoint-footer-desktop went through several quote-driven values
+// (1124, 1137, 1175) before the natural-minimum-line-wrapping session
+// removed the quote-overlap failure mode entirely (the quote is a real,
+// shrinking/wrapping flex sibling now, not an absolutely-positioned,
+// nowrap-forced block) and reverted it to --breakpoint-laptop's own value,
+// 1024 — see that token's own comment in globals.css for the full history.
+// Because it's no longer content-derived, the desktop-tier checks below
+// only assert it HOLDS (no unexpected wrap, no overlap) — there's no
+// "breaks just below" direction to assert anymore, since nothing in this
+// row actually fails at any width down to 700px (verified by hand while
+// re-deriving this). scripts/verify-footer-quote.mjs owns the checks that
+// exercise the quote mechanism's own behavior across that range.
+//
+// Run on demand with `node scripts/verify-breakpoints.mjs` — not wired into
+// `build` or `test`. Harness plumbing copied verbatim from
+// verify-project-section.mjs.
+//
+// --breakpoint-footer and --breakpoint-nav ARE still content-derived, so
+// those two get checked in BOTH directions, deliberately, not just "does it
+// still fit at the number we picked": the floor is only real if the
+// component also breaks just below it. Asserting only the holds-at
 // direction would let the true floor silently drift upward (a copy change
 // that makes something wrap sooner) without ever failing — the check would
 // just keep passing at the old number while quietly protecting less than
@@ -29,7 +41,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 const FOOTER_BREAKPOINT = 519;
 const NAV_BREAKPOINT = 644;
-const FOOTER_DESKTOP_BREAKPOINT = 1124;
+const FOOTER_DESKTOP_BREAKPOINT = 1024;
 const MIN_GUTTER = 20; // the page-x ramp's own floor value (--spacing-md)
 
 // --- Harness plumbing (shared shape with verify-project-section.mjs) -------
@@ -110,14 +122,31 @@ async function readFooterWraps(page) {
 // with a footer-index parameter — readFooterWraps's own DOM-order comment
 // is what a caller needs to get right, and duplicating the four-line body
 // here keeps that comment attached to the tier it actually describes.
+//
+// The quote paragraph is deliberately EXCLUDED from the generic wrap check
+// below — since the natural-minimum-line-wrapping session, the quote is
+// SUPPOSED to wrap into more lines as the row narrows (CLAUDE.md "Footer
+// quote"), so flagging that here would be reporting correct, intended
+// behavior as a failure. What still matters, and is checked separately: the
+// quote can never overlap the circle-back cluster, which real flexbox
+// (both siblings `shrink-0`/shrinking normally, not one absolutely
+// positioned over the other) guarantees structurally rather than by a
+// measured margin — this assertion exists to catch a regression if that
+// layout ever changes back, not because the margin is expected to be tight.
 async function readDesktopFooterWraps(page) {
   return page.evaluate(() => {
     const footers = document.querySelectorAll("footer");
     footers[0].style.display = "flex";
     footers[1].style.display = "none";
     footers[2].style.display = "none";
+    const row1 = footers[0].firstElementChild;
+    const cluster = row1?.children[0];
+    const quoteGroup = row1?.children[1];
+    const quoteP = quoteGroup?.querySelector("p");
+
     const wrapped = [];
     for (const el of footers[0].querySelectorAll("p, a")) {
+      if (el === quoteP) continue;
       const text = el.textContent.trim();
       if (!text) continue;
       const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
@@ -126,6 +155,19 @@ async function readDesktopFooterWraps(page) {
         wrapped.push({ text, height: Math.round(height), lineHeight: Math.round(lineHeight) });
       }
     }
+
+    if (cluster && quoteGroup) {
+      const clusterRect = cluster.getBoundingClientRect();
+      const quoteRect = quoteGroup.getBoundingClientRect();
+      if (quoteRect.width > 0 && quoteRect.left < clusterRect.right) {
+        wrapped.push({
+          text: "[quote overlaps circle-back cluster]",
+          height: Math.round(clusterRect.right - quoteRect.left),
+          lineHeight: 0,
+        });
+      }
+    }
+
     return wrapped;
   });
 }
@@ -300,11 +342,11 @@ async function main() {
       await context.close();
     }
 
-    // ---- Footer (desktop tier): holds with no wrap at the breakpoint and
-    // above — Session R1.1 Part D. 1440 is worth keeping in this list even
+    // ---- Footer (desktop tier): holds with no unexpected wrap or overlap
+    // at the breakpoint and above. 1440 is worth keeping in this list even
     // though it's well above the breakpoint: it's where --page-x steps
-    // 30->50, and the quote row needs re-confirming it doesn't re-wrap
-    // across that step (it doesn't — the row only gains width there). -----
+    // 30->50. No forced quote needed any more (see file header) — the real,
+    // randomly-picked quote is whatever loads. -----------------------------
     for (const width of [FOOTER_DESKTOP_BREAKPOINT, 1200, 1439, 1440]) {
       const context = await browser.newContext({ viewport: { width, height: 900 } });
       const page = await context.newPage();
@@ -313,38 +355,43 @@ async function main() {
       await sleep(200);
       const wrapped = await readDesktopFooterWraps(page);
       results.push({
-        name: `footer desktop tier: no wrap at ${width}px`,
+        name: `footer desktop tier: no unexpected wrap/overlap at ${width}px`,
         pass: wrapped.length === 0,
         gating: true,
         detail: wrapped.length
           ? wrapped.map((w) => `"${w.text}" (${w.height}px / ${w.lineHeight}px line)`).join(", ")
-          : "no wrapped text",
+          : "clean",
       });
       await context.close();
     }
 
-    // ---- Footer (desktop tier): breaks just below the breakpoint --------
-    // Same intentional-tightness reasoning as the other two boundaries'
-    // checks above (see file header).
-    {
-      const width = FOOTER_DESKTOP_BREAKPOINT - 1;
+    // ---- Footer (desktop tier): the quote never overlaps the cluster,
+    // swept across the whole practical range down to well below the
+    // breakpoint — not just "holds at the number we picked." There's no
+    // "breaks just below" assertion here (unlike --breakpoint-footer/-nav
+    // above): nothing in this row actually fails at any of these widths, by
+    // construction (see file header) — this just guards against a future
+    // layout change quietly reintroducing the overlap the old absolute-
+    // positioned version had to be measured against. ----------------------
+    for (const width of [700, 800, 900, 1000, FOOTER_DESKTOP_BREAKPOINT - 1]) {
       const context = await browser.newContext({ viewport: { width, height: 900 } });
       const page = await context.newPage();
       await page.goto(base, { waitUntil: "networkidle" });
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
       await sleep(200);
       const wrapped = await readDesktopFooterWraps(page);
+      const overlap = wrapped.filter((w) => w.text.includes("overlaps"));
       results.push({
-        name: `footer desktop tier: DOES wrap at ${width}px (confirms the floor is real)`,
-        pass: wrapped.length > 0,
+        name: `footer desktop tier (forced visible below its own floor): no overlap at ${width}px`,
+        pass: overlap.length === 0,
         gating: true,
-        detail: wrapped.length ? wrapped.map((w) => `"${w.text}"`).join(", ") : "nothing wrapped — floor may have moved",
+        detail: overlap.length ? overlap.map((w) => w.text).join(", ") : "clean",
       });
       await context.close();
     }
 
     // ---- Footer: the actual --breakpoint-footer-desktop switch lands
-    // exactly at 1124 — reads the real, un-forced markup. ------------------
+    // exactly at 1024 — reads the real, un-forced markup. ------------------
     for (const [width, expectDesktop] of [
       [FOOTER_DESKTOP_BREAKPOINT, true],
       [FOOTER_DESKTOP_BREAKPOINT - 1, false],

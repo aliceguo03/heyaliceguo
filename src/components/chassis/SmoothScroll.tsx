@@ -101,7 +101,18 @@ function readOffsetPx(varName: string) {
 export function SmoothScroll({ children }: { children: ReactNode }) {
   const lenisRef = useRef<Lenis | null>(null);
   const pathname = usePathname();
-  const isFirstRoute = useRef(true);
+  // Last pathname this effect actually processed — not a `hasRunOnce`
+  // boolean ref, which a dev-only React Strict Mode double-invoke (mount,
+  // cleanup, remount) corrupts: the first invocation would flip it, so the
+  // synthetic remount then sees "not first" and fires the branch below on
+  // what is still, in reality, the initial hard load. That's what put a
+  // stray :focus-visible ring on the wordmark on a plain reload in dev only
+  // (confirmed via a production build — no ring there at all). Comparing
+  // against the last pathname actually processed is idempotent under a
+  // duplicate invocation instead: nothing changed pathname in between, so
+  // the second call is a no-op regardless of how many times it fires. Same
+  // fix shape as useFooterQuote.ts's nav-depth counter.
+  const lastPathname = useRef(pathname);
 
   // useLayoutEffect, not useEffect: React fires every component's layout
   // effects (whole tree, bottom-up) before any component's passive effects
@@ -228,10 +239,8 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
   // ScrollOptions.immediate's own comment), so useProjectSnap.ts and
   // useCaseStudyPanel.ts's guards ignore it exactly as before.
   useEffect(() => {
-    if (isFirstRoute.current) {
-      isFirstRoute.current = false;
-      return;
-    }
+    if (pathname === lastPathname.current) return;
+    lastPathname.current = pathname;
     lenisRef.current?.resize();
     scrollTo("top", { immediate: true });
   }, [pathname, scrollTo]);
